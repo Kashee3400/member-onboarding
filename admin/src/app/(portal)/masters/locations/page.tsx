@@ -1,12 +1,11 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Plus } from "lucide-react";
+import { Info, MapPin } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
-import { CheckRow } from "@/components/admin/check-row";
 import { FormDialog } from "@/components/admin/form-dialog";
 import { DataTable, FilterSelect, type Column } from "@/components/common/data-table";
 import { Field } from "@/components/common/field";
@@ -24,78 +23,45 @@ import type { PlaceMaster } from "@/lib/types";
 type Tab = "states" | "districts" | "tehsils" | "villages" | "hamlets";
 type Row = PlaceMaster & Partial<Record<"state" | "district" | "tehsil" | "village", string>>;
 
-/** Each level and the one above it, which a row must name. */
+/** Each level and the one above it. */
 const LEVELS: {
   key: Tab;
   label: string;
   one: string;
   parent?: { field: "state" | "district" | "tehsil" | "village"; kind: MasterKind; label: string };
-  code: { pattern?: string; maxLength: number; help: string };
 }[] = [
-  {
-    key: "states",
-    label: "States",
-    one: "State",
-    code: { pattern: "\\d{2}", maxLength: 2, help: "2 digits, like 09. Every member code starts with it." },
-  },
-  {
-    key: "districts",
-    label: "Districts",
-    one: "District",
-    parent: { field: "state", kind: "states", label: "State" },
-    code: { maxLength: 10, help: "As in the ERP." },
-  },
-  {
-    key: "tehsils",
-    label: "Tehsils",
-    one: "Tehsil",
-    parent: { field: "district", kind: "districts", label: "District" },
-    code: { maxLength: 10, help: "As in the ERP." },
-  },
-  {
-    key: "villages",
-    label: "Villages",
-    one: "Village",
-    parent: { field: "tehsil", kind: "tehsils", label: "Tehsil" },
-    code: { pattern: "\\d{8}", maxLength: 8, help: "8 digits. The middle of every member code." },
-  },
-  {
-    key: "hamlets",
-    label: "Hamlets",
-    one: "Hamlet",
-    parent: { field: "village", kind: "villages", label: "Village" },
-    code: { pattern: "\\d{2}", maxLength: 2, help: "2 digits, numbered within the village." },
-  },
+  { key: "states", label: "States", one: "State" },
+  { key: "districts", label: "Districts", one: "District", parent: { field: "state", kind: "states", label: "State" } },
+  { key: "tehsils", label: "Tehsils", one: "Tehsil", parent: { field: "district", kind: "districts", label: "District" } },
+  { key: "villages", label: "Villages", one: "Village", parent: { field: "tehsil", kind: "tehsils", label: "Tehsil" } },
+  { key: "hamlets", label: "Hamlets", one: "Hamlet", parent: { field: "village", kind: "villages", label: "Village" } },
 ];
 
-function LocationForm({ level, item, onClose }: { level: (typeof LEVELS)[number]; item: Row | null; onClose: () => void }) {
+/**
+ * The ERP has tehsil codes but no names, so a tehsil's name is the one thing set here.
+ * Everything else comes from the ERP through the masters import.
+ */
+function TehsilName({ item, onClose }: { item: Row; onClose: () => void }) {
   const client = useQueryClient();
-  const [parent, setParent] = useState((level.parent && item?.[level.parent.field]) ?? "");
-  const [active, setActive] = useState(item?.is_active ?? true);
-
   const save = useMutation({
-    mutationFn: (body: object) =>
-      item
-        ? api(`hierarchy/${level.key}/${item.id}`, { method: "PATCH", body })
-        : api(`hierarchy/${level.key}`, { method: "POST", body }),
+    mutationFn: (body: object) => api(`hierarchy/tehsils/${item.id}`, { method: "PATCH", body }),
     onSuccess: () => {
-      // MPPs under an edited place change with it.
+      // The MPPs in this tehsil, and forms not yet submitted, show the new name.
       client.invalidateQueries({ queryKey: ["hierarchy"] });
-      toast.success(`${level.one} saved.`);
+      toast.success("Tehsil name saved.");
       onClose();
     },
   });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const fields = Object.fromEntries(new FormData(event.currentTarget));
-    save.mutate({ ...fields, is_active: active, ...(level.parent ? { [level.parent.field]: parent } : {}) });
+    save.mutate(Object.fromEntries(new FormData(event.currentTarget)));
   };
 
   return (
     <FormDialog
-      title={item ? `${level.one} ${item.code}` : `Add ${level.one.toLowerCase()}`}
-      description={item ? "The MPPs here, and forms not yet submitted, follow the change." : undefined}
+      title={`Tehsil ${item.code}`}
+      description={`${item.parent_label ?? ""}. The code comes from the ERP; only the name is set here.`}
       onClose={onClose}
       onSubmit={submit}
       error={save.error}
@@ -104,50 +70,18 @@ function LocationForm({ level, item, onClose }: { level: (typeof LEVELS)[number]
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={save.isPending || (!!level.parent && !parent)}>
+          <Button type="submit" disabled={save.isPending}>
             {save.isPending ? "Saving…" : "Save"}
           </Button>
         </>
       }
     >
-      {level.parent ? (
-        <Field label={level.parent.label}>
-          <MasterSelect
-            kind={level.parent.kind}
-            placeholder={`Choose a ${level.parent.label.toLowerCase()}`}
-            clearable={false}
-            value={parent}
-            onChange={setParent}
-          />
-        </Field>
-      ) : null}
-      <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
-        <Field label="Code" htmlFor="code" help={level.code.help}>
-          <Input
-            id="code"
-            name="code"
-            required
-            pattern={level.code.pattern}
-            maxLength={level.code.maxLength}
-            defaultValue={item?.code}
-            className="font-mono"
-            autoFocus
-          />
-        </Field>
-        <Field label="Name" htmlFor="name">
-          <Input id="name" name="name" required defaultValue={item?.name} />
-        </Field>
-      </div>
-      <Field label="Name in Hindi" htmlFor="name_hi" optional>
-        <Input id="name_hi" name="name_hi" lang="hi" defaultValue={item?.name_hi} />
+      <Field label="Name" htmlFor="name">
+        <Input id="name" name="name" required defaultValue={item.name === item.code ? "" : item.name} autoFocus />
       </Field>
-      <CheckRow
-        className="-mx-2"
-        label="Active"
-        hint="Inactive places stay on the MPPs and forms that have them."
-        checked={active}
-        onChange={setActive}
-      />
+      <Field label="Name in Hindi" htmlFor="name_hi" optional>
+        <Input id="name_hi" name="name_hi" lang="hi" defaultValue={item.name_hi} />
+      </Field>
     </FormDialog>
   );
 }
@@ -199,21 +133,22 @@ export default function LocationsPage() {
   const params = useSearchParams();
   const level = LEVELS.find((entry) => entry.key === params.get("tab")) ?? LEVELS[0];
   const canManage = useCan("hierarchy.manage");
-  const [editing, setEditing] = useState<{ item: Row | null } | null>(null);
+  const [naming, setNaming] = useState<Row | null>(null);
+  const nameable = canManage && level.key === "tehsils";
 
   return (
     <>
       <PageHeader
         title="Locations"
-        description="State, district, tehsil, village and hamlet. An MPP's place fills its forms, and facilitators can't change it."
-        actions={
-          canManage ? (
-            <Button onClick={() => setEditing({ item: null })}>
-              <Plus /> Add {level.one.toLowerCase()}
-            </Button>
-          ) : null
-        }
+        description="State, district, tehsil, village and hamlet, as in the ERP. They come in through the masters import under Hierarchy, and fill each MPP's forms."
       />
+      <p className="flex items-start gap-2 border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+        <span>
+          Read-only: a change here would drift from the ERP and the member codes built from it. The one exception is a
+          tehsil&apos;s name, which the ERP does not keep. Open a tehsil to name it.
+        </span>
+      </p>
 
       <Tabs value={level.key} onValueChange={(next) => router.replace(`${pathname}?tab=${next}`, { scroll: false })}>
         <TabsList>
@@ -234,7 +169,7 @@ export default function LocationsPage() {
         searchPlaceholder="Search by code or name"
         defaultOrdering="code"
         exportName={level.key}
-        onRowClick={canManage ? (item) => setEditing({ item }) : undefined}
+        onRowClick={nameable ? setNaming : undefined}
         empty={
           <EmptyState
             icon={MapPin}
@@ -263,7 +198,7 @@ export default function LocationsPage() {
         )}
       />
 
-      {editing ? <LocationForm level={level} item={editing.item} onClose={() => setEditing(null)} /> : null}
+      {naming ? <TehsilName item={naming} onClose={() => setNaming(null)} /> : null}
     </>
   );
 }

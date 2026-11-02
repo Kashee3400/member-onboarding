@@ -121,6 +121,14 @@ class TehsilSerializer(_PlaceSerializer):
         return _label(tehsil.district)
 
 
+class TehsilNameSerializer(serializers.ModelSerializer):
+    """Only the names: the code and its district come from the ERP."""
+
+    class Meta:
+        model = Tehsil
+        fields = ["name", "name_hi"]
+
+
 class VillageSerializer(_PlaceSerializer):
     parent_label = serializers.SerializerMethodField()
 
@@ -201,6 +209,8 @@ class MppSerializer(CodeUniqueMixin, serializers.ModelSerializer):
         ]
         # Linked to a village, these come from it instead.
         extra_kwargs = {"village_code": {"required": False}}
+        # The place comes from the ERP through the masters import, never typed in here.
+        read_only_fields = ["village", "hamlet", "post_office", "pincode"]
         # The rule below explains a clash better than the generic unique message.
         validators = []
 

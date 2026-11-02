@@ -49,6 +49,7 @@ from .serializers import (
     PlantSerializer,
     RouteSerializer,
     StateSerializer,
+    TehsilNameSerializer,
     TehsilSerializer,
     VillageSerializer,
 )
@@ -217,8 +218,12 @@ class RouteViewSet(_MasterViewSet):
 
 
 class _PlaceViewSet(_MasterViewSet):
-    """A location master. An edit carries the MPPs under it along."""
+    """
+    A location master, filled only from the ERP by the masters import, so it never
+    drifts from the codes member codes are built from. Read-only here.
+    """
 
+    http_method_names = ["get", "head", "options"]
     kind = ""
     search_fields = ["code", "name", "name_hi"]
     ordering_fields = ["code", "name", "created_at"]
@@ -246,7 +251,14 @@ class DistrictViewSet(_PlaceViewSet):
 
 
 class TehsilViewSet(_PlaceViewSet):
+    """The ERP has tehsil codes but no names, so a tehsil's name is the one thing set here."""
+
+    http_method_names = ["get", "patch", "head", "options"]
     kind = "tehsil"
+
+    def get_serializer_class(self):
+        return TehsilNameSerializer if self.action == "partial_update" else TehsilSerializer
+
     queryset = Tehsil.objects.select_related("district")
     serializer_class = TehsilSerializer
     filterset_fields = {

@@ -94,8 +94,8 @@ function MasterForm({
   const route = tab === "routes" ? (item as Route | null) : null;
   const [parent, setParent] = useState(mpp?.mcc ?? mcc?.plant ?? bmc?.mcc ?? route?.bmc ?? "");
   const [routeId, setRouteId] = useState(mpp?.route ?? "");
-  const [villageId, setVillageId] = useState(mpp?.village ?? "");
-  const [hamletId, setHamletId] = useState(mpp?.hamlet ?? "");
+  // Linked to a village by the ERP import, its codes come from there and are not typed.
+  const linked = !!mpp?.village;
   const [active, setActive] = useState(item?.is_active ?? true);
 
   const save = useMutation({
@@ -120,7 +120,7 @@ function MasterForm({
       ...(tab === "bmcs" ? { mcc: parent } : {}),
       ...(tab === "routes" ? { bmc: parent } : {}),
       ...(tab === "mpps"
-        ? { mcc: parent, route: routeId || null, village: villageId || null, hamlet: hamletId || null }
+        ? { mcc: parent, route: routeId || null }
         : {}),
     });
   };
@@ -202,40 +202,41 @@ function MasterForm({
         <>
           <FormSection
             title="Place"
-            description="Fills the address on this MPP's forms, and facilitators can't change it."
+            description="Comes from the ERP through the masters import, and fills this MPP's forms. Facilitators can't change it."
           >
-            <Field label="Revenue village" optional help="Its code, and the state code, then come from the village.">
-              <MasterSelect
-                kind="villages"
-                placeholder="Choose a village"
-                value={villageId}
-                onChange={(value) => {
-                  setVillageId(value);
-                  setHamletId("");
-                }}
-              />
-            </Field>
-            <Field label="Hamlet" optional>
-              <MasterSelect
-                kind="hamlets"
-                disabled={!villageId}
-                placeholder={villageId ? "Choose a hamlet" : "Choose a village first"}
-                value={hamletId}
-                filters={{ village: villageId || undefined }}
-                onChange={setHamletId}
-              />
-            </Field>
+            {mpp?.place.village_name || mpp?.place.tehsil ? (
+              <dl className="grid gap-x-4 gap-y-1.5 border bg-muted/40 p-3 text-sm sm:grid-cols-2">
+                {(
+                  [
+                    ["Revenue village", mpp.place.village_name],
+                    ["Hamlet", mpp.place.hamlet_name],
+                    ["Tehsil", mpp.place.tehsil],
+                    ["District", mpp.place.district],
+                    ["State", mpp.place.state],
+                    ["Post office", mpp.place.post_office],
+                    ["PIN code", mpp.place.pincode],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="truncate">{value || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-muted-foreground">Not loaded yet. Import the masters file from the ERP.</p>
+            )}
             {/* Disabled fields are left out of the form, so the server takes them from the village. */}
             <Field
               label="Village code"
               htmlFor="village_code"
-              help={villageId ? "From the village." : "8 digits, from the ERP."}
+              help={linked ? "From the village." : "8 digits, from the ERP."}
             >
               <Input
                 id="village_code"
                 name="village_code"
-                required={!villageId}
-                disabled={!!villageId}
+                required={!linked}
+                disabled={linked}
                 pattern="\d{8}"
                 inputMode="numeric"
                 maxLength={8}
@@ -243,7 +244,7 @@ function MasterForm({
                 className="font-mono"
               />
             </Field>
-            {villageId ? null : (
+            {linked ? null : (
               <Field label="Village name" htmlFor="village_name" optional>
                 <Input id="village_name" name="village_name" defaultValue={mpp?.village_name} />
               </Field>
@@ -253,12 +254,12 @@ function MasterForm({
                 label="State code"
                 htmlFor="state_code"
                 optional
-                help={villageId ? "From the village." : "2 digits, like 09 for Uttar Pradesh."}
+                help={linked ? "From the village." : "2 digits, like 09 for Uttar Pradesh."}
               >
                 <Input
                   id="state_code"
                   name="state_code"
-                  disabled={!!villageId}
+                  disabled={linked}
                   pattern="\d{2}"
                   inputMode="numeric"
                   maxLength={2}
@@ -270,12 +271,12 @@ function MasterForm({
                 label="Hamlet code"
                 htmlFor="hamlet_code"
                 optional
-                help={hamletId ? "From the hamlet." : "2 digits, after the village code."}
+                help={mpp?.hamlet ? "From the hamlet." : "2 digits, after the village code."}
               >
                 <Input
                   id="hamlet_code"
                   name="hamlet_code"
-                  disabled={!!hamletId}
+                  disabled={!!mpp?.hamlet}
                   pattern="\d{2}"
                   inputMode="numeric"
                   maxLength={2}
@@ -283,26 +284,7 @@ function MasterForm({
                   className="font-mono"
                 />
               </Field>
-              <Field label="Post office" htmlFor="post_office" optional>
-                <Input id="post_office" name="post_office" maxLength={100} defaultValue={mpp?.post_office} />
-              </Field>
-              <Field label="PIN code" htmlFor="pincode" optional>
-                <Input
-                  id="pincode"
-                  name="pincode"
-                  pattern="[1-9]\d{5}"
-                  inputMode="numeric"
-                  maxLength={6}
-                  defaultValue={mpp?.pincode}
-                  className="font-mono"
-                />
-              </Field>
             </div>
-            {mpp && mpp.village === villageId && mpp.place.tehsil ? (
-              <p className="text-xs text-muted-foreground">
-                {[mpp.place.tehsil, mpp.place.district, mpp.place.state].filter(Boolean).join(", ")}
-              </p>
-            ) : null}
           </FormSection>
           <Field
             label="ERP internal code"

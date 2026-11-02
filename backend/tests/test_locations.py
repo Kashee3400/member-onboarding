@@ -81,46 +81,58 @@ def place_row(mpp="2001", village="00300001", district="183", tehsil="00951", **
 # Masters -----------------------------------------------------------------------------
 
 
-def test_the_chain_can_be_built_and_filtered_by_parent(world):
+def test_the_chain_is_read_and_filtered_by_parent(world):
+    state, *_ = place_chain(world.org)
     admin = world.client(world.admin)
-    state = admin.post(f"{API}states/", {"code": "09", "name": "Uttar Pradesh"})
-    assert state.status_code == 201, state.content
-    district = admin.post(
-        f"{API}districts/", {"state": state.data["id"], "code": "183", "name": "Bhadohi"}
-    )
-    assert district.status_code == 201, district.content
-    tehsil = admin.post(
-        f"{API}tehsils/", {"district": district.data["id"], "code": "00951", "name": "Gyanpur"}
-    )
-    village = admin.post(
-        f"{API}villages/", {"tehsil": tehsil.data["id"], "code": "00209982", "name": "Dudwa"}
-    )
-    hamlet = admin.post(
-        f"{API}hamlets/", {"village": village.data["id"], "code": "03", "name": "Purva"}
-    )
-    assert hamlet.status_code == 201, hamlet.content
-    assert hamlet.data["parent_label"] == "00209982 - Dudwa"
 
-    listed = admin.get(f"{API}tehsils/", {"district__state": state.data["id"]}).data
+    listed = admin.get(f"{API}tehsils/", {"district__state": str(state.id)}).data
+    hamlet = admin.get(f"{API}hamlets/").data["results"][0]
+
     assert [item["code"] for item in listed["results"]] == ["00951"]
+    assert hamlet["parent_label"] == "00209982 - Dudwa Kalan"
     assert admin.get(f"{API}villages/", {"q": "dud"}).data["count"] == 1
     assert admin.get(f"{API}villages/", {"q": "nowhere"}).data["count"] == 0
 
 
-def test_codes_are_checked(world):
+def test_locations_come_only_from_the_erp_import(world):
+    state, district, tehsil, village, hamlet = place_chain(world.org)
     admin = world.client(world.admin)
-    state, *_, village, _ = place_chain(world.org)
-    assert admin.post(f"{API}states/", {"code": "9", "name": "X"}).status_code == 400
-    assert admin.post(f"{API}states/", {"code": "09", "name": "Again"}).status_code == 400
-    hamlet = {"village": str(village.id), "code": "03", "name": "Same number"}
-    assert admin.post(f"{API}hamlets/", hamlet).status_code == 400
-    village_payload = {"tehsil": str(village.tehsil_id), "code": "123", "name": "Short"}
-    assert admin.post(f"{API}villages/", village_payload).status_code == 400
+
+    assert admin.post(f"{API}states/", {"code": "10", "name": "Bihar"}).status_code == 405
+    assert admin.patch(f"{API}districts/{district.id}/", {"name": "X"}).status_code == 405
+    assert admin.patch(f"{API}villages/{village.id}/", {"name": "X"}).status_code == 405
+    assert admin.patch(f"{API}hamlets/{hamlet.id}/", {"name": "X"}).status_code == 405
+    assert (
+        admin.post(
+            f"{API}tehsils/", {"district": str(district.id), "code": "1", "name": "X"}
+        ).status_code
+        == 405
+    )
 
 
-def test_only_hierarchy_managers_change_locations(world):
+def test_a_tehsil_name_can_be_set_but_not_its_code(world):
+    mpp = placed(world)
+    admin = world.client(world.admin)
+    tehsil = mpp.village.tehsil
+
+    response = admin.patch(
+        f"{API}tehsils/{tehsil.id}/",
+        {"name": "Gyanpur Sadar", "name_hi": "ज्ञानपुर सदर", "code": "99999"},
+    )
+
+    assert response.status_code == 200, response.content
+    with organization_context(world.org.id):
+        tehsil.refresh_from_db()
+    assert (tehsil.name, tehsil.code) == ("Gyanpur Sadar", "00951")
+    assert world.client(world.facilitator).get(f"{API}mpps/").data["results"][0]["place"][
+        "tehsil"
+    ] == ("Gyanpur Sadar")
+
+
+def test_only_hierarchy_managers_name_tehsils(world):
+    *_, tehsil, _, _ = place_chain(world.org)
     facilitator = world.client(world.facilitator)
-    assert facilitator.post(f"{API}states/", {"code": "10", "name": "Bihar"}).status_code == 403
+    assert facilitator.patch(f"{API}tehsils/{tehsil.id}/", {"name": "X"}).status_code == 403
 
 
 def test_another_organization_sees_none_of_them(world, org_b, admin_b):
@@ -133,56 +145,17 @@ def test_another_organization_sees_none_of_them(world, org_b, admin_b):
 # An MPP's place -----------------------------------------------------------------------
 
 
-def test_a_linked_mpp_takes_its_codes_from_the_masters(world):
+def test_an_mpps_place_cannot_be_typed_in(world):
     *_, village, hamlet = place_chain(world.org, village_code="00400004")
-    admin = world.client(world.admin)
 
-    response = admin.patch(
+    response = world.client(world.admin).patch(
         f"{API}mpps/{world.mpp.id}/",
         {"village": str(village.id), "hamlet": str(hamlet.id), "pincode": "221406"},
     )
 
     assert response.status_code == 200, response.content
-    assert response.data["village_code"] == "00400004"
-    assert response.data["state_code"] == "09"
-    assert response.data["hamlet_code"] == "03"
-    assert response.data["place"]["tehsil"] == "Gyanpur"
-    assert response.data["place"]["village_name"] == "Dudwa Kalan"
-
-
-def test_a_hamlet_must_be_in_the_mpps_village(world):
-    *_, village, _ = place_chain(world.org)
-    with organization_context(world.org.id):
-        tehsil = village.tehsil
-        elsewhere = Village.objects.create(tehsil=tehsil, code="00500005", name="Elsewhere")
-        stray = Hamlet.objects.create(village=elsewhere, code="01", name="Stray")
-
-    response = world.client(world.admin).patch(
-        f"{API}mpps/{world.mpp.id}/", {"village": str(village.id), "hamlet": str(stray.id)}
-    )
-
-    assert response.status_code == 400
-    assert "hamlet" in response.data["error"]["details"]
-
-
-def test_a_bad_pincode_is_refused(world):
-    response = world.client(world.admin).patch(f"{API}mpps/{world.mpp.id}/", {"pincode": "12"})
-    assert response.status_code == 400
-
-
-def test_editing_a_master_carries_its_mpps_along(world):
-    mpp = placed(world)
-    admin = world.client(world.admin)
-
-    state = mpp.village.tehsil.district.state
-    assert admin.patch(f"{API}states/{state.id}/", {"code": "10"}).status_code == 200
-    renamed = admin.patch(f"{API}villages/{mpp.village_id}/", {"name": "Dudwa Khurd"})
-    assert renamed.status_code == 200
-
-    with organization_context(world.org.id):
-        mpp.refresh_from_db()
-    assert mpp.state_code == "10"
-    assert mpp.village_name == "Dudwa Khurd"
+    assert response.data["village"] is None
+    assert response.data["pincode"] == ""
 
 
 def test_the_app_gets_each_mpps_place_with_its_mpps(world):
