@@ -6,6 +6,8 @@ from apps.organizations.models import Membership
 
 from .models import (
     Bmc,
+    District,
+    Hamlet,
     Mcc,
     MccAssignment,
     MccCover,
@@ -14,7 +16,11 @@ from .models import (
     Plant,
     Responsibility,
     Route,
+    State,
+    Tehsil,
+    Village,
 )
+from .services import mpp_place
 
 
 def _person(membership) -> dict:
@@ -79,7 +85,100 @@ def _two_digits(value: str) -> str:
     return value
 
 
+def _label(place) -> str:
+    return f"{place.code} - {place.name}"
+
+
+class _PlaceSerializer(CodeUniqueMixin, serializers.ModelSerializer):
+    PLACE_FIELDS = ["id", "code", "name", "name_hi", "is_active"]
+
+
+class StateSerializer(_PlaceSerializer):
+    class Meta:
+        model = State
+        fields = _PlaceSerializer.PLACE_FIELDS
+
+
+class DistrictSerializer(_PlaceSerializer):
+    parent_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = District
+        fields = ["state", *_PlaceSerializer.PLACE_FIELDS, "parent_label"]
+
+    def get_parent_label(self, district) -> str:
+        return _label(district.state)
+
+
+class TehsilSerializer(_PlaceSerializer):
+    parent_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tehsil
+        fields = ["district", *_PlaceSerializer.PLACE_FIELDS, "parent_label"]
+
+    def get_parent_label(self, tehsil) -> str:
+        return _label(tehsil.district)
+
+
+class VillageSerializer(_PlaceSerializer):
+    parent_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Village
+        fields = ["tehsil", *_PlaceSerializer.PLACE_FIELDS, "parent_label"]
+
+    def get_parent_label(self, village) -> str:
+        return _label(village.tehsil)
+
+
+class HamletSerializer(serializers.ModelSerializer):
+    """Numbered within its village, so the same two digits recur across villages."""
+
+    parent_label = serializers.SerializerMethodField()
+    code = serializers.RegexField(r"^\d{2}$")
+
+    class Meta:
+        model = Hamlet
+        fields = ["village", *_PlaceSerializer.PLACE_FIELDS, "parent_label"]
+        validators = []
+
+    def get_parent_label(self, hamlet) -> str:
+        return _label(hamlet.village)
+
+    def validate(self, attrs):
+        current = self.instance
+        village = attrs.get("village", current.village if current else None)
+        code = attrs.get("code", current.code if current else "")
+        clash = Hamlet.objects.filter(village=village, code=code)
+        if current:
+            clash = clash.exclude(pk=current.pk)
+        if clash.exists():
+            raise serializers.ValidationError({"code": ["This village already has this hamlet."]})
+        return attrs
+
+
+class MppPlaceSerializer(serializers.Serializer):
+    """Keyed as the form's address fields. Empty means the masters do not know it yet."""
+
+    pooling_point_code = serializers.CharField()
+    village_name = serializers.CharField()
+    village_code = serializers.CharField()
+    hamlet_name = serializers.CharField()
+    hamlet_code = serializers.CharField()
+    post_office = serializers.CharField()
+    tehsil = serializers.CharField()
+    tehsil_code = serializers.CharField()
+    district = serializers.CharField()
+    district_code = serializers.CharField()
+    state = serializers.CharField()
+    state_code = serializers.CharField()
+    pincode = serializers.CharField()
+
+
 class MppSerializer(CodeUniqueMixin, serializers.ModelSerializer):
+    place = serializers.SerializerMethodField()
+
     class Meta:
         model = Mpp
         fields = [
@@ -89,19 +188,30 @@ class MppSerializer(CodeUniqueMixin, serializers.ModelSerializer):
             "code",
             "source_code",
             "name",
+            "village",
+            "hamlet",
             "village_code",
             "village_name",
             "state_code",
             "hamlet_code",
+            "post_office",
+            "pincode",
+            "place",
             "is_active",
         ]
+        # Linked to a village, these come from it instead.
+        extra_kwargs = {"village_code": {"required": False}}
         # The rule below explains a clash better than the generic unique message.
         validators = []
 
-    def validate_series(self, value):
+    @extend_schema_field(MppPlaceSerializer)
+    def get_place(self, mpp) -> dict:
+        return mpp_place(mpp)
+
+    def validate_state_code(self, value):
         return _two_digits(value)
 
-    def validate_segment(self, value):
+    def validate_hamlet_code(self, value):
         return _two_digits(value)
 
     def validate(self, attrs):
@@ -111,9 +221,22 @@ class MppSerializer(CodeUniqueMixin, serializers.ModelSerializer):
         if route and route.bmc.mcc_id != mcc.id:
             raise serializers.ValidationError({"route": ["This route is under another MCC."]})
 
-        village = attrs.get("village_code", current.village_code if current else "")
+        village = attrs.get("village", current.village if current else None)
+        hamlet = attrs.get("hamlet", current.hamlet if current else None)
+        if hamlet and hamlet.village_id != getattr(village, "id", None):
+            raise serializers.ValidationError({"hamlet": ["This hamlet is in another village."]})
+        if village:
+            attrs["village_code"] = village.code
+        if hamlet:
+            attrs["hamlet_code"] = hamlet.code
+
+        village_code = attrs.get("village_code", current.village_code if current else "")
+        if not village_code:
+            raise serializers.ValidationError(
+                {"village_code": ["Choose a village, or enter its 8-digit code."]}
+            )
         hamlet_code = attrs.get("hamlet_code", current.hamlet_code if current else "")
-        queryset = Mpp.objects.filter(village_code=village, hamlet_code=hamlet_code)
+        queryset = Mpp.objects.filter(village_code=village_code, hamlet_code=hamlet_code)
         if current:
             queryset = queryset.exclude(pk=current.pk)
         if queryset.exists():

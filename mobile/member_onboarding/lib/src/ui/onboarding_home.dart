@@ -139,12 +139,21 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
         ),
       ),
     );
-    if (mpp == null) return;
+    if (mpp == null || !mounted) return;
 
+    // Filled now, not on the first sync, so a form started offline shows it too.
+    final place = {
+      for (final spec in _schema!.section('address').fields)
+        if (spec.locked && mpp.place[spec.key] != null) spec.key: mpp.place[spec.key]!,
+    };
     final draft = Draft(
       clientId: const Uuid().v4(),
       mppId: mpp.id,
       mppLabel: '${mpp.code} ${mpp.name}',
+      place: place,
+      data: {
+        if (place.isNotEmpty) 'address': {...place},
+      },
     );
     await _store.save(draft);
     await _open(draft);

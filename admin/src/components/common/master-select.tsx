@@ -9,7 +9,17 @@ import { api, type Page } from "@/lib/api/client";
 const PAGE_SIZE = 50;
 
 type Master = { id: string; code: string; name: string };
-export type MasterKind = "plants" | "mccs" | "bmcs" | "routes" | "mpps";
+export type MasterKind =
+  | "plants"
+  | "mccs"
+  | "bmcs"
+  | "routes"
+  | "mpps"
+  | "states"
+  | "districts"
+  | "tehsils"
+  | "villages"
+  | "hamlets";
 
 const WORDS: Record<MasterKind, { one: string; search: string }> = {
   plants: { one: "plant", search: "Search by code or name" },
@@ -17,6 +27,11 @@ const WORDS: Record<MasterKind, { one: string; search: string }> = {
   bmcs: { one: "BMC", search: "Search by code or name" },
   routes: { one: "route", search: "Search by code or name" },
   mpps: { one: "MPP", search: "Search by ex code or name" },
+  states: { one: "state", search: "Search by code or name" },
+  districts: { one: "district", search: "Search by code or name" },
+  tehsils: { one: "tehsil", search: "Search by code or name" },
+  villages: { one: "village", search: "Search by code or name" },
+  hamlets: { one: "hamlet", search: "Search by code or name" },
 };
 
 export const masterLabel = (item: Pick<Master, "code" | "name">) => `${item.code} - ${item.name}`;
@@ -39,7 +54,7 @@ export function MasterSelect({
   /** The chosen item's id, or "". */
   value: string;
   onChange: (id: string) => void;
-  /** API filters, such as `{ mcc }` for MPPs or `{ bmc__mcc: mcc }` for routes. */
+  /** API filters, such as `{ mcc }` for MPPs, `{ bmc__mcc: mcc }` for routes or `{ village }` for hamlets. */
   filters?: Record<string, string | undefined>;
   disabled?: boolean;
   placeholder?: string;

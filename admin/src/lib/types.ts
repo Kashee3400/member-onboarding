@@ -83,7 +83,44 @@ export type MccCover = {
   ended_by_name: string | null;
 };
 export type NotificationPreference = { morning_summary: boolean };
-export type Mpp = Plant & { mcc: string; route: string | null; village_code: string; village_name: string; state_code: string; hamlet_code: string; source_code: string };
+/** Where an MPP is, keyed as the form's address fields. Empty means the masters don't know it yet. */
+export type MppPlace = {
+  pooling_point_code: string;
+  village_name: string;
+  village_code: string;
+  hamlet_name: string;
+  hamlet_code: string;
+  post_office: string;
+  tehsil: string;
+  tehsil_code: string;
+  district: string;
+  district_code: string;
+  state: string;
+  state_code: string;
+  pincode: string;
+};
+export type Mpp = Plant & {
+  mcc: string;
+  route: string | null;
+  village: string | null;
+  hamlet: string | null;
+  village_code: string;
+  village_name: string;
+  state_code: string;
+  hamlet_code: string;
+  source_code: string;
+  post_office: string;
+  pincode: string;
+  place: MppPlace;
+};
+
+/** One level of the address chain: state, district, tehsil, village or hamlet. */
+export type PlaceMaster = Plant & { name_hi: string; parent_label?: string };
+export type StateMaster = PlaceMaster;
+export type District = PlaceMaster & { state: string };
+export type Tehsil = PlaceMaster & { district: string };
+export type Village = PlaceMaster & { tehsil: string };
+export type Hamlet = PlaceMaster & { village: string };
 
 export type Assignment = {
   id: string;
@@ -185,9 +222,16 @@ export type ApplicationDetail = ApplicationSummary & {
     village_name: string;
     village_code: string;
     as_on_date: string | null;
+    hamlet_name: string;
+    hamlet_code: string;
+    post_office: string;
     tehsil: string;
     district: string;
+    state: string;
+    pincode: string;
   };
+  /** Address fields the MPP fills and locks, by field key. */
+  mpp_place: Record<string, string>;
   review_steps: ReviewStep[];
   /** When the mobile number and email were confirmed by OTP, or null. */
   contact_verified: { mobile: string | null; email: string | null };

@@ -84,10 +84,98 @@ class Route(OrganizationOwnedModel):
         return f"{self.code} {self.name}"
 
 
+_DIGITS_2 = RegexValidator(r"^\d{2}$", "Must be 2 digits.")
+_DIGITS_8 = RegexValidator(r"^\d{8}$", "Must be 8 digits.")
+_PINCODE = RegexValidator(r"^[1-9]\d{5}$", "Must be a 6-digit PIN code.")
+
+
+class Place(OrganizationOwnedModel):
+    """One level of the address chain, coded as in the ERP."""
+
+    code = models.CharField(max_length=10)
+    name = models.CharField(max_length=150)
+    name_hi = models.CharField(max_length=150, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        abstract = True
+
+    def __str__(self):
+        return f"{self.code} {self.name}"
+
+
+class State(Place):
+    # The first two digits of every member code.
+    code = models.CharField(max_length=2, validators=[_DIGITS_2])
+
+    class Meta:
+        db_table = "hierarchy_state"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "code"], name="unique_state_code_per_organization"
+            ),
+        ]
+
+
+class District(Place):
+    state = models.ForeignKey(State, on_delete=models.PROTECT, related_name="districts")
+
+    class Meta:
+        db_table = "hierarchy_district"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "code"], name="unique_district_code_per_organization"
+            ),
+        ]
+
+
+class Tehsil(Place):
+    district = models.ForeignKey(District, on_delete=models.PROTECT, related_name="tehsils")
+
+    class Meta:
+        db_table = "hierarchy_tehsil"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "code"], name="unique_tehsil_code_per_organization"
+            ),
+        ]
+
+
+class Village(Place):
+    """A revenue village. Its code is the middle of every member code."""
+
+    tehsil = models.ForeignKey(Tehsil, on_delete=models.PROTECT, related_name="villages")
+    code = models.CharField(max_length=8, validators=[_DIGITS_8])
+
+    class Meta:
+        db_table = "hierarchy_village"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "code"], name="unique_village_code_per_organization"
+            ),
+        ]
+
+
+class Hamlet(Place):
+    """Numbered within its village, as the ERP's code is the village code plus two digits."""
+
+    village = models.ForeignKey(Village, on_delete=models.PROTECT, related_name="hamlets")
+    code = models.CharField(max_length=2, validators=[_DIGITS_2])
+
+    class Meta:
+        db_table = "hierarchy_hamlet"
+        constraints = [
+            models.UniqueConstraint(fields=["village", "code"], name="unique_hamlet_per_village"),
+        ]
+
+
 class Mpp(OrganizationOwnedModel):
     """
     A collection point, which owns its applications. It sits in one hamlet, and a
     village can have several MPPs in different hamlets.
+
+    Linked to a village, its codes follow that village, so the member code and the
+    address on the form always agree with the masters.
     """
 
     mcc = models.ForeignKey(Mcc, on_delete=models.PROTECT, related_name="mpps")
@@ -110,9 +198,15 @@ class Mpp(OrganizationOwnedModel):
         blank=True,
         help_text="Two digits after the village, as a village can have several MPPs.",
     )
-    village_code = models.CharField(
-        max_length=8, validators=[RegexValidator(r"^\d{8}$", "Must be 8 digits.")]
+    village_code = models.CharField(max_length=8, validators=[_DIGITS_8])
+    village = models.ForeignKey(
+        Village, on_delete=models.PROTECT, null=True, blank=True, related_name="mpps"
     )
+    hamlet = models.ForeignKey(
+        Hamlet, on_delete=models.PROTECT, null=True, blank=True, related_name="mpps"
+    )
+    post_office = models.CharField(max_length=100, blank=True)
+    pincode = models.CharField(max_length=6, blank=True, validators=[_PINCODE])
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -134,6 +228,19 @@ class Mpp(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.code} {self.name}"
+
+    def follow_place(self) -> None:
+        """Copies the codes a member code is built from out of the linked village and hamlet."""
+        if self.village_id:
+            self.village_code = self.village.code
+            self.village_name = self.village.name
+            self.state_code = self.village.tehsil.district.state.code
+        if self.hamlet_id:
+            self.hamlet_code = self.hamlet.code
+
+    def save(self, *args, **kwargs):
+        self.follow_place()
+        super().save(*args, **kwargs)
 
 
 class Responsibility(models.TextChoices):

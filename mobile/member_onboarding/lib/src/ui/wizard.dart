@@ -111,7 +111,15 @@ class _FormWizardState extends State<FormWizard> {
     return _form.draft.rejectedFields.contains(path) ? Strings.rejectedBecause : null;
   }
 
+  /// What the MPP fills for this field, which nobody types or changes here.
+  String? _fromMpp(String section, FormFieldSpec spec) =>
+      section == 'address' && spec.locked ? _form.draft.place[spec.key] : null;
+
   Widget _field(String section, FormFieldSpec spec) {
+    final fixed = _fromMpp(section, spec);
+    if (fixed != null) {
+      return LockedBox(key: ValueKey('$section.${spec.key}'), label: spec.label, value: fixed);
+    }
     final value = _form.draft.section(section)[spec.key];
     final error = _errorFor('$section.${spec.key}');
     void save(Object? next) {
@@ -190,7 +198,10 @@ class _FormWizardState extends State<FormWizard> {
 
   void _applyScan(AadhaarDetails details) {
     void fill(String section, String key, String? value) {
-      if (value != null) _form.setValue(section, key, value);
+      // The card may name the place differently, but the MPP's own record wins.
+      if (value != null && !(section == 'address' && _form.draft.place.containsKey(key))) {
+        _form.setValue(section, key, value);
+      }
     }
 
     fill('applicant', 'full_name', details.name);
@@ -529,7 +540,7 @@ class _FormWizardState extends State<FormWizard> {
 
     for (final section in _schema.sections) {
       for (final spec in section.fields.where((field) => field.required)) {
-        final value = draft.section(section.key)[spec.key];
+        final value = _fromMpp(section.key, spec) ?? draft.section(section.key)[spec.key];
         if (value == null || value == '' || value == false) {
           missing.add((spec.label, _stepOf(section.key)));
         }

@@ -1216,6 +1216,244 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bmc'
           description: ''
+  /api/v1/hierarchy/districts/:
+    get:
+      operationId: hierarchy_districts_list
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDistrictList'
+          description: ''
+    post:
+      operationId: hierarchy_districts_create
+      description: A location master. An edit carries the MPPs under it along.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DistrictRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/District'
+          description: ''
+  /api/v1/hierarchy/districts/{id}/:
+    get:
+      operationId: hierarchy_districts_retrieve
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this district.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/District'
+          description: ''
+    patch:
+      operationId: hierarchy_districts_partial_update
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this district.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDistrictRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/District'
+          description: ''
+  /api/v1/hierarchy/hamlets/:
+    get:
+      operationId: hierarchy_hamlets_list
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: village
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHamletList'
+          description: ''
+    post:
+      operationId: hierarchy_hamlets_create
+      description: A location master. An edit carries the MPPs under it along.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HamletRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hamlet'
+          description: ''
+  /api/v1/hierarchy/hamlets/{id}/:
+    get:
+      operationId: hierarchy_hamlets_retrieve
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this hamlet.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hamlet'
+          description: ''
+    patch:
+      operationId: hierarchy_hamlets_partial_update
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this hamlet.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedHamletRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hamlet'
+          description: ''
   /api/v1/hierarchy/mcc-covers/:
     get:
       operationId: hierarchy_mcc_covers_list
@@ -1580,6 +1818,11 @@ paths:
           type: string
       - in: query
         name: route
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: village
         schema:
           type: string
           format: uuid
@@ -2045,6 +2288,368 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/hierarchy/states/:
+    get:
+      operationId: hierarchy_states_list
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStateList'
+          description: ''
+    post:
+      operationId: hierarchy_states_create
+      description: A location master. An edit carries the MPPs under it along.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+          description: ''
+  /api/v1/hierarchy/states/{id}/:
+    get:
+      operationId: hierarchy_states_retrieve
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this state.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+          description: ''
+    patch:
+      operationId: hierarchy_states_partial_update
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this state.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStateRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+          description: ''
+  /api/v1/hierarchy/tehsils/:
+    get:
+      operationId: hierarchy_tehsils_list
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: query
+        name: district
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: district__state
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTehsilList'
+          description: ''
+    post:
+      operationId: hierarchy_tehsils_create
+      description: A location master. An edit carries the MPPs under it along.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TehsilRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tehsil'
+          description: ''
+  /api/v1/hierarchy/tehsils/{id}/:
+    get:
+      operationId: hierarchy_tehsils_retrieve
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this tehsil.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tehsil'
+          description: ''
+    patch:
+      operationId: hierarchy_tehsils_partial_update
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this tehsil.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTehsilRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tehsil'
+          description: ''
+  /api/v1/hierarchy/villages/:
+    get:
+      operationId: hierarchy_villages_list
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: tehsil
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: tehsil__district
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVillageList'
+          description: ''
+    post:
+      operationId: hierarchy_villages_create
+      description: A location master. An edit carries the MPPs under it along.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VillageRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Village'
+          description: ''
+  /api/v1/hierarchy/villages/{id}/:
+    get:
+      operationId: hierarchy_villages_retrieve
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this village.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Village'
+          description: ''
+    patch:
+      operationId: hierarchy_villages_partial_update
+      description: A location master. An edit carries the MPPs under it along.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this village.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVillageRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Village'
           description: ''
   /api/v1/home/:
     get:
@@ -3974,6 +4579,13 @@ components:
         place:
           type: object
           additionalProperties: {}
+          description: 'The form''s own copy of the place first: it is what was submitted
+            and signed.'
+          readOnly: true
+        mpp_place:
+          type: object
+          additionalProperties:
+            type: string
           readOnly: true
         review_steps:
           type: array
@@ -4013,6 +4625,7 @@ components:
       - mpp
       - mpp_code
       - mpp_name
+      - mpp_place
       - place
       - review_steps
       - revisions
@@ -4428,6 +5041,63 @@ components:
       description: |-
         * `approved` - Approved
         * `rejected` - Rejected
+    District:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        state:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 10
+        name:
+          type: string
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+        parent_label:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+      - parent_label
+      - state
+    DistrictRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        state:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+      - state
     Document:
       type: object
       properties:
@@ -4558,6 +5228,63 @@ components:
       - ends_on
       - reason
       - starts_on
+    Hamlet:
+      type: object
+      description: Numbered within its village, so the same two digits recur across
+        villages.
+      properties:
+        village:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          pattern: ^\d{2}$
+        name:
+          type: string
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+        parent_label:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+      - parent_label
+      - village
+    HamletRequest:
+      type: object
+      description: Numbered within its village, so the same two digits recur across
+        villages.
+      properties:
+        village:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+      - village
     Health:
       type: object
       properties:
@@ -5071,6 +5798,14 @@ components:
         name:
           type: string
           maxLength: 150
+        village:
+          type: string
+          format: uuid
+          nullable: true
+        hamlet:
+          type: string
+          format: uuid
+          nullable: true
         village_code:
           type: string
           pattern: ^\d{8}$
@@ -5088,6 +5823,20 @@ components:
           description: Two digits after the village, as a village can have several
             MPPs.
           maxLength: 2
+        post_office:
+          type: string
+          maxLength: 100
+        pincode:
+          oneOf:
+          - type: string
+            pattern: ^[1-9]\d{5}$
+            maxLength: 6
+          - type: string
+            maxLength: 0
+        place:
+          allOf:
+          - $ref: '#/components/schemas/MppPlace'
+          readOnly: true
         is_active:
           type: boolean
       required:
@@ -5095,7 +5844,7 @@ components:
       - id
       - mcc
       - name
-      - village_code
+      - place
     MppAssignment:
       type: object
       properties:
@@ -5163,6 +5912,51 @@ components:
       - created
       - problems
       - updated
+    MppPlace:
+      type: object
+      description: Keyed as the form's address fields. Empty means the masters do
+        not know it yet.
+      properties:
+        pooling_point_code:
+          type: string
+        village_name:
+          type: string
+        village_code:
+          type: string
+        hamlet_name:
+          type: string
+        hamlet_code:
+          type: string
+        post_office:
+          type: string
+        tehsil:
+          type: string
+        tehsil_code:
+          type: string
+        district:
+          type: string
+        district_code:
+          type: string
+        state:
+          type: string
+        state_code:
+          type: string
+        pincode:
+          type: string
+      required:
+      - district
+      - district_code
+      - hamlet_code
+      - hamlet_name
+      - pincode
+      - pooling_point_code
+      - post_office
+      - state
+      - state_code
+      - tehsil
+      - tehsil_code
+      - village_code
+      - village_name
     MppRequest:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -5188,6 +5982,14 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        village:
+          type: string
+          format: uuid
+          nullable: true
+        hamlet:
+          type: string
+          format: uuid
+          nullable: true
         village_code:
           type: string
           minLength: 1
@@ -5206,13 +6008,22 @@ components:
           description: Two digits after the village, as a village can have several
             MPPs.
           maxLength: 2
+        post_office:
+          type: string
+          maxLength: 100
+        pincode:
+          oneOf:
+          - type: string
+            pattern: ^[1-9]\d{5}$
+            maxLength: 6
+          - type: string
+            maxLength: 0
         is_active:
           type: boolean
       required:
       - code
       - mcc
       - name
-      - village_code
     NavigationItem:
       type: object
       properties:
@@ -5434,6 +6245,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bmc'
+    PaginatedDistrictList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/District'
+    PaginatedHamletList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hamlet'
     PaginatedLegacyMemberList:
       type: object
       required:
@@ -5687,6 +6544,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Staff'
+    PaginatedStateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/State'
+    PaginatedTehsilList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tehsil'
     PaginatedTrustedIssuerList:
       type: object
       required:
@@ -5710,6 +6613,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TrustedIssuer'
+    PaginatedVillageList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Village'
     PasswordChangeRequest:
       type: object
       properties:
@@ -5808,6 +6734,48 @@ components:
           minLength: 1
           pattern: ^#[0-9A-Fa-f]{6}$
           maxLength: 7
+    PatchedDistrictRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        state:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedHamletRequest:
+      type: object
+      description: Numbered within its village, so the same two digits recur across
+        villages.
+      properties:
+        village:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
     PatchedMccRequest:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -5851,6 +6819,14 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        village:
+          type: string
+          format: uuid
+          nullable: true
+        hamlet:
+          type: string
+          format: uuid
+          nullable: true
         village_code:
           type: string
           minLength: 1
@@ -5869,6 +6845,16 @@ components:
           description: Two digits after the village, as a village can have several
             MPPs.
           maxLength: 2
+        post_office:
+          type: string
+          maxLength: 100
+        pincode:
+          oneOf:
+          - type: string
+            pattern: ^[1-9]\d{5}$
+            maxLength: 6
+          - type: string
+            maxLength: 0
         is_active:
           type: boolean
     PatchedPlantRequest:
@@ -5941,6 +6927,46 @@ components:
           items:
             type: string
             format: uuid
+    PatchedStateRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+          maxLength: 2
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedTehsilRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        district:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
     PatchedTrustedIssuerRequest:
       type: object
       properties:
@@ -5971,6 +6997,28 @@ components:
         syncs_mpp_assignments:
           type: boolean
           description: Treat the host's MPP list as the source of truth.
+        is_active:
+          type: boolean
+    PatchedVillageRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        tehsil:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{8}$
+          maxLength: 8
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
         is_active:
           type: boolean
     PaymentRequest:
@@ -6699,6 +7747,31 @@ components:
       - email
       - full_name
       - role_ids
+    State:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          pattern: ^\d{2}$
+          maxLength: 2
+        name:
+          type: string
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
     StateEnum:
       enum:
       - upcoming
@@ -6711,6 +7784,28 @@ components:
         * `active` - active
         * `over` - over
         * `ended` - ended
+    StateRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+          maxLength: 2
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
     StatusCounts:
       type: object
       properties:
@@ -6728,6 +7823,63 @@ components:
       properties:
         version:
           type: integer
+    Tehsil:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        district:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 10
+        name:
+          type: string
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+        parent_label:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - district
+      - id
+      - name
+      - parent_label
+    TehsilRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        district:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - district
+      - name
     TemporaryPassword:
       type: object
       properties:
@@ -6835,6 +7987,65 @@ components:
       description: |-
         * `full` - full
         * `single` - single
+    Village:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        tehsil:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          pattern: ^\d{8}$
+          maxLength: 8
+        name:
+          type: string
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+        parent_label:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - name
+      - parent_label
+      - tehsil
+    VillageRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        tehsil:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{8}$
+          maxLength: 8
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_hi:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+      - tehsil
   securitySchemes:
     bearerAuth:
       type: http

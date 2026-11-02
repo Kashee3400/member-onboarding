@@ -19,6 +19,7 @@ class FakeApi extends OnboardingApi {
   Exception? failWith;
   int version = 1;
   int creates = 0;
+  Map<String, String>? mppPlace;
   final saves = <Map<String, dynamic>>[];
   final uploads = <String>[];
 
@@ -31,6 +32,7 @@ class FakeApi extends OnboardingApi {
     'data': <String, dynamic>{
       'applicant': {'full_name': 'From server'},
     },
+    'mpp_place': ?mppPlace,
   };
 
   void _maybeFail() {
@@ -115,6 +117,15 @@ void main() {
     expect(api.saves, hasLength(2));
     expect(api.saves[1]['version'], 2);
     expect(controller.state, SyncState.saved);
+  });
+
+  test('a draft started before its MPP had a place takes it from the server', () async {
+    api.mppPlace = {'tehsil': 'Gyanpur'};
+    controller.setValue('address', 'tehsil', 'Typed');
+    await controller.sync();
+
+    expect(controller.draft.place, {'tehsil': 'Gyanpur'});
+    expect((await store.all()).single.place, {'tehsil': 'Gyanpur'});
   });
 
   test('offline work stays on the phone and goes when back online', () async {

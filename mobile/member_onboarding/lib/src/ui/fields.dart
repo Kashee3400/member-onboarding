@@ -367,3 +367,44 @@ class YesBox extends StatelessWidget {
     );
   }
 }
+
+/// A value the MPP fills: shown greyed with a lock, and never editable.
+class LockedBox extends StatelessWidget {
+  const LockedBox({required this.label, required this.value, super.key});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      readOnly: true,
+      label: '$label, ${Strings.fromMpp}',
+      value: value,
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FieldLabel(label),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(value, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+                ),
+                const Icon(Icons.lock_outline, size: 16, color: Colors.black45),
+                const SizedBox(width: 4),
+                const Text(Strings.fromMpp, style: TextStyle(fontSize: 12, color: Colors.black45)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

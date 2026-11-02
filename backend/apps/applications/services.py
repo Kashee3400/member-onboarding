@@ -16,7 +16,7 @@ from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
 from apps.rbac.catalog import APPROVE_ALL
 
-from . import form, legacy, review_steps
+from . import form, legacy, place, review_steps
 from .models import (
     Application,
     ApplicationDecision,
@@ -310,6 +310,7 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
         if after.get("email") != before.get("email"):
             application.email_verified_at = None
         application.data = merged
+    place.apply(application)
     if aadhaar:
         set_aadhaar(application, aadhaar)
     if account:
@@ -328,6 +329,8 @@ def submit(application, *, user, version=None):
     _ensure_current(application, version)
 
     now = timezone.now()
+    # Again here, so a draft saved before the MPP's place changed goes in with the new one.
+    place.apply(application)
     errors = form.validate_for_submit(
         application.data,
         has_aadhaar=bool(application.aadhaar_index),

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../api/onboarding_api.dart';
+
 /// A form on this device. Every keystroke lands here first, so nothing is lost
 /// when the network or the phone drops out in the village.
 class Draft {
@@ -22,7 +24,9 @@ class Draft {
     this.needsSync = false,
     this.mobileVerified = false,
     this.emailVerified = false,
-  }) : data = data ?? {},
+    Map<String, String>? place,
+  }) : place = place ?? {},
+       data = data ?? {},
        pendingDocuments = pendingDocuments ?? {},
        uploadedDocuments = uploadedDocuments ?? {},
        rejectedFields = rejectedFields ?? [];
@@ -47,6 +51,7 @@ class Draft {
     // Drafts saved by an older app have neither; they start unverified.
     mobileVerified: json['mobile_verified'] as bool? ?? false,
     emailVerified: json['email_verified'] as bool? ?? false,
+    place: placeFromJson(json['place']),
   );
 
   /// Opens a form from the server, such as one sent back for correction.
@@ -64,6 +69,7 @@ class Draft {
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
     mobileVerified: (json['contact_verified'] as Map?)?['mobile'] != null,
     emailVerified: (json['contact_verified'] as Map?)?['email'] != null,
+    place: placeFromJson(json['mpp_place']),
   );
 
   factory Draft.decode(String source) =>
@@ -72,6 +78,9 @@ class Draft {
   final String clientId;
   final String mppId;
   final String mppLabel;
+
+  /// The address fields the MPP fills. They show read-only and the server enforces them.
+  Map<String, String> place;
 
   String? serverId;
   int? version;
@@ -134,6 +143,7 @@ class Draft {
     'needs_sync': needsSync,
     'mobile_verified': mobileVerified,
     'email_verified': emailVerified,
+    'place': place,
   };
 
   String encode() => jsonEncode(toJson());

@@ -17,12 +17,28 @@ from apps.rbac.permissions import require_permission
 from apps.rbac.services import permissions_for
 
 from .imports import import_masters, read_rows
-from .models import Bmc, Mcc, MccAssignment, MccCover, Mpp, Plant, Responsibility, Route
+from .models import (
+    Bmc,
+    District,
+    Hamlet,
+    Mcc,
+    MccAssignment,
+    MccCover,
+    Mpp,
+    Plant,
+    Responsibility,
+    Route,
+    State,
+    Tehsil,
+    Village,
+)
 from .serializers import (
     AssignMccSerializer,
     AssignMppSerializer,
     BmcSerializer,
+    DistrictSerializer,
     GiveCoverSerializer,
+    HamletSerializer,
     MccAssignmentSerializer,
     MccCoverSerializer,
     MccSerializer,
@@ -32,16 +48,22 @@ from .serializers import (
     MppSerializer,
     PlantSerializer,
     RouteSerializer,
+    StateSerializer,
+    TehsilSerializer,
+    VillageSerializer,
 )
 from .services import (
+    PLACE_RELATED,
     REQUIRED_PERMISSION,
     CoverError,
+    PlaceClash,
     accessible_mpps,
     assign_mcc,
     assign_mpp,
     end_assignment,
     end_cover,
     end_mcc_assignment,
+    follow_master,
     give_cover,
 )
 
@@ -194,19 +216,78 @@ class RouteViewSet(_MasterViewSet):
     ordering_fields = ["code", "name", "created_at"]
 
 
+class _PlaceViewSet(_MasterViewSet):
+    """A location master. An edit carries the MPPs under it along."""
+
+    kind = ""
+    search_fields = ["code", "name", "name_hi"]
+    ordering_fields = ["code", "name", "created_at"]
+
+    def perform_update(self, serializer):
+        place = serializer.save()
+        try:
+            follow_master(self.kind, place)
+        except PlaceClash as exc:
+            raise exceptions.ValidationError({"code": [str(exc)]}) from exc
+
+
+class StateViewSet(_PlaceViewSet):
+    kind = "state"
+    queryset = State.objects.all()
+    serializer_class = StateSerializer
+    filterset_fields = ["is_active"]
+
+
+class DistrictViewSet(_PlaceViewSet):
+    kind = "district"
+    queryset = District.objects.select_related("state")
+    serializer_class = DistrictSerializer
+    filterset_fields = ["state", "is_active"]
+
+
+class TehsilViewSet(_PlaceViewSet):
+    kind = "tehsil"
+    queryset = Tehsil.objects.select_related("district")
+    serializer_class = TehsilSerializer
+    filterset_fields = {
+        "district": ["exact"],
+        "district__state": ["exact"],
+        "is_active": ["exact"],
+    }
+
+
+class VillageViewSet(_PlaceViewSet):
+    kind = "village"
+    queryset = Village.objects.select_related("tehsil")
+    serializer_class = VillageSerializer
+    filterset_fields = {
+        "tehsil": ["exact"],
+        "tehsil__district": ["exact"],
+        "is_active": ["exact"],
+    }
+
+
+class HamletViewSet(_PlaceViewSet):
+    kind = "hamlet"
+    queryset = Hamlet.objects.select_related("village")
+    serializer_class = HamletSerializer
+    filterset_fields = ["village", "is_active"]
+
+
 class MppViewSet(_MasterViewSet):
     """Reads are limited to the MPPs the caller can access."""
 
     serializer_class = MppSerializer
-    filterset_fields = ["mcc", "route", "is_active"]
-    search_fields = ["code", "source_code", "name", "village_code"]
+    filterset_fields = ["mcc", "route", "village", "is_active"]
+    search_fields = ["code", "source_code", "name", "village_code", "village_name"]
     ordering_fields = ["code", "name", "village_code", "created_at"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Mpp.objects.none()
         user = self.request.user
-        return accessible_mpps(user.active_membership, user.active_permissions)
+        mpps = accessible_mpps(user.active_membership, user.active_permissions)
+        return mpps.select_related(*PLACE_RELATED)
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):

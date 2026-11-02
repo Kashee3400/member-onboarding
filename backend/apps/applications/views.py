@@ -23,7 +23,7 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
-from . import form, home, review_settings, review_steps, services
+from . import form, home, place, review_settings, review_steps, services
 from .models import Application, LegacyMember, Member, ReviewStepAccess, Signatory, Status
 from .pdf.render import VARIANTS
 from .serializers import (
@@ -187,7 +187,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
         name = services.display_name(user)
         try:
             with transaction.atomic():
-                application = Application.objects.create(
+                application = Application(
                     organization_id=user.active_membership.organization_id,
                     client_id=data["client_id"],
                     mpp=data["mpp"],
@@ -197,6 +197,8 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
                     last_edited_by=user,
                     last_edited_by_name=name,
                 )
+                place.apply(application)
+                application.save()
         except IntegrityError as exc:
             raise Conflict("This draft was just created. Please retry.") from exc
 

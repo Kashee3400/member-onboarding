@@ -107,6 +107,8 @@ class DraftController extends ChangeNotifier {
         ..mobileVerified = verified['mobile'] != null
         ..emailVerified = verified['email'] != null;
     }
+    // The server knows the MPP's latest place, even for a form started before it was set.
+    if (server['mpp_place'] != null) draft.place = placeFromJson(server['mpp_place']);
   }
 
   /// Sends an OTP for "mobile" or "email". Returns why it could not, or null.
