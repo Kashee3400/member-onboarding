@@ -172,6 +172,15 @@ class OnboardingApi {
     await _client.upload('applications/$id/documents/', {'document_type': documentType}, file);
   }
 
+  /// Sends a code to the form's mobile number or email (`channel` is "mobile" or "email").
+  Future<void> sendContactOtp(String id, String channel) async =>
+      await _client.post('applications/$id/contact-otp/', {'channel': channel});
+
+  /// Returns `{"mobile": when, "email": when}`, each null until proven.
+  Future<Map<String, dynamic>> verifyContactOtp(String id, String channel, String code) async =>
+      await _client.post('applications/$id/contact-otp/verify/', {'channel': channel, 'code': code})
+          as Map<String, dynamic>;
+
   Future<Map<String, dynamic>> submitApplication(String id, int version) async =>
       await _client.post('applications/$id/submit/', {'version': version}) as Map<String, dynamic>;
 }

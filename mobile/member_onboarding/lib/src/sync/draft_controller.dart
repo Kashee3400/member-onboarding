@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../api/onboarding_api.dart';
 import '../models/draft.dart';
 import '../storage/draft_store.dart';
+import '../ui/strings.dart' show OtpWords;
 
 enum SyncState { saved, saving, offline, conflict, failed }
 
@@ -46,7 +47,11 @@ class DraftController extends ChangeNotifier {
   }
 
   void setValue(String section, String key, Object? value) {
+    final before = draft.section(section)[key];
     draft.data[section] = {...draft.section(section), key: value};
+    // The server forgets a proof once the number changes; so does the phone.
+    if (section == 'address' && key == 'mobile' && before != value) draft.mobileVerified = false;
+    if (section == 'address' && key == 'email' && before != value) draft.emailVerified = false;
     serverErrors = Map.of(serverErrors)..remove('$section.$key');
     _changed();
   }
@@ -96,6 +101,48 @@ class DraftController extends ChangeNotifier {
       ..status = server['status'] as String
       ..aadhaarLast4 = server['aadhaar_last4'] as String
       ..accountLast4 = server['account_last4'] as String;
+    final verified = server['contact_verified'];
+    if (verified is Map) {
+      draft
+        ..mobileVerified = verified['mobile'] != null
+        ..emailVerified = verified['email'] != null;
+    }
+  }
+
+  /// Sends an OTP for "mobile" or "email". Returns why it could not, or null.
+  Future<String?> sendOtp(String channel) async {
+    _timer?.cancel();
+    draft.needsSync = draft.needsSync || draft.serverId == null;
+    // The server sends to what it holds, so the latest number must reach it first.
+    await sync();
+    if (state == SyncState.offline) return OtpWords.offline;
+    if (state != SyncState.saved || draft.serverId == null) return OtpWords.notSaved;
+    try {
+      await _api.sendContactOtp(draft.serverId!, channel);
+      return null;
+    } on OfflineException {
+      return OtpWords.offline;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// Checks the code the member read out. Returns why it failed, or null.
+  Future<String?> verifyOtp(String channel, String code) async {
+    if (draft.serverId == null) return OtpWords.notSaved;
+    try {
+      final verified = await _api.verifyContactOtp(draft.serverId!, channel, code);
+      draft
+        ..mobileVerified = verified['mobile'] != null
+        ..emailVerified = verified['email'] != null;
+      await _store.save(draft);
+      notifyListeners();
+      return null;
+    } on OfflineException {
+      return OtpWords.offline;
+    } on ApiException catch (error) {
+      return error.fieldErrors['code'] ?? error.message;
+    }
   }
 
   Future<void> _sync() async {

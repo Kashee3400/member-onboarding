@@ -1,4 +1,12 @@
 /// App wording in Hindi. Field labels come from the server with the form.
+/// What the OTP steps say when they cannot go ahead.
+class OtpWords {
+  const OtpWords._();
+
+  static const offline = 'नेटवर्क नहीं है। नेटवर्क आने पर OTP भेजें।';
+  static const notSaved = 'फॉर्म अभी सहेजा नहीं गया। थोड़ी देर बाद फिर कोशिश करें।';
+}
+
 class Strings {
   const Strings._();
 
@@ -91,6 +99,21 @@ class Strings {
       'रोशनी में, फ़ोन स्थिर रखकर, कार्ड पूरा फ्रेम में रखकर दोबारा लें। धुंधली फोटो पर फॉर्म लौटाया जा सकता है।';
   static const keepAnyway = 'ऐसे ही रखें';
   static const photoDoubt = 'जाँच लें, फोटो साफ़ नहीं लग रही थी';
+
+  static const verifyMobile = 'मोबाइल नंबर का सत्यापन';
+  static const verifyEmail = 'ईमेल का सत्यापन';
+  static const verified = 'सत्यापित';
+  static const notVerified = 'सत्यापित नहीं';
+  static const sendOtp = 'OTP भेजें';
+  static const resendOtp = 'OTP दोबारा भेजें';
+  static const resendIn = 'दोबारा भेजें';
+  static const otpSent = 'सदस्या के फ़ोन पर OTP भेजा गया। उनसे पूछकर नीचे भरें।';
+  static const otpSentEmail = 'सदस्या के ईमेल पर OTP भेजा गया। उनसे पूछकर नीचे भरें।';
+  static const otpCode = '6 अंकों का OTP';
+  static const checkOtp = 'जाँचें';
+  static const enterMobileFirst = 'पहले मोबाइल नंबर भरें';
+  static const enterEmailFirst = 'पहले ईमेल भरें';
+  static const mobileNotVerified = 'मोबाइल नंबर सत्यापित नहीं है';
 
   static const review = 'जाँच करें';
   static const checklist = 'हर चरण की स्थिति';

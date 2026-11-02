@@ -20,6 +20,8 @@ class Draft {
     this.rejectionReason = '',
     List<String>? rejectedFields,
     this.needsSync = false,
+    this.mobileVerified = false,
+    this.emailVerified = false,
   }) : data = data ?? {},
        pendingDocuments = pendingDocuments ?? {},
        uploadedDocuments = uploadedDocuments ?? {},
@@ -42,6 +44,9 @@ class Draft {
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
     needsSync: json['needs_sync'] as bool,
+    // Drafts saved by an older app have neither; they start unverified.
+    mobileVerified: json['mobile_verified'] as bool? ?? false,
+    emailVerified: json['email_verified'] as bool? ?? false,
   );
 
   /// Opens a form from the server, such as one sent back for correction.
@@ -57,6 +62,8 @@ class Draft {
     accountLast4: json['account_last4'] as String,
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
+    mobileVerified: (json['contact_verified'] as Map?)?['mobile'] != null,
+    emailVerified: (json['contact_verified'] as Map?)?['email'] != null,
   );
 
   factory Draft.decode(String source) =>
@@ -84,6 +91,10 @@ class Draft {
   String rejectionReason;
   List<String> rejectedFields;
   bool needsSync;
+
+  /// Proven by an OTP on the server. A changed number or email loses it.
+  bool mobileVerified;
+  bool emailVerified;
 
   bool get hasAadhaar => pendingAadhaar != null || aadhaarLast4.isNotEmpty;
   bool get hasAccount => pendingAccount != null || accountLast4.isNotEmpty;
@@ -121,6 +132,8 @@ class Draft {
     'rejection_reason': rejectionReason,
     'rejected_fields': rejectedFields,
     'needs_sync': needsSync,
+    'mobile_verified': mobileVerified,
+    'email_verified': emailVerified,
   };
 
   String encode() => jsonEncode(toJson());

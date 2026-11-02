@@ -5,6 +5,7 @@ import '../aadhaar/aadhaar_qr.dart';
 import '../models/form_schema.dart';
 import '../sync/draft_controller.dart';
 import 'device_services.dart';
+import 'contact_verify.dart';
 import 'fields.dart';
 import 'signature_pad.dart';
 import 'strings.dart';
@@ -263,6 +264,10 @@ class _FormWizardState extends State<FormWizard> {
     final captured = location['latitude'] != null;
     return _spaced([
       _section('address'),
+      // The member's own number and email, proven by an OTP while she is here.
+      ContactVerify(controller: _form, channel: 'mobile'),
+      if ('${_form.draft.section('address')['email'] ?? ''}'.trim().isNotEmpty)
+        ContactVerify(controller: _form, channel: 'email'),
       OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           shape: const RoundedRectangleBorder(),
@@ -643,6 +648,7 @@ class _FormWizardState extends State<FormWizard> {
     final missing = _missing();
     final errors = _form.serverErrors;
     final doubtful = _doubtful.keys.where(_form.draft.hasDocument).toList();
+    final mobileGiven = '${_form.draft.section('address')['mobile'] ?? ''}'.trim().isNotEmpty;
     return _spaced([
       if (errors.isNotEmpty) ...[
         const Text(Strings.fixFirst, style: TextStyle(fontWeight: FontWeight.w600)),
@@ -650,6 +656,16 @@ class _FormWizardState extends State<FormWizard> {
       ],
       if (_form.draft.rejectedFields.isNotEmpty) _corrections(),
       _checklist(missing),
+      if (mobileGiven && !_form.draft.mobileVerified)
+        ListTile(
+          key: const ValueKey('review.mobile_unverified'),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error),
+          title: const Text(Strings.mobileNotVerified),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() => _index = 1),
+        ),
       for (final type in doubtful)
         ListTile(
           dense: true,
