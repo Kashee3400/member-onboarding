@@ -33,6 +33,10 @@ class IntegrationWriteSerializer(serializers.Serializer):
             elif unknown := set(config) - schema.config_fields:
                 errors["config"] = [f"Unknown fields: {', '.join(sorted(unknown))}"]
 
+        message = (config or {}).get("otp_message") if isinstance(config, dict) else None
+        if self.context["kind"] == "sms" and message and "{otp}" not in message:
+            errors["config"] = ["The OTP message must contain {otp} where the code goes."]
+
         if unknown := set(attrs.get("secrets", {})) - schema.secret_fields:
             errors["secrets"] = [f"Unknown fields: {', '.join(sorted(unknown))}"]
 

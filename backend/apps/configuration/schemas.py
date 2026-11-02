@@ -12,9 +12,20 @@ INTEGRATION_SCHEMAS = {
         config_fields=frozenset({"host", "port", "username", "use_tls", "from_email"}),
         secret_fields=frozenset({"password"}),
     ),
+    # The gateway Kashee's ERP sends its OTPs through, with DLT-registered templates.
     "sms": IntegrationSchema(
-        config_fields=frozenset({"provider", "base_url", "sender_id"}),
-        secret_fields=frozenset({"api_key"}),
+        config_fields=frozenset(
+            {
+                "provider",
+                "base_url",
+                "user_id",
+                "sender_id",
+                "dlt_entity_id",
+                "otp_template_id",
+                "otp_message",
+            }
+        ),
+        secret_fields=frozenset({"password"}),
     ),
     "whatsapp": IntegrationSchema(
         config_fields=frozenset({"provider", "base_url", "phone_number_id"}),

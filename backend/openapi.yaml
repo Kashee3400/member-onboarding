@@ -167,6 +167,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/applications/{id}/contact-otp/:
+    post:
+      operationId: applications_contact_otp_create
+      description: Sends a code to the form's mobile number or email, for the member
+        to read out.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactOtpRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactOtpSent'
+          description: ''
+  /api/v1/applications/{id}/contact-otp/verify/:
+    post:
+      operationId: applications_contact_otp_verify_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactOtpVerifyRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactVerified'
+          description: ''
   /api/v1/applications/{id}/decide/:
     post:
       operationId: applications_decide_create
@@ -3171,6 +3227,24 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/settings/integrations/sms/test/:
+    post:
+      operationId: settings_integrations_sms_test_create
+      description: Sends the OTP template with a sample code, to check the saved gateway
+        settings.
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsTestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/settings/member-code/:
     get:
       operationId: settings_member_code_retrieve
@@ -3907,6 +3981,12 @@ components:
             type: object
             additionalProperties: {}
           readOnly: true
+        contact_verified:
+          type: object
+          additionalProperties: {}
+          description: When the mobile number and email were confirmed by OTP, or
+            null.
+          readOnly: true
         decisions:
           type: array
           items:
@@ -3922,6 +4002,7 @@ components:
       - approved_at
       - client_id
       - computed
+      - contact_verified
       - created_at
       - created_by_name
       - decisions
@@ -4169,6 +4250,61 @@ components:
           format: binary
       required:
       - file
+    ChannelEnum:
+      enum:
+      - mobile
+      - email
+      type: string
+      description: |-
+        * `mobile` - Mobile
+        * `email` - Email
+    ContactOtpRequestRequest:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+      required:
+      - channel
+    ContactOtpSent:
+      type: object
+      properties:
+        channel:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        resend_after_seconds:
+          type: integer
+      required:
+      - channel
+      - expires_at
+      - resend_after_seconds
+    ContactOtpVerifyRequest:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+        code:
+          type: string
+          minLength: 1
+          pattern: ^\d{6}$
+      required:
+      - channel
+      - code
+    ContactVerified:
+      type: object
+      properties:
+        mobile:
+          type: string
+          format: date-time
+          nullable: true
+        email:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - email
+      - mobile
     CurrentOrganization:
       type: object
       properties:
@@ -6477,6 +6613,15 @@ components:
           format: binary
       required:
       - file
+    SmsTestRequest:
+      type: object
+      properties:
+        mobile:
+          type: string
+          minLength: 1
+          pattern: ^(\+?91)?[6-9]\d{9}$
+      required:
+      - mobile
     Staff:
       type: object
       properties:

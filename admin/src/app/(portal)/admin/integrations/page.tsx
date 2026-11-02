@@ -16,10 +16,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api/client";
 import type { Integration } from "@/lib/types";
 
-type FieldSpec = { name: string; label: string; type?: "number" | "boolean"; help?: string };
+type FieldSpec = { name: string; label: string; type?: "number" | "boolean" | "long"; help?: string };
 type Spec = { title: string; hint: string; config: FieldSpec[]; secrets: FieldSpec[]; note?: string };
 
 const SPECS: Record<string, Spec> = {
@@ -37,14 +38,23 @@ const SPECS: Record<string, Spec> = {
   },
   sms: {
     title: "SMS",
-    hint: "Text messages",
-    note: "These details are saved for later. The portal does not send SMS yet.",
+    hint: "OTPs to members' mobile numbers",
+    note: "Use the same gateway account as the ERP. The OTP message must be the exact DLT-approved text for its template, with {otp} where the code goes.",
     config: [
-      { name: "provider", label: "Provider" },
-      { name: "base_url", label: "Base URL" },
+      { name: "provider", label: "Provider", help: "A name for your own reference." },
+      { name: "base_url", label: "Gateway URL", help: "The address the ERP sends its SMS to." },
+      { name: "user_id", label: "User ID" },
       { name: "sender_id", label: "Sender ID" },
+      { name: "dlt_entity_id", label: "DLT entity ID" },
+      { name: "otp_template_id", label: "DLT template ID for the OTP" },
+      {
+        name: "otp_message",
+        label: "OTP message",
+        type: "long",
+        help: "Exactly as approved on DLT. {otp} is replaced by the code.",
+      },
     ],
-    secrets: [{ name: "api_key", label: "API key" }],
+    secrets: [{ name: "password", label: "Password" }],
   },
   whatsapp: {
     title: "WhatsApp",
@@ -106,6 +116,12 @@ function IntegrationForm({
     onSuccess: () => toast.success("Test mail sent to you. Check your inbox."),
     onError: (error) => toast.error(messageOf(error)),
   });
+  const [testMobile, setTestMobile] = useState("");
+  const testSms = useMutation({
+    mutationFn: () => api("settings/integrations/sms/test", { method: "POST", body: { mobile: testMobile } }),
+    onSuccess: () => toast.success("Test SMS sent with the code 123456. Check the phone."),
+    onError: (error) => toast.error(messageOf(error)),
+  });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -164,13 +180,28 @@ function IntegrationForm({
                   />
                 </label>
               ) : (
-                <Field key={field.name} label={field.label} htmlFor={field.name}>
-                  <Input
-                    id={field.name}
-                    type={field.type ?? "text"}
-                    value={String(values[field.name])}
-                    onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
-                  />
+                <Field
+                  key={field.name}
+                  label={field.label}
+                  htmlFor={field.name}
+                  help={field.help}
+                  className={field.type === "long" ? "sm:col-span-2" : undefined}
+                >
+                  {field.type === "long" ? (
+                    <Textarea
+                      id={field.name}
+                      rows={3}
+                      value={String(values[field.name])}
+                      onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
+                    />
+                  ) : (
+                    <Input
+                      id={field.name}
+                      type={field.type ?? "text"}
+                      value={String(values[field.name])}
+                      onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
+                    />
+                  )}
                 </Field>
               ),
             )}
@@ -207,6 +238,37 @@ function IntegrationForm({
               </Button>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {dirty ? "Save first, then test." : integration.is_enabled ? "Goes to your own address." : "Turn mail on and save first."}
+              </p>
+            </div>
+          ) : null}
+          {integration.kind === "sms" ? (
+            <div className="space-y-1.5 border-t pt-3">
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Send a test to" htmlFor="sms-test-mobile" className="min-w-48 flex-1">
+                  <Input
+                    id="sms-test-mobile"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={testMobile}
+                    onChange={(event) => setTestMobile(event.target.value.replace(/\D/g, ""))}
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={testSms.isPending || !integration.is_enabled || dirty || testMobile.length !== 10}
+                  onClick={() => testSms.mutate()}
+                >
+                  <Send /> {testSms.isPending ? "Sending…" : "Send test SMS"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {dirty
+                  ? "Save first, then test."
+                  : integration.is_enabled
+                    ? "Sends the OTP message with the code 123456."
+                    : "Turn SMS on and save first."}
               </p>
             </div>
           ) : null}

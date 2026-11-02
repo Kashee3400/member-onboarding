@@ -189,6 +189,8 @@ export type ApplicationDetail = ApplicationSummary & {
     district: string;
   };
   review_steps: ReviewStep[];
+  /** When the mobile number and email were confirmed by OTP, or null. */
+  contact_verified: { mobile: string | null; email: string | null };
   warnings: string[];
   tr_code: string | null;
   decisions: {

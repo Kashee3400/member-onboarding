@@ -8,6 +8,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
+  CircleX,
   Eye,
   FileDown,
   FileSearch,
@@ -15,7 +17,6 @@ import {
   HeartHandshake,
   History as HistoryIcon,
   House,
-  IdCard,
   IndianRupee,
   Landmark,
   MapPin,
@@ -53,7 +54,7 @@ import { changesOf, type Change, type Changes } from "./changes";
 import { APPROVE_ALL, STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./constants";
 import { CopyButton } from "./copy-button";
 import { DecisionBar } from "./decision-bar";
-import { DocumentPanel } from "./document-panel";
+import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
 import { PaymentCard } from "./payment-card";
@@ -81,8 +82,9 @@ function shown(field: SchemaField, value: unknown) {
   return field.options?.find((option) => option.value === value)?.label ?? String(value);
 }
 
+/** Two columns of read-only fields, laid out as the old portal had them. */
 function Facts({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <dl className={cn("grid gap-x-5 gap-y-3 sm:grid-cols-2 xl:grid-cols-3", className)}>{children}</dl>;
+  return <dl className={cn("grid gap-x-6 gap-y-4 sm:grid-cols-2", className)}>{children}</dl>;
 }
 
 function Fact({
@@ -98,20 +100,28 @@ function Fact({
   change?: Change;
 }) {
   return (
-    <div className={cn("min-w-0", change && "-mx-1.5 -my-1 bg-amber-500/10 px-1.5 py-1 ring-1 ring-amber-500/30 ring-inset")}>
-      <dt className={cn("text-xs text-muted-foreground", flagged && "font-medium text-destructive")}>
+    <div className="min-w-0 space-y-1.5">
+      <dt className={cn("text-xs font-medium", flagged ? "text-destructive" : "text-foreground/80")}>
         {label}
         {change ? (
           <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-300">Changed</span>
         ) : null}
       </dt>
-      <dd className={cn("text-sm wrap-break-word", flagged && "font-medium text-destructive")}>
-        {flagged ? <AlertTriangle className="mr-1 inline size-3.5 align-[-2px]" /> : null}
+      {/* A read-only field: looks like the box it was typed into, and cannot be edited. */}
+      <dd
+        aria-readonly="true"
+        className={cn(
+          "flex min-h-9 items-center border bg-muted/50 px-3 py-1.5 text-sm wrap-break-word",
+          flagged && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
+          change && !flagged && "border-amber-500/60 bg-amber-500/10",
+        )}
+      >
+        {flagged ? <AlertTriangle className="mr-1.5 size-3.5 shrink-0" /> : null}
         {children ?? <span className="text-muted-foreground">—</span>}
       </dd>
       {change ? (
-        <p className="mt-0.5 text-xs text-muted-foreground line-through decoration-muted-foreground/50">
-          {change.before || "Empty"}
+        <p className="text-xs text-muted-foreground">
+          Was: <span className="line-through decoration-muted-foreground/50">{change.before || "empty"}</span>
         </p>
       ) : null}
     </div>
@@ -226,9 +236,8 @@ function FormSection({
   changes: Changes;
 }) {
   const values = application.data[section.key] ?? {};
-  const fields = section.fields.filter(
-    (field) => (field.required || values[field.key] !== undefined) && !(section.key === "animals" && ANIMAL_KEYS.has(field.key)),
-  );
+  const fields = section.fields.filter((field) => !(section.key === "animals" && ANIMAL_KEYS.has(field.key)));
+  const verified = application.contact_verified;
   return (
     <Section id={section.key} title={section.title}>
       {section.key === "animals" ? <AnimalGrid application={application} /> : null}
@@ -247,6 +256,9 @@ function FormSection({
               change={changes.byPath.get(path)}
             >
               {shown(field, values[field.key])}
+              {path === "address.mobile" || path === "address.email" ? (
+                <Verified at={path === "address.mobile" ? verified.mobile : verified.email} given={!!values[field.key]} />
+              ) : null}
             </Fact>
           );
         })}
@@ -257,6 +269,26 @@ function FormSection({
         ) : null}
       </Facts>
     </Section>
+  );
+}
+
+/** Whether a mobile number or email was confirmed by OTP. */
+function Verified({ at, given }: { at: string | null; given: boolean }) {
+  if (!given) return null;
+  return at ? (
+    <span
+      className="ml-auto inline-flex shrink-0 items-center gap-1 pl-3 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+      title={`Confirmed by OTP on ${dateTime(at)}`}
+    >
+      <CircleCheck className="size-4" /> Verified
+    </span>
+  ) : (
+    <span
+      className="ml-auto inline-flex shrink-0 items-center gap-1 pl-3 text-xs font-medium text-destructive"
+      title="Not confirmed by OTP"
+    >
+      <CircleX className="size-4" /> Not verified
+    </span>
   );
 }
 
@@ -539,7 +571,7 @@ function DetailSkeleton() {
     <div className="space-y-4">
       <Skeleton className="h-12 w-72" />
       <Skeleton className="h-16 w-full" />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
+      <div className="grid gap-4">
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-44 w-full" />
@@ -763,19 +795,8 @@ export function ApplicationDetail({ id }: { id: string }) {
         </p>
       ))}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
-        <DocumentPanel
-          documents={documents.data ?? []}
-          numbers={numbers}
-          application={data}
-          fresh={changes.documents}
-          first={active?.documents ?? []}
-          loading={documents.isPending}
-          className="lg:sticky lg:top-18 lg:order-last lg:max-h-[calc(100svh-12rem)] lg:self-start lg:overflow-y-auto lg:pr-1"
-        />
+      <div>
         <div className="min-w-0 space-y-3">
-          <AtAGlance application={data} numbers={numbers} changes={changes} />
-
           <StepTabs
             steps={tabs}
             active={activeKey}
@@ -791,6 +812,8 @@ export function ApplicationDetail({ id }: { id: string }) {
                 application={data}
                 schema={schema.data}
                 changes={changes}
+                documents={documents.data ?? []}
+                numbers={numbers}
                 status={
                   active.approved_at
                     ? "approved"
@@ -851,6 +874,8 @@ export function ApplicationDetail({ id }: { id: string }) {
         application={data}
         schema={schema.data}
         changes={changes}
+        documents={documents.data ?? []}
+        numbers={numbers}
       />
     </div>
   );
@@ -864,6 +889,9 @@ function StepContent({
   changes,
   status,
   payment,
+  documents,
+  numbers,
+  inDialog = false,
 }: {
   step: Step;
   application: Application;
@@ -872,8 +900,33 @@ function StepContent({
   status: "approved" | "yours" | "read";
   /** How the payment shows: editable on the page, read-only in View mode. */
   payment: React.ReactNode;
+  documents: ApplicationDocument[];
+  numbers: ReturnType<typeof useSensitiveNumbers>;
+  inDialog?: boolean;
 }) {
   const family = application.data.family ?? [];
+  // The numbers the old portal showed inside the step, to check against the photos below.
+  const extra =
+    step.key === "member" ? (
+      <Card className="gap-4 p-5">
+        <Facts>
+          <Fact label="Form No.">
+            <span className="font-mono tabular-nums">{application.form_number || "—"}</span>
+          </Fact>
+          <Fact label="Aadhaar card No." change={changes.byPath.get("applicant.aadhaar_number")}>
+            <span className="font-mono tabular-nums">{numbers.aadhaar || null}</span>
+          </Fact>
+        </Facts>
+      </Card>
+    ) : step.key === "bank" ? (
+      <Card className="gap-4 p-5">
+        <Facts>
+          <Fact label="Account number" change={changes.byPath.get("bank.account_number")}>
+            <span className="font-mono tabular-nums">{numbers.account || null}</span>
+          </Fact>
+        </Facts>
+      </Card>
+    ) : null;
   const parts = step.sections
     .map((key) => {
       const section = schema.sections.find((item) => item.key === key);
@@ -901,7 +954,17 @@ function StepContent({
           <StatusBadge status="draft" label={step.approved_at ? "Approved" : "Not approved yet"} />
         )}
       </div>
+      {extra}
       {parts.length ? parts : <Card className="p-5 text-sm text-muted-foreground">Nothing was filled in for this step.</Card>}
+      {step.documents.length ? (
+        <StepDocuments
+          types={step.documents}
+          documents={documents}
+          numbers={numbers}
+          application={application}
+          floats={!inDialog}
+        />
+      ) : null}
     </>
   );
 }
@@ -935,6 +998,8 @@ function AllStepsDialog({
   application,
   schema,
   changes,
+  documents,
+  numbers,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -943,6 +1008,8 @@ function AllStepsDialog({
   application: Application;
   schema: FormSchema;
   changes: Changes;
+  documents: ApplicationDocument[];
+  numbers: ReturnType<typeof useSensitiveNumbers>;
 }) {
   const step = application.review_steps.find((item) => item.key === active) ?? null;
   return (
@@ -971,6 +1038,9 @@ function AllStepsDialog({
               application={application}
               schema={schema}
               changes={changes}
+              documents={documents}
+              numbers={numbers}
+              inDialog
               status={step.approved_at ? "approved" : "read"}
               payment={<PaymentFacts application={application} />}
             />
@@ -980,70 +1050,5 @@ function AllStepsDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** The few facts a reviewer looks at first, before going through the steps. */
-function AtAGlance({
-  application,
-  numbers,
-  changes,
-}: {
-  application: Application;
-  numbers: ReturnType<typeof useSensitiveNumbers>;
-  changes: Changes;
-}) {
-  const items: { icon: LucideIcon; label: string; value: React.ReactNode; change?: Change }[] = [
-    { icon: UserRound, label: "Prepared by", value: application.created_by_name },
-    {
-      icon: RotateCcw,
-      label: "Submission",
-      value: application.revision
-        ? `No. ${application.revision}, by ${application.revisions[0]?.submitted_by_name ?? "—"}`
-        : null,
-    },
-    ...(application.aadhaar_last4
-      ? [
-          {
-            icon: IdCard,
-            label: "Aadhaar",
-            value: <span className="font-mono tabular-nums">{numbers.aadhaar}</span>,
-            change: changes.byPath.get("applicant.aadhaar_number"),
-          },
-        ]
-      : []),
-    ...(application.account_last4
-      ? [
-          {
-            icon: Landmark,
-            label: "Bank account",
-            value: <span className="font-mono tabular-nums">{numbers.account}</span>,
-            change: changes.byPath.get("bank.account_number"),
-          },
-        ]
-      : []),
-    {
-      icon: Milk,
-      label: "Animals / surplus",
-      value: `${application.computed.total_animals} animals, ${application.computed.surplus_lpd} litres a day to sell`,
-    },
-  ];
-  return (
-    // Each box grows to fit its value: a number cut short cannot be checked.
-    // Boxes stretch to fill each row, so a wrapped row leaves no empty gap.
-    <div className="flex flex-wrap border-t border-l bg-card">
-      {items.map(({ icon: Icon, label, value, change }) => (
-        <div
-          key={label}
-          className={cn("min-w-0 flex-[1_1_12rem] border-r border-b px-3 py-2.5", change && "bg-amber-500/10")}
-        >
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Icon className="size-3.5 shrink-0" /> {label}
-            {change ? <span className="font-medium text-amber-700 dark:text-amber-300">Changed</span> : null}
-          </p>
-          <p className="mt-0.5 text-sm font-medium break-words">{value ?? "—"}</p>
-        </div>
-      ))}
-    </div>
   );
 }

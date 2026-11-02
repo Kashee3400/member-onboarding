@@ -12,7 +12,9 @@ from apps.audit.services import record_event
 from apps.rbac.permissions import require_permission
 
 from .mail import MailNotConfigured, send_mail
-from .models import Notification, Preference
+from .models import ContactOtp, Notification, Preference
+from .otp import RESEND_AFTER, send_code, verify_code
+from .sms import SmsFailed, SmsNotConfigured, send_otp_sms
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -111,4 +113,101 @@ class MailTestView(APIView):
         except (smtplib.SMTPException, OSError) as exc:
             raise exceptions.ValidationError({"detail": [f"Mail failed: {exc}"]}) from exc
         record_event("integration.mail_tested", actor=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _editable_form(request, pk):
+    from apps.applications.services import visible_applications
+
+    user = request.user
+    forms = visible_applications(user.active_membership, user.active_permissions)
+    return get_object_or_404(forms.select_for_update(of=("self",)), pk=pk)
+
+
+class ContactOtpRequestSerializer(serializers.Serializer):
+    channel = serializers.ChoiceField(choices=ContactOtp.Channel.choices)
+
+
+class ContactOtpVerifySerializer(ContactOtpRequestSerializer):
+    code = serializers.RegexField(r"^\d{6}$", error_messages={"invalid": "Enter the 6-digit code."})
+
+
+class ContactOtpSentSerializer(serializers.Serializer):
+    channel = serializers.CharField()
+    expires_at = serializers.DateTimeField()
+    resend_after_seconds = serializers.IntegerField()
+
+
+class ContactVerifiedSerializer(serializers.Serializer):
+    mobile = serializers.DateTimeField(allow_null=True)
+    email = serializers.DateTimeField(allow_null=True)
+
+
+class ContactOtpSendView(APIView):
+    """Sends a code to the form's mobile number or email, for the member to read out."""
+
+    permission_classes = [IsAuthenticated, require_permission("applications.edit")]
+
+    @extend_schema(request=ContactOtpRequestSerializer, responses={201: ContactOtpSentSerializer})
+    def post(self, request, pk):
+        serializer = ContactOtpRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp = send_code(
+            _editable_form(request, pk), serializer.validated_data["channel"], user=request.user
+        )
+        return Response(
+            {
+                "channel": otp.channel,
+                "expires_at": otp.expires_at,
+                "resend_after_seconds": int(RESEND_AFTER.total_seconds()),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ContactOtpVerifyView(APIView):
+    permission_classes = [IsAuthenticated, require_permission("applications.edit")]
+
+    @extend_schema(request=ContactOtpVerifySerializer, responses={200: ContactVerifiedSerializer})
+    def post(self, request, pk):
+        serializer = ContactOtpVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        application = _editable_form(request, pk)
+        wrong = verify_code(application, data["channel"], data["code"], user=request.user)
+        if wrong:
+            # A response, not an exception, so the counted try is kept.
+            return Response(
+                {"error": {"code": "wrong_code", "message": wrong, "details": {"code": [wrong]}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"mobile": application.mobile_verified_at, "email": application.email_verified_at}
+        )
+
+
+class SmsTestSerializer(serializers.Serializer):
+    mobile = serializers.RegexField(
+        r"^(\+?91)?[6-9]\d{9}$", error_messages={"invalid": "Enter a 10-digit mobile number."}
+    )
+
+
+class SmsTestView(APIView):
+    """Sends the OTP template with a sample code, to check the saved gateway settings."""
+
+    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+
+    @extend_schema(request=SmsTestSerializer, responses={204: None})
+    def post(self, request):
+        serializer = SmsTestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            send_otp_sms(serializer.validated_data["mobile"], "123456")
+        except SmsNotConfigured as exc:
+            raise exceptions.ValidationError(
+                {"detail": ["Save and enable the SMS settings, with every field filled, first."]}
+            ) from exc
+        except SmsFailed as exc:
+            raise exceptions.ValidationError({"detail": [f"SMS failed: {exc}"]}) from exc
+        record_event("integration.sms_tested", actor=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

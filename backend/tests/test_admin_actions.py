@@ -24,24 +24,59 @@ def detail(world, user, application):
     return world.client(user).get(f"{URL}{application['id']}/").data
 
 
-def test_the_admin_can_act_on_each_open_step(world):
+def test_the_admin_can_act_on_every_step_at_any_stage(world):
     application = world.submitted()
 
     steps = detail(world, world.admin, application)["review_steps"]
 
-    open_now = {step["key"] for step in steps if step["can_approve"]}
-    assert open_now == {"milk", "household", "village"}  # the Area Manager's steps
+    assert all(step["can_approve"] for step in steps)
     assert all(step["mine"] for step in steps)
+
+
+def test_a_stage_checked_ahead_is_passed_by_itself(world):
+    application = world.submitted()
+    admin = world.client(world.admin)
+
+    ahead = admin.post(
+        f"{URL}{application['id']}/decide/",
+        {"decision": "approved", "steps": ["member", "address", "nominee"]},
+    )
+    assert ahead.status_code == 200, ahead.content
+    assert ahead.data["status"] == "pending_am"
+
+    world.approve(application, world.manager)
+
+    final = detail(world, world.finance, application)
+    assert final["status"] == "pending_finance"
+    stages = [item["stage"] for item in final["decisions"] if item["decision"] == "approved"]
+    assert stages == ["pending_am", "pending_cs"]
+
+
+def test_others_see_only_what_is_left_after_the_admin(world):
+    application = world.submitted()
+    world.client(world.admin).post(
+        f"{URL}{application['id']}/decide/", {"decision": "approved", "steps": ["member"]}
+    )
+    world.approve(application, world.manager)
+
+    steps = detail(world, world.legal, application)["review_steps"]
+
+    assert {step["key"] for step in steps if step["can_approve"]} == {"address", "nominee"}
 
 
 def test_the_admin_takes_a_form_through_every_stage(world):
     application = world.submitted()
     client = world.client(world.admin)
 
-    for stage in ("pending_am", "pending_cs"):
-        assert detail(world, world.admin, application)["status"] == stage
-        response = client.post(f"{URL}{application['id']}/decide/", {"decision": "approved"})
-        assert response.status_code == 200, response.content
+    # Everything but the fee, which waits for the payment: the form runs to Finance.
+    response = client.post(
+        f"{URL}{application['id']}/decide/",
+        {
+            "decision": "approved",
+            "steps": ["member", "address", "milk", "bank", "household", "nominee", "village"],
+        },
+    )
+    assert response.status_code == 200, response.content
 
     assert detail(world, world.admin, application)["status"] == Status.PENDING_FINANCE
 

@@ -61,6 +61,9 @@ class Application(OrganizationOwnedModel):
     rejection_reason = models.TextField(blank=True)
     rejected_fields = models.JSONField(default=list, blank=True)
     payment = models.JSONField(default=dict, blank=True)
+    # Set by a confirmed OTP, never by the form. Cleared when the number or address changes.
+    mobile_verified_at = models.DateTimeField(null=True, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "application"

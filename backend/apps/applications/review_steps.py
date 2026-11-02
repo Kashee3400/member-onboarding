@@ -102,7 +102,10 @@ def approvals_of(application) -> dict:
 def actionable(application, membership) -> set[str]:
     """What this person can approve on this form right now."""
     if acts_on_all(membership):
-        return stage_steps(application.status) - set(approvals_of(application))
+        # Any step, at any review stage: the admin may check ahead of the stage.
+        if application.status not in STAGE_PERMISSIONS:
+            return set()
+        return set(STEP_KEYS) - set(approvals_of(application))
     held = role_codes_for(membership) & _stage_roles(application.status)
     open_steps = {key for key, chosen in roles_by_step().items() if chosen & held}
     return open_steps - set(approvals_of(application))

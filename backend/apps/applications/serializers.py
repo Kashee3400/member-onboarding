@@ -116,6 +116,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     fee = serializers.SerializerMethodField()
     place = serializers.SerializerMethodField()
     review_steps = serializers.SerializerMethodField()
+    contact_verified = serializers.SerializerMethodField()
     decisions = DecisionSerializer(many=True, read_only=True)
     revisions = RevisionSerializer(many=True, read_only=True)
 
@@ -139,9 +140,23 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "fee",
             "place",
             "review_steps",
+            "contact_verified",
             "decisions",
             "revisions",
         ]
+
+    @staticmethod
+    def get_contact_verified(application) -> dict:
+        """When the mobile number and email were confirmed by OTP, or null."""
+        stamp = serializers.DateTimeField().to_representation
+        return {
+            "mobile": stamp(application.mobile_verified_at)
+            if application.mobile_verified_at
+            else None,
+            "email": stamp(application.email_verified_at)
+            if application.email_verified_at
+            else None,
+        }
 
     def get_review_steps(self, application) -> list[dict]:
         request = self.context.get("request")

@@ -301,7 +301,14 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
     _ensure_current(application, version)
 
     if data is not None:
+        before = application.data.get("address", {})
         merged = {**application.data, **form.clean_draft(data)}
+        after = merged.get("address", {})
+        # A proof of the old number or address says nothing about a new one.
+        if after.get("mobile") != before.get("mobile"):
+            application.mobile_verified_at = None
+        if after.get("email") != before.get("email"):
+            application.email_verified_at = None
         application.data = merged
     if aadhaar:
         set_aadhaar(application, aadhaar)
@@ -458,6 +465,24 @@ def _create_member(application, now):
     )
 
 
+def _record_decision(application, user, decision, now, *, reason="", rejected_fields=None):
+    """One stage's decision, signed as that stage prints: by its head, or by whoever decided."""
+    signature, signed_by = _signer(application, user)
+    ApplicationDecision.objects.create(
+        application=application,
+        revision=application.revision,
+        stage=application.status,
+        decision=decision,
+        reason=reason.strip(),
+        rejected_fields=(rejected_fields or []) if decision == Decision.REJECTED else [],
+        decided_by=user,
+        decided_by_name=display_name(user),
+        signature=signature,
+        signed_by_name=signed_by,
+        decided_at=now,
+    )
+
+
 @transaction.atomic
 def decide(
     application, *, user, permissions, decision, reason="", rejected_fields=None, steps=None
@@ -491,7 +516,8 @@ def decide(
                 {"rejected_fields": ["You can mark fields only on your own steps."]}
             )
 
-    signature, signed_by = _signer(application, user)
+    # A missing signature stops even one step being approved, before anything is saved.
+    _signer(application, user)
     now = timezone.now()
     if decision == Decision.APPROVED:
         chosen = _steps_to_approve(application, user, steps)
@@ -521,33 +547,29 @@ def decide(
                 metadata={"revision": application.revision, "steps": sorted(chosen)},
             )
             return application
-        missing = set(review_steps.STEP_KEYS) - approved
-        if next_status == Status.APPROVED and missing:
-            titles = ", ".join(review_steps.TITLES[key] for key in sorted(missing))
-            raise Conflict(f"These steps have not been approved: {titles}.")
 
-    ApplicationDecision.objects.create(
-        application=application,
-        revision=application.revision,
-        stage=application.status,
-        decision=decision,
-        reason=reason.strip(),
-        rejected_fields=(rejected_fields or []) if decision == Decision.REJECTED else [],
-        decided_by=user,
-        decided_by_name=display_name(user),
-        signature=signature,
-        signed_by_name=signed_by,
-        decided_at=now,
-    )
-
-    if decision == Decision.REJECTED:
+        # This stage is done. A later stage whose steps were all checked ahead (the
+        # admin may do that) is done too, so the form never waits on a stage with
+        # nothing left to check. Each stage still records its own signed decision.
+        while True:
+            _permission, next_status = STAGES[application.status]
+            missing = set(review_steps.STEP_KEYS) - approved
+            if next_status == Status.APPROVED and missing:
+                titles = ", ".join(review_steps.TITLES[key] for key in sorted(missing))
+                raise Conflict(f"These steps have not been approved: {titles}.")
+            _record_decision(application, user, Decision.APPROVED, now)
+            application.status = next_status
+            if next_status not in STAGES or review_steps.stage_steps(next_status) - approved:
+                break
+    else:
+        _record_decision(
+            application, user, decision, now, reason=reason, rejected_fields=rejected_fields
+        )
         # Back to the MPP's current facilitator, and later from the first stage again.
         application.status = Status.REJECTED
         application.rejection_reason = reason.strip()
         application.rejected_fields = rejected_fields or []
         notifications.application_rejected(application, reason.strip())
-    else:
-        application.status = next_status
 
     application.version += 1
     application.save()

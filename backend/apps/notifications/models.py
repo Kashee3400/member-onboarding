@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.organizations.models import Membership, OrganizationOwnedModel
@@ -66,3 +67,39 @@ class MorningSummary(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.recipient_id} {self.day}"
+
+
+class ContactOtp(OrganizationOwnedModel):
+    """
+    One code sent to a member's mobile number or email, to prove the form has it right.
+    Only a hash of the code is kept, and the number or address it went to, so a code
+    sent to an old number proves nothing about a new one.
+    """
+
+    class Channel(models.TextChoices):
+        MOBILE = "mobile", "Mobile"
+        EMAIL = "email", "Email"
+
+    application = models.ForeignKey(
+        "applications.Application", on_delete=models.CASCADE, related_name="contact_otps"
+    )
+    channel = models.CharField(max_length=10, choices=Channel.choices)
+    sent_to = models.CharField(max_length=254)
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    tries = models.PositiveSmallIntegerField(default=0)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        db_table = "notification_contact_otp"
+        indexes = [
+            models.Index(
+                fields=["application", "channel", "created_at"], name="contact_otp_lookup_idx"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.application_id} {self.channel}"
