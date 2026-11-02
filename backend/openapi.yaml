@@ -9,6 +9,16 @@ paths:
       operationId: applications_list
       parameters:
       - in: query
+        name: approved_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: approved_to
+        schema:
+          type: string
+          format: date
+      - in: query
         name: created_from
         schema:
           type: string
@@ -401,6 +411,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/applications/{id}/preview-pdf/:
+    get:
+      operationId: applications_preview_pdf_retrieve
+      description: The printed form before final approval, marked as a draft. Nothing
+        is stored.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: query
+        name: variant
+        schema:
+          type: string
+          enum:
+          - full
+          - single
+        description: 'Default: full.'
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/applications/{id}/submit/:
     post:
       operationId: applications_submit_create
@@ -485,6 +540,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
+          description: ''
+  /api/v1/applications/reject-reasons/:
+    get:
+      operationId: applications_reject_reasons_list
+      description: The ready-made reasons a reviewer can pick when sending a form
+        back.
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RejectReason'
           description: ''
   /api/v1/applications/summary/:
     get:
@@ -3017,6 +3090,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrganizationProfile'
           description: ''
+  /api/v1/settings/review/:
+    get:
+      operationId: settings_review_retrieve
+      description: When a waiting form is late, and the reject reasons reviewers are
+        offered.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: settings_review_update
+      description: When a waiting form is late, and the reject reasons reviewers are
+        offered.
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewSettingsRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/settings/review-steps/:
     get:
       operationId: settings_review_steps_retrieve
@@ -3575,6 +3693,15 @@ components:
         is_overdue:
           type: boolean
           readOnly: true
+        tr_code:
+          type: string
+          nullable: true
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
         updated_at:
           type: string
           format: date-time
@@ -3620,10 +3747,6 @@ components:
           items:
             type: string
           readOnly: true
-        tr_code:
-          type: string
-          nullable: true
-          readOnly: true
         fee:
           type: object
           additionalProperties: {}
@@ -3650,6 +3773,7 @@ components:
           readOnly: true
       required:
       - applicant_name
+      - approved_at
       - client_id
       - computed
       - created_at
@@ -3718,12 +3842,21 @@ components:
         is_overdue:
           type: boolean
           readOnly: true
+        tr_code:
+          type: string
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
         updated_at:
           type: string
           format: date-time
           readOnly: true
       required:
       - applicant_name
+      - approved_at
       - created_at
       - created_by_name
       - id
@@ -3732,6 +3865,7 @@ components:
       - mpp_code
       - mpp_name
       - status_label
+      - tr_code
       - updated_at
       - waiting_since
     ApplicationStatusEnum:
@@ -5784,6 +5918,40 @@ components:
           minLength: 1
       required:
       - refresh
+    RejectReason:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 200
+        section:
+          $ref: '#/components/schemas/SectionEnum'
+        fields:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+      required:
+      - section
+      - text
+    RejectReasonRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200
+        section:
+          $ref: '#/components/schemas/SectionEnum'
+        fields:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+      required:
+      - section
+      - text
     ReportSummary:
       type: object
       properties:
@@ -5804,6 +5972,21 @@ components:
       description: |-
         * `facilitator` - Facilitator
         * `area_manager` - Area Manager
+    ReviewSettingsRequest:
+      type: object
+      description: The reasons are sent whole, in the order they are offered.
+      properties:
+        overdue_days:
+          type: integer
+          maximum: 60
+          minimum: 1
+        reject_reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/RejectReasonRequest'
+      required:
+      - overdue_days
+      - reject_reasons
     ReviewStepAccessRequest:
       type: object
       properties:
@@ -5966,6 +6149,30 @@ components:
       - path
       - subtitle
       - title
+    SectionEnum:
+      enum:
+      - applicant
+      - address
+      - animals
+      - bank
+      - family
+      - nominee
+      - declaration
+      - place
+      - location
+      - payment
+      type: string
+      description: |-
+        * `applicant` - applicant
+        * `address` - address
+        * `animals` - animals
+        * `bank` - bank
+        * `family` - family
+        * `nominee` - nominee
+        * `declaration` - declaration
+        * `place` - place
+        * `location` - location
+        * `payment` - payment
     SensitiveNumbers:
       type: object
       properties:

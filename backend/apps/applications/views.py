@@ -22,7 +22,7 @@ from apps.organizations.models import Membership
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
-from . import form, home, review_steps, services
+from . import form, home, review_settings, review_steps, services
 from .models import Application, LegacyMember, Member, ReviewStepAccess, Signatory, Status
 from .pdf.render import VARIANTS
 from .serializers import (
@@ -36,6 +36,8 @@ from .serializers import (
     MemberSerializer,
     OrganizationProfileSerializer,
     PaymentSerializer,
+    RejectReasonSerializer,
+    ReviewSettingsSerializer,
     ReviewStepAccessSerializer,
     SearchHitSerializer,
     SensitiveNumbersSerializer,
@@ -76,7 +78,7 @@ class ApplicationFilter(filters.FilterSet):
     created_to = filters.DateFilter(field_name="created_at", lookup_expr="date__lte")
     approved_from = filters.DateFilter(field_name="member__joined_at", lookup_expr="date__gte")
     approved_to = filters.DateFilter(field_name="member__joined_at", lookup_expr="date__lte")
-    mine =filters.BooleanFilter(method="filter_mine", help_text="Only forms this person started.")
+    mine = filters.BooleanFilter(method="filter_mine", help_text="Only forms this person started.")
 
     def filter_mine(self, queryset, name, value):
         return queryset.filter(created_by=self.request.user) if value else queryset
@@ -318,13 +320,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
     )
     @action(detail=True, methods=["get"])
     def pdf(self, request, pk=None):
-        variant = request.query_params.get("variant", "full")
-        if variant not in VARIANTS:
-            raise exceptions.ValidationError({"variant": ["Choose full or single."]})
-        # Only the full form carries Aadhaar and bank images.
-        if variant == "full" and FULL_PDF not in request.user.active_permissions:
-            raise exceptions.PermissionDenied("You cannot download the full form.")
-
+        variant = _pdf_variant(request)
         application = self.get_object()
         content = services.printed_form(application, variant)
         record_event(
@@ -333,10 +329,51 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             target=application,
             metadata={"variant": variant},
         )
-        response = HttpResponse(content, content_type="application/pdf")
-        response["Content-Disposition"] = f'inline; filename="{application.form_number}.pdf"'
-        response["Cache-Control"] = "private, no-store"
-        return response
+        return _pdf_response(content, f"{application.form_number}.pdf")
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("variant", str, enum=["full", "single"], description="Default: full.")
+        ],
+        responses={
+            (200, "application/pdf"): OpenApiTypes.BINARY,
+            403: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="preview-pdf")
+    def preview_pdf(self, request, pk=None):
+        """The printed form before final approval, marked as a draft. Nothing is stored."""
+        variant = _pdf_variant(request)
+        if not NUMBER_VIEWERS & set(request.user.active_permissions):
+            raise exceptions.PermissionDenied("Only approvers can preview the form.")
+
+        application = self.get_object()
+        content = services.draft_form(application, variant)
+        record_event(
+            "application.pdf_previewed",
+            actor=request.user,
+            target=application,
+            metadata={"variant": variant, "status": application.status},
+        )
+        return _pdf_response(content, f"{application.form_number}-draft.pdf")
+
+
+def _pdf_variant(request) -> str:
+    variant = request.query_params.get("variant", "full")
+    if variant not in VARIANTS:
+        raise exceptions.ValidationError({"variant": ["Choose full or single."]})
+    # Only the full form carries Aadhaar and bank images.
+    if variant == "full" and FULL_PDF not in request.user.active_permissions:
+        raise exceptions.PermissionDenied("You cannot download the full form.")
+    return variant
+
+
+def _pdf_response(content: bytes, filename: str) -> HttpResponse:
+    response = HttpResponse(content, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 class MemberViewSet(viewsets.ReadOnlyModelViewSet):
@@ -616,6 +653,52 @@ class ReviewStepAccessView(APIView):
             for code in set(codes)
         )
         record_event("review_steps.updated", actor=request.user, metadata=chosen)
+        return Response(self._state())
+
+
+class RejectReasonsView(APIView):
+    """The ready-made reasons a reviewer can pick when sending a form back."""
+
+    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+
+    @extend_schema(responses={200: RejectReasonSerializer(many=True)})
+    def get(self, request):
+        return Response(review_settings.serialized(review_settings.reject_reasons()))
+
+
+class ReviewSettingsView(APIView):
+    """When a waiting form is late, and the reject reasons reviewers are offered."""
+
+    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+
+    def _state(self):
+        return {
+            "overdue_days": review_settings.overdue_days(),
+            "reject_reasons": review_settings.serialized(review_settings.reject_reasons()),
+            "sections": review_settings.sections(),
+        }
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request):
+        return Response(self._state())
+
+    @extend_schema(
+        request=ReviewSettingsSerializer,
+        responses={200: OpenApiTypes.OBJECT, 400: ErrorResponseSerializer},
+    )
+    def put(self, request):
+        serializer = ReviewSettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        review_settings.save(overdue_days=data["overdue_days"], reasons=data["reject_reasons"])
+        record_event(
+            "review_settings.updated",
+            actor=request.user,
+            metadata={
+                "overdue_days": data["overdue_days"],
+                "reject_reasons": len(data["reject_reasons"]),
+            },
+        )
         return Response(self._state())
 
 

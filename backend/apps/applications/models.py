@@ -240,6 +240,39 @@ class ReviewStepAccess(OrganizationOwnedModel):
         return f"{self.step}: {self.role_id}"
 
 
+class ReviewSettings(OrganizationOwnedModel):
+    """How review behaves, as each organization chooses."""
+
+    overdue_days = models.PositiveSmallIntegerField(
+        default=2, help_text="A form waiting longer than this at one stage is shown as late."
+    )
+
+    class Meta:
+        db_table = "application_review_settings"
+        constraints = [
+            models.UniqueConstraint(fields=["organization"], name="unique_review_settings"),
+        ]
+
+    def __str__(self):
+        return f"late after {self.overdue_days} days"
+
+
+class RejectReason(OrganizationOwnedModel):
+    """A ready-made reason for sending a form back, and the fields it marks."""
+
+    text = models.CharField(max_length=200)
+    section = models.CharField(max_length=20)
+    fields = models.JSONField(default=list, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = "application_reject_reason"
+        ordering = ["position", "created_at"]
+
+    def __str__(self):
+        return self.text
+
+
 class ApplicationStepApproval(OrganizationOwnedModel):
     """One review step passed, for one submission of a form."""
 

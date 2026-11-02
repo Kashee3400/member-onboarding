@@ -60,9 +60,15 @@
   .receipt { border: 1pt solid #1b2340; padding: 4mm; }
   .receipt .head { min-height: 0; }
   .receipt .head h1 { font-size: 15pt; }
+
+  {% if draft_mark %}
+  @page { @top-center { content: "{{ draft_mark }}"; font-family: FormLatin, sans-serif; font-size: 9pt; font-weight: 700; color: #b42318; } }
+  .draft-mark { position: fixed; top: 120mm; left: -10mm; width: 210mm; text-align: center; transform: rotate(-35deg); font-family: FormLatin, sans-serif; font-size: 44pt; font-weight: 700; color: #b42318; opacity: 0.14; }
+  {% endif %}
 </style>
 </head>
 <body>
+{% if draft_mark %}<div class="draft-mark">{{ draft_mark }}</div>{% endif %}
 
 <section class="page">
   <div class="head">
@@ -208,17 +214,17 @@
   <div class="split"><span>जमा राशि : <b>{{ payment.amount }}</b></span><span>दिनांक : <b>{{ payment_date }}</b></span></div>
   <div class="split accountant" style="margin-top:3mm">
     <span>तिथि:</span><span>प्राप्ति सील</span>
-    <span class="right">{% if images.finance %}<img src="{{ images.finance }}" alt=""><br>{% endif %}<b>लेखाकार के हस्ताक्षर({{ finance.signed_by_name|default:finance.decided_by_name }})</b></span>
+    <span class="right">{% if images.finance %}<img src="{{ images.finance }}" alt=""><br>{% endif %}<b>लेखाकार के हस्ताक्षर({% if finance %}{{ finance.signed_by_name|default:finance.decided_by_name }}{% endif %})</b></span>
   </div>
   <hr class="rule">
   <p>यह आवेदन पत्र बोर्ड के प्रस्ताव क्रमांक संख्या_________{{ company.board_resolution_no }}______दिनाक________{{ board_date }}_____ द्वारा अनुमोदित हैं।</p>
   <hr class="rule">
   <div class="split secretary">
     <span>दिनांक : {{ board_date }}<br><br>स्थान : {{ company.place }}</span>
-    <span class="right">{% if images.company_secretary %}<img src="{{ images.company_secretary }}" alt=""><br>{% endif %}<b>कंपनी सचिव के हस्ताक्षर({{ company_secretary.signed_by_name|default:company_secretary.decided_by_name }})</b></span>
+    <span class="right">{% if images.company_secretary %}<img src="{{ images.company_secretary }}" alt=""><br>{% endif %}<b>कंपनी सचिव के हस्ताक्षर({% if company_secretary %}{{ company_secretary.signed_by_name|default:company_secretary.decided_by_name }}{% endif %})</b></span>
   </div>
   <hr class="rule">
-  <p><b>सदस्या को दिया गया 16 अंकों का कोड : {{ member.tr_code }}</b></p>
+  <p><b>सदस्या को दिया गया 16 अंकों का कोड : {{ member_code }}</b></p>
 </section>
 
 <section class="page">

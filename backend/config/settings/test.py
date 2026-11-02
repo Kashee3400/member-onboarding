@@ -20,6 +20,8 @@ from .base import REST_FRAMEWORK  # noqa: E402
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CELERY_TASK_ALWAYS_EAGER = True
+# Rendering at every approval would triple the suite. Tests of it turn it back on.
+PRINT_FORMS_ON_APPROVAL = False
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_RATES": {

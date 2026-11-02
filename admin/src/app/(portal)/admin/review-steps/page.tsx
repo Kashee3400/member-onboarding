@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { FormError } from "@/components/admin/feedback";
+import { ReviewSettingsCards } from "@/components/admin/review-settings";
 import { Field } from "@/components/common/field";
 import { Listbox } from "@/components/common/listbox";
 import { PageHeader } from "@/components/common/page-header";
@@ -160,7 +161,7 @@ export default function ReviewStepsPage() {
     <>
       <PageHeader
         title="Review Steps"
-        description="Choose which role approves each step of a form. Nothing can be approved until every step has a role."
+        description="Choose which role approves each step of a form, who signs it, when it counts as late, and the ready-made reject reasons."
       />
       {state.error ? (
         <ErrorState error={state.error} onRetry={() => state.refetch()} />
@@ -170,6 +171,7 @@ export default function ReviewStepsPage() {
         <ListSkeleton />
       )}
       <Signatories />
+      <ReviewSettingsCards />
     </>
   );
 }

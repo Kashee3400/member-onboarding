@@ -375,3 +375,12 @@ export type ApplicationDocument = {
   uploaded_by_name: string;
   created_at: string;
 };
+
+/** A ready-made reason for sending a form back, and the fields it marks. */
+export type RejectReason = { text: string; section: string; fields: string[] };
+
+export type ReviewSettings = {
+  overdue_days: number;
+  reject_reasons: RejectReason[];
+  sections: { key: string; title: string; step: string; fields: { path: string; label: string }[] }[];
+};
