@@ -13,6 +13,7 @@ import { FormDialog } from "@/components/admin/form-dialog";
 import { DataTable, FilterSelect, type Column } from "@/components/common/data-table";
 import { Field } from "@/components/common/field";
 import { Listbox } from "@/components/common/listbox";
+import { MasterSelect } from "@/components/common/master-select";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/states";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -68,17 +69,13 @@ function MasterForm({
   tab,
   item,
   plants,
-  mccs,
   bmcs,
-  routes,
   onClose,
 }: {
   tab: Tab;
   item: Master | null;
   plants: Plant[];
-  mccs: Mcc[];
   bmcs: Bmc[];
-  routes: Route[];
   onClose: () => void;
 }) {
   const client = useQueryClient();
@@ -89,7 +86,6 @@ function MasterForm({
   const route = tab === "routes" ? (item as Route | null) : null;
   const [parent, setParent] = useState(mpp?.mcc ?? mcc?.plant ?? bmc?.mcc ?? route?.bmc ?? "");
   const [routeId, setRouteId] = useState(mpp?.route ?? "");
-  const routesHere = routes.filter((entry) => entry.mcc === parent);
   const [active, setActive] = useState(item?.is_active ?? true);
 
   const save = useMutation({
@@ -141,21 +137,21 @@ function MasterForm({
             placeholder="Choose a plant"
             value={parent}
             onChange={setParent}
-            items={plants.map((plant) => ({ value: plant.id, label: `${plant.code} ${plant.name}` }))}
+            items={plants.map((plant) => ({ value: plant.id, label: `${plant.code} - ${plant.name}` }))}
           />
         </Field>
       ) : null}
       {tab === "mpps" || tab === "bmcs" ? (
         <Field label="MCC">
-          <Listbox
-            aria-label="MCC"
+          <MasterSelect
+            kind="mccs"
             placeholder="Choose an MCC"
+            clearable={false}
             value={parent}
             onChange={(value) => {
               setParent(value);
               setRouteId("");
             }}
-            items={mccs.map((entry) => ({ value: entry.id, label: `${entry.code} ${entry.name}` }))}
           />
         </Field>
       ) : null}
@@ -166,19 +162,19 @@ function MasterForm({
             placeholder="Choose a BMC"
             value={parent}
             onChange={setParent}
-            items={bmcs.map((entry) => ({ value: entry.id, label: `${entry.code} ${entry.name}` }))}
+            items={bmcs.map((entry) => ({ value: entry.id, label: `${entry.code} - ${entry.name}` }))}
           />
         </Field>
       ) : null}
       {tab === "mpps" ? (
         <Field label="Route" optional>
-          <Listbox
-            aria-label="Route"
+          <MasterSelect
+            kind="routes"
             disabled={!parent}
             placeholder={parent ? "Choose a route" : "Choose an MCC first"}
             value={routeId}
+            filters={{ bmc__mcc: parent || undefined }}
             onChange={setRouteId}
-            items={routesHere.map((entry) => ({ value: entry.id, label: `${entry.code} ${entry.name}` }))}
           />
         </Field>
       ) : null}
@@ -372,7 +368,7 @@ export default function HierarchyPage() {
   const routes = useMasters<Route>("routes").data?.results ?? [];
   const nameOf = (list: Plant[], id: string | null) => list.find((entry) => entry.id === id)?.name ?? "—";
   const options = (list: Plant[]) =>
-    Object.fromEntries(list.map((entry) => [entry.id, `${entry.code} ${entry.name}`]));
+    Object.fromEntries(list.map((entry) => [entry.id, `${entry.code} - ${entry.name}`]));
 
   const plantColumns = useMemo<Column<Plant>[]>(() => [code(), name(), status()], []);
   const mccColumns: Column<Mcc>[] = [
@@ -614,9 +610,7 @@ export default function HierarchyPage() {
           tab={tab}
           item={editing.item}
           plants={plants}
-          mccs={mccs}
           bmcs={bmcs}
-          routes={routes}
           onClose={() => setEditing(null)}
         />
       ) : null}

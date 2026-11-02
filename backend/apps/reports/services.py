@@ -35,6 +35,8 @@ def filtered_applications(membership, permissions, filters: dict):
         queryset = queryset.filter(mpp_id=filters["mpp"])
     if filters.get("mcc"):
         queryset = queryset.filter(mpp__mcc_id=filters["mcc"])
+    if filters.get("route"):
+        queryset = queryset.filter(mpp__route_id=filters["route"])
     if filters.get("submitted_from"):
         queryset = queryset.filter(submitted_at__date__gte=filters["submitted_from"])
     if filters.get("submitted_to"):

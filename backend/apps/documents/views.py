@@ -13,6 +13,7 @@ from apps.applications.services import EDITABLE_STATUSES, display_name, visible_
 from apps.audit.services import record_event
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
 from apps.organizations.models import Membership
+from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.permissions import require_permission
 
 from . import storage
@@ -61,6 +62,8 @@ def _ensure_can_attach(application, document_type, permissions, membership) -> N
     if document_type == DocumentType.PAYMENT_PROOF:
         stage_permission = PROOF_STAGES.get(application.status)
         if stage_permission in permissions:
+            return
+        if stage_permission and APPROVE_ALL in permissions:
             return
         if review_steps.FEE_STEP in review_steps.actionable(application, membership):
             return

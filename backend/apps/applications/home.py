@@ -13,7 +13,7 @@ from django.utils import timezone
 from apps.documents.services import OWN_SIGNATURE_PERMISSIONS, current_signature
 from apps.hierarchy.models import Mcc, MccAssignment
 from apps.organizations.models import Membership
-from apps.rbac.catalog import APPROVAL_PERMISSIONS
+from apps.rbac.catalog import APPROVAL_PERMISSIONS, APPROVE_ALL
 from apps.rbac.services import role_codes_for
 
 from . import review_settings, review_steps, services
@@ -34,8 +34,12 @@ def _my_queue(membership, forms) -> dict:
     """Forms with a step this person can approve now, read in as few queries as possible."""
     held = role_codes_for(membership)
     by_step = review_steps.roles_by_step()
+    everything = review_steps.acts_on_all(membership)
     mine_at = {}
     for status in review_steps.STAGE_PERMISSIONS:
+        if everything:
+            mine_at[status] = review_steps.stage_steps(status)
+            continue
         roles = held & review_steps._stage_roles(status)
         mine_at[status] = {key for key, chosen in by_step.items() if chosen & roles}
 
@@ -177,7 +181,7 @@ def home_for(user) -> dict:
     forms = services.visible_applications(membership, permissions)
 
     home = {"by_status": services.status_counts(membership, permissions)}
-    approves = bool(APPROVAL_PERMISSIONS & set(permissions))
+    approves = bool((APPROVAL_PERMISSIONS | {APPROVE_ALL}) & set(permissions))
     if approves:
         home["my_queue"] = _my_queue(membership, forms)
     if approves or can("reports.view"):

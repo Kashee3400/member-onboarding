@@ -2537,6 +2537,11 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: route
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: status
         schema:
           enum:
@@ -2814,6 +2819,11 @@ paths:
           format: uuid
       - in: query
         name: mpp
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: route
         schema:
           type: string
           format: uuid
@@ -6014,6 +6024,7 @@ components:
       - description
     PermissionsEnum:
       enum:
+      - applications.approve_all
       - applications.approve_am
       - applications.approve_cs
       - applications.approve_finance
@@ -6038,6 +6049,7 @@ components:
       - staff.view
       type: string
       description: |-
+        * `applications.approve_all` - applications.approve_all
         * `applications.approve_am` - applications.approve_am
         * `applications.approve_cs` - applications.approve_cs
         * `applications.approve_finance` - applications.approve_finance

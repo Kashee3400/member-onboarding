@@ -26,7 +26,8 @@ import { messageOf } from "@/components/admin/feedback";
 import { CheckRow } from "@/components/admin/check-row";
 import { DateRangePicker } from "@/components/common/date-picker";
 import { Field } from "@/components/common/field";
-import { Listbox } from "@/components/common/listbox";
+import { MasterSelect } from "@/components/common/master-select";
+import { MppSelect } from "@/components/common/mpp-select";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState, ErrorState } from "@/components/common/states";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -39,12 +40,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCan } from "@/hooks/use-session";
 import { api, type Page } from "@/lib/api/client";
 import { date, dateTime } from "@/lib/format";
-import type { Mcc, Mpp, PdfBatch, PrintPreview } from "@/lib/types";
+import type { PdfBatch, PrintPreview } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const BASE = "reports/pdf-batches";
 
-type Filters = { approved_from: string; approved_to: string; search: string; mcc: string; mpp: string };
+type Filters = {
+  approved_from: string;
+  approved_to: string;
+  search: string;
+  mcc: string;
+  route: string;
+  mpp: string;
+};
 
 const STATUS: Record<PdfBatch["status"], { badge: string; label: string }> = {
   queued: { badge: "queued", label: "Waiting" },
@@ -312,6 +320,7 @@ export function PdfCenter() {
     approved_to: params.get("approved_to") ?? "",
     search: params.get("search") ?? "",
     mcc: "",
+    route: "",
     mpp: "",
   }));
   const [variant, setVariant] = useState<"full" | "single">(canFull ? "full" : "single");
@@ -332,16 +341,6 @@ export function PdfCenter() {
     // Every second and a half while one runs: close enough to watch it move.
     refetchInterval: (query) =>
       query.state.data?.results.some((job) => job.status === "queued" || job.status === "running") ? 1500 : false,
-  });
-  const mccs = useQuery({
-    queryKey: ["hierarchy", "mccs"],
-    queryFn: () => api<Page<Mcc>>("hierarchy/mccs", { query: { page_size: 500, ordering: "code" } }),
-    enabled: canSeeMasters,
-  });
-  const mpps = useQuery({
-    queryKey: ["hierarchy", "mpps"],
-    queryFn: () => api<Page<Mpp>>("hierarchy/mpps", { query: { page_size: 5000, ordering: "code" } }),
-    enabled: canSeeMasters,
   });
 
   const start = useMutation({
@@ -378,9 +377,6 @@ export function PdfCenter() {
     setExcluded([]);
     setFilters((current) => ({ ...current, [key]: value }));
   };
-  const mppOptions = (mpps.data?.results ?? [])
-    .filter((mpp) => !filters.mcc || mpp.mcc === filters.mcc)
-    .map((mpp) => ({ value: mpp.id, label: `${mpp.code} ${mpp.name}` }));
   const data = preview.data;
   const chosen = data ? data.count - excluded.length : 0;
   const tooMany = !!data && chosen > data.limit;
@@ -396,7 +392,7 @@ export function PdfCenter() {
       {live ? <LiveJob job={live} /> : null}
 
       <Card className="gap-4 p-5">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(15rem,1.2fr)_1fr_1fr_minmax(14rem,1.2fr)]">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[minmax(15rem,1.2fr)_1fr_1fr_1fr_minmax(14rem,1.2fr)]">
           <Field label="Approved between">
             <DateRangePicker
               from={filters.approved_from}
@@ -411,25 +407,35 @@ export function PdfCenter() {
             />
           </Field>
           <Field label="MCC">
-            <Listbox
+            <MasterSelect
+              kind="mccs"
               value={filters.mcc}
               disabled={!canSeeMasters}
               onChange={(value) => {
                 setExcluded([]);
-                setFilters((current) => ({ ...current, mcc: value, mpp: "" }));
+                setFilters((current) => ({ ...current, mcc: value, route: "", mpp: "" }));
               }}
-              items={[
-                { value: "", label: "All" },
-                ...(mccs.data?.results ?? []).map((mcc) => ({ value: mcc.id, label: `${mcc.code} ${mcc.name}` })),
-              ]}
+            />
+          </Field>
+          <Field label="Route">
+            <MasterSelect
+              kind="routes"
+              value={filters.route}
+              filters={{ bmc__mcc: filters.mcc || undefined }}
+              disabled={!canSeeMasters}
+              onChange={(value) => {
+                setExcluded([]);
+                setFilters((current) => ({ ...current, route: value, mpp: "" }));
+              }}
             />
           </Field>
           <Field label="MPP">
-            <Listbox
+            <MppSelect
               value={filters.mpp}
+              mcc={filters.mcc || undefined}
+              route={filters.route || undefined}
               disabled={!canSeeMasters}
               onChange={(value) => set("mpp", value)}
-              items={[{ value: "", label: "All" }, ...mppOptions]}
             />
           </Field>
           <Field label="One member" help="Form number, member code, mobile or name">

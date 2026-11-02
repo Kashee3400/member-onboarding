@@ -12,6 +12,7 @@ class ReportFilterSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Status.choices, required=False)
     mpp = serializers.UUIDField(required=False)
     mcc = serializers.UUIDField(required=False)
+    route = serializers.UUIDField(required=False)
     submitted_from = serializers.DateField(required=False)
     submitted_to = serializers.DateField(required=False)
 

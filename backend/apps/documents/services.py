@@ -112,7 +112,12 @@ def remove_staff_photo(membership, *, actor) -> None:
 
 
 # Their own signature goes on the printed form. Other approvers sign through their head.
-OWN_SIGNATURE_PERMISSIONS = {"applications.submit", "applications.approve_am"}
+# The admin acting at the Area Manager stage signs as the Area Manager does.
+OWN_SIGNATURE_PERMISSIONS = {
+    "applications.submit",
+    "applications.approve_am",
+    "applications.approve_all",
+}
 
 
 def needs_signature(membership, permissions=None) -> bool:

@@ -93,8 +93,9 @@ def test_the_full_preview_works_before_anyone_has_approved(world):
 
 
 def test_only_approvers_can_preview(world, at_finance):
-    for user in (world.facilitator, world.admin):
-        assert preview_of(world.client(user), at_finance, "single").status_code == 403
+    assert preview_of(world.client(world.facilitator), at_finance, "single").status_code == 403
+    # The organization admin acts on every step, so may check the printed form too.
+    assert preview_of(world.client(world.admin), at_finance, "single").status_code == 200
 
 
 def test_there_is_no_preview_outside_the_review_stages(world):

@@ -2,8 +2,10 @@
 The permission catalog and standard roles.
 
 Permissions live in code because code enforces them. Organizations compose them
-into roles from the admin. Approval permissions are deliberately left out of
-org_admin: administering the system must not grant the power to approve members.
+into roles from the admin. The stage approval permissions are left out of
+org_admin, so administering the system does not make someone an Area Manager or a
+head. Instead org_admin holds APPROVE_ALL: it may act on any review step a form
+has reached, as the user asked for on 2026-11-02.
 """
 
 PERMISSIONS = {
@@ -29,7 +31,11 @@ PERMISSIONS = {
     "roles.manage": "Manage roles",
     "settings.manage": "Manage integrations",
     "audit.view": "View the audit log",
+    "applications.approve_all": "Act on every review step, at whichever stage a form is",
 }
+
+# Acts on every open step, whatever Review Steps says. Not a stage permission.
+APPROVE_ALL = "applications.approve_all"
 
 APPROVAL_PERMISSIONS = frozenset(
     {

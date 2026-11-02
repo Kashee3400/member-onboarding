@@ -19,11 +19,14 @@ export function FormNav({
   id,
   status,
   steps,
+  onStep,
 }: {
   id: string;
   status: string;
   /** The steps shown on the page, by their number on the form. */
   steps: { number: number; key: string }[];
+  /** Opens a step's tab. */
+  onStep: (key: string) => void;
 }) {
   const router = useRouter();
   const inQueue = status.startsWith("pending");
@@ -50,15 +53,14 @@ export function FormNav({
       else if (key === "k" && previous) router.push(`/applications/${previous}`);
       else if (/^[1-9]$/.test(key)) {
         const step = steps.find((item) => item.number === Number(key));
-        const target = step ? document.getElementById(`section-step-${step.key}`) : null;
-        if (!target) return;
+        if (!step) return;
         event.preventDefault();
-        target.scrollIntoView({ behavior: "smooth" });
+        onStep(step.key);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, previous, router, steps]);
+  }, [next, previous, router, steps, onStep]);
 
   if (!inQueue || at < 0) return null;
   return (

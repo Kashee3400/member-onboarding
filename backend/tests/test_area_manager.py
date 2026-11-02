@@ -182,8 +182,12 @@ def test_the_area_manager_sees_the_full_numbers(world):
 def test_others_do_not(world):
     application = world.submitted()
 
-    for user in (world.facilitator, world.admin):
-        assert world.client(user).post(f"{URL}{application['id']}/numbers/").status_code == 403
+    assert (
+        world.client(world.facilitator).post(f"{URL}{application['id']}/numbers/").status_code
+        == 403
+    )
+    # The organization admin acts on every step, so checks numbers like an approver.
+    assert world.client(world.admin).post(f"{URL}{application['id']}/numbers/").status_code == 200
 
 
 def test_an_area_manager_of_another_mcc_does_not(world):

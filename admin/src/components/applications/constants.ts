@@ -7,6 +7,9 @@ export const STATUS_OPTIONS = [
   { value: "approved", label: "Approved" },
 ];
 
+/** The organization admin acts on every open step, whatever the stage. */
+export const APPROVE_ALL = "applications.approve_all";
+
 export const STAGE_PERMISSION: Record<string, string> = {
   pending_am: "applications.approve_am",
   pending_cs: "applications.approve_cs",

@@ -8,6 +8,7 @@ import { date } from "@/lib/format";
 import type { ApplicationDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+import { APPROVE_ALL } from "./constants";
 import { CopyButton } from "./copy-button";
 
 export type SensitiveNumbers = { aadhaar: string; account: string; full: boolean };
@@ -19,13 +20,14 @@ export function useSensitiveNumbers(id: string, application: ApplicationDetail |
   const manager = useCan("applications.approve_am");
   const legal = useCan("applications.approve_cs");
   const finance = useCan("applications.approve_finance");
+  const admin = useCan(APPROVE_ALL);
   const hasNumbers = !!(application?.aadhaar_last4 || application?.account_last4);
 
   const { data } = useQuery({
     queryKey: ["application-numbers", id],
     queryFn: () =>
       api<{ aadhaar_number: string; account_number: string }>(`applications/${id}/numbers`, { method: "POST" }),
-    enabled: (manager || legal || finance) && hasNumbers,
+    enabled: (manager || legal || finance || admin) && hasNumbers,
     // One look per opening: each is written to the audit log, and nothing stays in memory after.
     staleTime: Infinity,
     gcTime: 0,

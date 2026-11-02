@@ -1,25 +1,56 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, BadgeCheck, Check, FileDown, FileSearch, RotateCcw, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BadgeCheck,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FileDown,
+  FileSearch,
+  FileText,
+  HeartHandshake,
+  History as HistoryIcon,
+  House,
+  IdCard,
+  IndianRupee,
+  Landmark,
+  MapPin,
+  Milk,
+  RotateCcw,
+  ScrollText,
+  UserRound,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ErrorState } from "@/components/common/states";
 import { StatusBadge } from "@/components/common/status-badge";
-import { StatusTabs } from "@/components/common/status-tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCan } from "@/hooks/use-session";
 import { api } from "@/lib/api/client";
-import { date, dateTime, humanize } from "@/lib/format";
+import { date, dateTime, humanize, initials } from "@/lib/format";
 import type { ApplicationDetail as Application, ApplicationDocument, FormSchema } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import { changesOf, type Change, type Changes } from "./changes";
-import { STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./constants";
+import { APPROVE_ALL, STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./constants";
 import { CopyButton } from "./copy-button";
 import { DecisionBar } from "./decision-bar";
 import { DocumentPanel } from "./document-panel";
@@ -92,17 +123,18 @@ function ChangesSummary({
   application,
   changes,
   labels,
+  onOpen,
 }: {
   application: Application;
   changes: Changes;
   labels: Record<string, string>;
+  /** Opens the step a section belongs to. */
+  onOpen: (section: string) => void;
 }) {
   const rejection = application.decisions
     .filter((item) => item.decision === "rejected" && item.revision === changes.since)
     .at(-1);
   const nothing = !changes.fields.length && !changes.documents.size;
-  const jump = (section: string) =>
-    document.querySelector(`[data-section="${section}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   return (
     <div className="space-y-2 border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
       <p className="flex items-center gap-2 font-medium">
@@ -121,7 +153,7 @@ function ChangesSummary({
             <li key={change.path}>
               <button
                 type="button"
-                onClick={() => jump(change.section)}
+                onClick={() => onOpen(change.section)}
                 className="border bg-background px-2 py-0.5 text-xs outline-none hover:border-amber-500/60 focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {change.label}
@@ -156,13 +188,33 @@ function Section({
   children: React.ReactNode;
   className?: string;
 }) {
+  const Icon = SECTION_ICONS[id] ?? FileText;
   return (
-    <Card id={`section-${id}`} data-section={id} className={cn("scroll-mt-28 gap-3 p-4", className)}>
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <Card id={`section-${id}`} data-section={id} className={cn("scroll-mt-28 gap-4 p-5", className)}>
+      <h2 className="flex items-center gap-2.5 text-sm font-semibold">
+        <span className="flex size-7 items-center justify-center bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
+        {title}
+      </h2>
       {children}
     </Card>
   );
 }
+
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  applicant: UserRound,
+  address: House,
+  location: MapPin,
+  animals: Milk,
+  bank: Landmark,
+  family: Users,
+  nominee: HeartHandshake,
+  declaration: ScrollText,
+  place: MapPin,
+  payment: IndianRupee,
+  history: HistoryIcon,
+};
 
 function FormSection({
   section,
@@ -293,50 +345,88 @@ function StageTrack({ application }: { application: Application }) {
   );
 }
 
-/** Jumps through a long form, and shows where the reader is. */
-function SectionIndex({ sections }: { sections: { id: string; title: string }[] }) {
-  const [current, setCurrent] = useState(sections[0]?.id);
-  useEffect(() => {
-    const seen = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((entry) => entry.isIntersecting).sort(
-          (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
-        )[0];
-        if (top) setCurrent(top.target.id.replace("section-", ""));
-      },
-      { rootMargin: "-112px 0px -65% 0px" },
-    );
-    sections.forEach(({ id }) => {
-      const element = document.getElementById(`section-${id}`);
-      if (element) seen.observe(element);
-    });
-    return () => seen.disconnect();
-  }, [sections]);
+type Step = Application["review_steps"][number];
 
+/** One tab per step. Each says whether it is done, waiting for this person, or to read. */
+function StepTabs({
+  steps,
+  active,
+  onPick,
+  reviewing,
+  extra,
+}: {
+  steps: Step[];
+  active: string;
+  onPick: (key: string) => void;
+  reviewing: boolean;
+  /** A last tab that is not a step, such as History. */
+  extra?: { key: string; label: string };
+}) {
   return (
     <nav
-      aria-label="Form sections"
-      className="sticky top-14 z-10 -mx-1 flex gap-0.5 overflow-x-auto border-b bg-background/95 px-1 py-1 backdrop-blur scrollbar-none"
+      aria-label="Review steps"
+      className="sticky top-14 z-10 -mx-1 flex gap-1 overflow-x-auto bg-background/95 px-1 py-1.5 backdrop-blur scrollbar-none"
     >
-      {sections.map((section) => (
+      {steps.map((step) => {
+        const done = !!step.approved_at;
+        const yours = reviewing && step.can_approve;
+        const current = active === step.key;
+        return (
+          <button
+            key={step.key}
+            type="button"
+            aria-current={current ? "step" : undefined}
+            onClick={() => onPick(step.key)}
+            className={cn(
+              "flex min-w-36 shrink-0 items-center gap-2.5 border px-3 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+              current ? "border-primary bg-primary/8 shadow-(--lift)" : "bg-card hover:border-foreground/25",
+            )}
+          >
+            <span
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center text-xs font-semibold tabular-nums",
+                done
+                  ? "bg-emerald-500 text-white"
+                  : yours
+                    ? "bg-amber-500 text-white"
+                    : current
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+              )}
+            >
+              {done ? <Check className="size-4" /> : step.number}
+            </span>
+            <span className="min-w-0">
+              <span className={cn("block truncate text-sm", current && "font-medium")}>{step.title}</span>
+              <span
+                className={cn(
+                  "block text-[11px]",
+                  done
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : yours
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground",
+                )}
+              >
+                {done ? "Approved" : yours ? "Your check" : "To read"}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+      {extra ? (
         <button
-          key={section.id}
           type="button"
-          aria-current={current === section.id ? "true" : undefined}
-          onClick={() => {
-            setCurrent(section.id);
-            document.getElementById(`section-${section.id}`)?.scrollIntoView({ behavior: "smooth" });
-          }}
+          aria-current={active === extra.key ? "step" : undefined}
+          onClick={() => onPick(extra.key)}
           className={cn(
-            "shrink-0 px-2.5 py-1 text-xs whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-            current === section.id
-              ? "bg-primary/10 font-medium text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            "flex shrink-0 items-center gap-2 border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            active === extra.key ? "border-primary bg-primary/8 font-medium" : "bg-card hover:border-foreground/25",
           )}
         >
-          {section.title}
+          <HistoryIcon className="size-4 text-muted-foreground" /> {extra.label}
         </button>
-      ))}
+      ) : null}
     </nav>
   );
 }
@@ -484,15 +574,18 @@ export function ApplicationDetail({ id }: { id: string }) {
   };
 
   const data = application.data;
-  const canDecide = useCan(STAGE_PERMISSION[data?.status ?? ""] ?? "");
+  const actsOnAll = useCan(APPROVE_ALL);
+  const canDecide = useCan(STAGE_PERMISSION[data?.status ?? ""] ?? "") || actsOnAll;
   const canPrintFull = useCan("applications.download_full_pdf");
-  const canPayAtFinance = useCan("applications.approve_finance") && data?.status === "pending_finance";
-  const canPayAtAm = useCan("applications.approve_am");
+  const canPayAtFinance =
+    (useCan("applications.approve_finance") || actsOnAll) && data?.status === "pending_finance";
+  const canPayAtAm = useCan("applications.approve_am") || actsOnAll;
   // Any approver can check the printed form before it is final.
   const canPreview = [canPayAtAm, useCan("applications.approve_cs"), useCan("applications.approve_finance")].some(Boolean);
 
-  const [scope, setScope] = useState<"mine" | "all">("mine");
-  const familyCount = data?.data.family?.length ?? 0;
+  const [picked, setPicked] = useState<string | null>(null);
+  // Every step, to read, in a dialog: the page itself shows only this person's steps.
+  const [viewing, setViewing] = useState<string | null>(null);
   const hasPayment = !!data?.payment.amount || canPayAtFinance || (canPayAtAm && data?.status === "pending_am");
 
   if (application.error || schema.error) {
@@ -521,23 +614,37 @@ export function ApplicationDetail({ id }: { id: string }) {
         ? "Upload the payment slip before approving Member Fee."
         : null;
   const back = canAct ? STAGE_QUEUE[data.status] : "/applications";
-  const family = data.data.family ?? [];
   const changes = changesOf(data, schema.data, documents.data ?? []);
   const labels: Record<string, string> = Object.fromEntries(
     schema.data.sections.flatMap((section) => section.fields.map((field) => [`${section.key}.${field.key}`, field.label])),
   );
 
-  // Someone reviewing starts on their own steps. Every step stays one click away.
   const mySteps = data.review_steps.filter((step) => step.mine);
-  const reviewing = !!stage && mySteps.length > 0;
-  const focused = reviewing && scope === "mine";
-  const hasContent = (section: string) =>
-    section === "family" ? familyCount > 0 : section === "payment" ? hasPayment : true;
-  const steps = (focused ? mySteps : data.review_steps).filter((step) => step.sections.some(hasContent));
-  const sections = [
-    ...steps.map((step) => ({ id: `step-${step.key}`, title: `${step.number}. ${step.title}` })),
-    { id: "history", title: "History" },
-  ];
+  const reviewing = canAct && mySteps.length > 0;
+  // Someone who acts on this form sees only their own steps. Anyone else reads them all.
+  const tabs = reviewing ? mySteps : data.review_steps;
+  const firstOpen = tabs.find((step) => step.can_approve) ?? tabs[0];
+  const activeKey =
+    picked && (tabs.some((step) => step.key === picked) || (!reviewing && picked === "history"))
+      ? picked
+      : (firstOpen?.key ?? "history");
+  const active = tabs.find((step) => step.key === activeKey) ?? null;
+  const position = active ? tabs.indexOf(active) : -1;
+
+  /** After a step is approved, on to the next one this person still has open. */
+  const afterApproval = (approved: string) => {
+    const open = mySteps.filter((step) => step.can_approve && step.key !== approved);
+    const after = open.find((step) => step.number > (active?.number ?? 0)) ?? open[0];
+    setPicked(after?.key ?? approved);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  /** A change chip opens its step: here when it is this person's, otherwise in View mode. */
+  const openSection = (section: string) => {
+    const step = data.review_steps.find((item) => item.sections.includes(section));
+    if (!step) return;
+    if (tabs.includes(step)) setPicked(step.key);
+    else setViewing(step.key);
+  };
   const myFields = {
     ...schema.data,
     sections: schema.data.sections.filter((section) => mySteps.some((step) => step.sections.includes(section.key))),
@@ -553,55 +660,71 @@ export function ApplicationDetail({ id }: { id: string }) {
           <ArrowLeft className="size-4" /> {canAct ? "Back to the queue" : "All applications"}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">{data.applicant_name || "No name yet"}</h1>
-              <StatusBadge status={data.status} label={data.status_label} />
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center bg-primary/10 text-base font-semibold text-primary">
+              {initials(data.applicant_name || "?")}
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight">{data.applicant_name || "No name yet"}</h1>
+                <StatusBadge status={data.status} label={data.status_label} />
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                <span className="font-mono tabular-nums">{data.form_number || "No form number yet"}</span>
+                {" · "}MPP {data.mpp_code} {data.mpp_name}
+              </p>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-mono tabular-nums">{data.form_number || "No form number yet"}</span>
-              {" · "}MPP {data.mpp_code} {data.mpp_name}
-            </p>
           </div>
-          <FormNav id={data.id} status={data.status} steps={steps} />
-          {data.status === "approved" ? (
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <FormNav id={data.id} status={data.status} steps={tabs} onStep={setPicked} />
+            {reviewing ? (
+              <Button
+                variant="outline"
+                onClick={() => setViewing(active?.key ?? data.review_steps[0].key)}
+                title="Read all eight steps of the form"
+              >
+                <Eye /> View mode
+              </Button>
+            ) : null}
+            {data.status === "approved" ? (
+              <>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <a href={`/api/backend/applications/${id}/pdf?variant=single`} target="_blank" rel="noreferrer" />
+                  }
+                >
+                  <FileDown /> Single page PDF
+                </Button>
+                {canPrintFull ? (
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <a href={`/api/backend/applications/${id}/pdf?variant=full`} target="_blank" rel="noreferrer" />
+                    }
+                  >
+                    <FileDown /> Full form PDF
+                  </Button>
+                ) : null}
+              </>
+            ) : stage && canPreview ? (
               <Button
                 variant="outline"
                 nativeButton={false}
                 render={
-                  <a href={`/api/backend/applications/${id}/pdf?variant=single`} target="_blank" rel="noreferrer" />
+                  <a
+                    href={`/api/backend/applications/${id}/preview-pdf?variant=${canPrintFull ? "full" : "single"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="The form as it would print if approved now. Marked as a draft and not kept."
+                  />
                 }
               >
-                <FileDown /> Single page PDF
+                <FileSearch /> Preview PDF
               </Button>
-              {canPrintFull ? (
-                <Button
-                  nativeButton={false}
-                  render={
-                    <a href={`/api/backend/applications/${id}/pdf?variant=full`} target="_blank" rel="noreferrer" />
-                  }
-                >
-                  <FileDown /> Full form PDF
-                </Button>
-              ) : null}
-            </div>
-          ) : stage && canPreview ? (
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={
-                <a
-                  href={`/api/backend/applications/${id}/preview-pdf?variant=${canPrintFull ? "full" : "single"}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="The form as it would print if approved now. Marked as a draft and not kept."
-                />
-              }
-            >
-              <FileSearch /> Preview PDF
-            </Button>
-          ) : null}
+            ) : null}
+          </div>
         </div>
         <StageTrack application={data} />
       </header>
@@ -629,7 +752,7 @@ export function ApplicationDetail({ id }: { id: string }) {
         </div>
       ) : null}
       {changes.since && data.status.startsWith("pending") ? (
-        <ChangesSummary application={data} changes={changes} labels={labels} />
+        <ChangesSummary application={data} changes={changes} labels={labels} onOpen={openSection} />
       ) : null}
       {data.warnings.map((warning) => (
         <p
@@ -646,85 +769,281 @@ export function ApplicationDetail({ id }: { id: string }) {
           numbers={numbers}
           application={data}
           fresh={changes.documents}
-          first={focused ? mySteps.flatMap((step) => step.documents) : []}
+          first={active?.documents ?? []}
           loading={documents.isPending}
           className="lg:sticky lg:top-18 lg:order-last lg:max-h-[calc(100svh-12rem)] lg:self-start lg:overflow-y-auto lg:pr-1"
         />
         <div className="min-w-0 space-y-3">
-          {reviewing ? (
-            <StatusTabs
-              value={scope}
-              onChange={setScope}
-              options={[
-                { value: "mine", label: "My steps", count: mySteps.filter((step) => step.can_approve).length },
-                { value: "all", label: "All steps", count: data.review_steps.length },
-              ]}
-            />
-          ) : null}
-          <SectionIndex key={scope} sections={sections} />
+          <AtAGlance application={data} numbers={numbers} changes={changes} />
 
-          <Card className="p-4">
-            <Facts>
-              <Fact label="Prepared by">{data.created_by_name}</Fact>
-              <Fact label="Submitted by">{data.revisions[0]?.submitted_by_name}</Fact>
-              <Fact label="Submission">{data.revision || null}</Fact>
-              {data.aadhaar_last4 ? (
-                <Fact label="Aadhaar" change={changes.byPath.get("applicant.aadhaar_number")}>
-                  <span className="tabular-nums">{numbers.aadhaar}</span>
-                </Fact>
-              ) : null}
-              {data.account_last4 ? (
-                <Fact label="Bank account" change={changes.byPath.get("bank.account_number")}>
-                  <span className="tabular-nums">{numbers.account}</span>
-                </Fact>
-              ) : null}
-              <Fact label="Animals / surplus">
-                {data.computed.total_animals} animals, {data.computed.surplus_lpd} litres a day
-              </Fact>
-            </Facts>
-          </Card>
+          <StepTabs
+            steps={tabs}
+            active={activeKey}
+            onPick={setPicked}
+            reviewing={reviewing}
+            extra={reviewing ? undefined : { key: "history", label: "History" }}
+          />
 
-          {steps.map((step) => (
-            <div key={step.key} id={`section-step-${step.key}`} className="scroll-mt-28 space-y-2">
-              <div className="flex items-center gap-2 pt-1">
-                <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Step {step.number}: {step.title}
-                </h2>
-                {step.approved_at ? (
-                  <StatusBadge status="approved" label={`Approved by ${step.approved_by_name}`} />
-                ) : reviewing ? (
-                  <StatusBadge
-                    status={step.can_approve ? "pending" : "draft"}
-                    label={step.can_approve ? "Your check" : "View only"}
-                  />
-                ) : null}
-              </div>
-              {step.sections.map((key) => {
-                const section = schema.data.sections.find((item) => item.key === key);
-                if (section) return <FormSection key={key} section={section} application={data} changes={changes} />;
-                if (key === "place") return <PlaceSection key={key} application={data} />;
-                if (key === "family" && family.length) {
-                  return <FamilySection key={key} family={family} change={changes.byPath.get("family")} />;
+          {active ? (
+            <div key={active.key} className="space-y-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+              <StepContent
+                step={active}
+                application={data}
+                schema={schema.data}
+                changes={changes}
+                status={
+                  active.approved_at
+                    ? "approved"
+                    : reviewing && active.can_approve
+                      ? "yours"
+                      : "read"
                 }
-                if (key === "payment") {
-                  return (
+                payment={
+                  hasPayment ? (
                     <PaymentCard
                       key={data.payment.deposited_on ?? "new"}
                       application={data}
                       hasProof={hasProof}
                       onChange={refresh}
                     />
-                  );
+                  ) : null
                 }
-                return null;
-              })}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="ghost"
+                  disabled={position <= 0}
+                  onClick={() => setPicked(tabs[position - 1]?.key ?? null)}
+                >
+                  <ChevronLeft /> {position > 0 ? tabs[position - 1].title : "Previous"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={position >= tabs.length - 1}
+                  onClick={() => setPicked(tabs[position + 1]?.key ?? null)}
+                >
+                  {position < tabs.length - 1 ? tabs[position + 1].title : "Next"} <ChevronRight />
+                </Button>
+              </div>
             </div>
-          ))}
-          <History application={data} />
+          ) : (
+            <History application={data} />
+          )}
         </div>
       </div>
 
-      {canAct ? <DecisionBar key={`${data.id}-${data.version}`} application={data} schema={myFields} blocked={blocked} /> : null}
+      {canAct ? (
+        <DecisionBar
+          key={`${data.id}-${data.version}`}
+          application={data}
+          schema={myFields}
+          blocked={blocked}
+          current={reviewing ? active : null}
+          onApproved={afterApproval}
+        />
+      ) : null}
+
+      <AllStepsDialog
+        open={viewing !== null}
+        onOpenChange={(open) => setViewing(open ? viewing : null)}
+        active={viewing}
+        onPick={setViewing}
+        application={data}
+        schema={schema.data}
+        changes={changes}
+      />
+    </div>
+  );
+}
+
+/** One step's sections, and whether it is done, waiting for this person, or to read. */
+function StepContent({
+  step,
+  application,
+  schema,
+  changes,
+  status,
+  payment,
+}: {
+  step: Step;
+  application: Application;
+  schema: FormSchema;
+  changes: Changes;
+  status: "approved" | "yours" | "read";
+  /** How the payment shows: editable on the page, read-only in View mode. */
+  payment: React.ReactNode;
+}) {
+  const family = application.data.family ?? [];
+  const parts = step.sections
+    .map((key) => {
+      const section = schema.sections.find((item) => item.key === key);
+      if (section) return <FormSection key={key} section={section} application={application} changes={changes} />;
+      if (key === "place") return <PlaceSection key={key} application={application} />;
+      if (key === "family" && family.length) {
+        return <FamilySection key={key} family={family} change={changes.byPath.get("family")} />;
+      }
+      if (key === "payment" && payment) return <div key={key}>{payment}</div>;
+      return null;
+    })
+    .filter(Boolean);
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">
+          <span className="text-muted-foreground">Step {step.number} of 8 · </span>
+          {step.title}
+        </h2>
+        {status === "approved" ? (
+          <StatusBadge status="approved" label={`Approved by ${step.approved_by_name}`} />
+        ) : status === "yours" ? (
+          <StatusBadge status="pending" label="Waiting for your check" />
+        ) : (
+          <StatusBadge status="draft" label={step.approved_at ? "Approved" : "Not approved yet"} />
+        )}
+      </div>
+      {parts.length ? parts : <Card className="p-5 text-sm text-muted-foreground">Nothing was filled in for this step.</Card>}
+    </>
+  );
+}
+
+/** The payment as recorded, for reading. Recording it happens on the form page. */
+function PaymentFacts({ application }: { application: Application }) {
+  const paid = application.payment;
+  if (!paid.amount) {
+    return <Card className="p-5 text-sm text-muted-foreground">No payment recorded yet.</Card>;
+  }
+  return (
+    <Section id="payment" title="Member fee">
+      <Facts>
+        <Fact label="Amount">{`₹ ${paid.amount}`}</Fact>
+        <Fact label="Deposited on">{paid.deposited_on ? date(paid.deposited_on) : null}</Fact>
+        <Fact label="Mode">{paid.mode ? humanize(paid.mode) : null}</Fact>
+        <Fact label="Bank">{paid.bank_name || null}</Fact>
+        <Fact label="Reference">{paid.reference || null}</Fact>
+        <Fact label="Recorded by">{paid.recorded_by_name || null}</Fact>
+      </Facts>
+    </Section>
+  );
+}
+
+/** View mode: all eight steps and the history, one tab each, to read only. */
+function AllStepsDialog({
+  open,
+  onOpenChange,
+  active,
+  onPick,
+  application,
+  schema,
+  changes,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  active: string | null;
+  onPick: (key: string) => void;
+  application: Application;
+  schema: FormSchema;
+  changes: Changes;
+}) {
+  const step = application.review_steps.find((item) => item.key === active) ?? null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[88svh] flex-col gap-3 p-0 sm:max-w-6xl">
+        <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-3">
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="size-4" /> {application.applicant_name}: all steps
+          </DialogTitle>
+          <DialogDescription>For reading only. Approving is done on the form page, step by step.</DialogDescription>
+        </DialogHeader>
+        <div className="shrink-0 px-5">
+          <StepTabs
+            steps={application.review_steps}
+            active={active ?? ""}
+            onPick={onPick}
+            reviewing={false}
+            extra={{ key: "history", label: "History" }}
+          />
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 pb-5">
+          {step ? (
+            <StepContent
+              key={step.key}
+              step={step}
+              application={application}
+              schema={schema}
+              changes={changes}
+              status={step.approved_at ? "approved" : "read"}
+              payment={<PaymentFacts application={application} />}
+            />
+          ) : (
+            <History application={application} />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The few facts a reviewer looks at first, before going through the steps. */
+function AtAGlance({
+  application,
+  numbers,
+  changes,
+}: {
+  application: Application;
+  numbers: ReturnType<typeof useSensitiveNumbers>;
+  changes: Changes;
+}) {
+  const items: { icon: LucideIcon; label: string; value: React.ReactNode; change?: Change }[] = [
+    { icon: UserRound, label: "Prepared by", value: application.created_by_name },
+    {
+      icon: RotateCcw,
+      label: "Submission",
+      value: application.revision
+        ? `No. ${application.revision}, by ${application.revisions[0]?.submitted_by_name ?? "—"}`
+        : null,
+    },
+    ...(application.aadhaar_last4
+      ? [
+          {
+            icon: IdCard,
+            label: "Aadhaar",
+            value: <span className="font-mono tabular-nums">{numbers.aadhaar}</span>,
+            change: changes.byPath.get("applicant.aadhaar_number"),
+          },
+        ]
+      : []),
+    ...(application.account_last4
+      ? [
+          {
+            icon: Landmark,
+            label: "Bank account",
+            value: <span className="font-mono tabular-nums">{numbers.account}</span>,
+            change: changes.byPath.get("bank.account_number"),
+          },
+        ]
+      : []),
+    {
+      icon: Milk,
+      label: "Animals / surplus",
+      value: `${application.computed.total_animals} animals, ${application.computed.surplus_lpd} litres a day to sell`,
+    },
+  ];
+  return (
+    // Each box grows to fit its value: a number cut short cannot be checked.
+    // Boxes stretch to fill each row, so a wrapped row leaves no empty gap.
+    <div className="flex flex-wrap border-t border-l bg-card">
+      {items.map(({ icon: Icon, label, value, change }) => (
+        <div
+          key={label}
+          className={cn("min-w-0 flex-[1_1_12rem] border-r border-b px-3 py-2.5", change && "bg-amber-500/10")}
+        >
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Icon className="size-3.5 shrink-0" /> {label}
+            {change ? <span className="font-medium text-amber-700 dark:text-amber-300">Changed</span> : null}
+          </p>
+          <p className="mt-0.5 text-sm font-medium break-words">{value ?? "—"}</p>
+        </div>
+      ))}
     </div>
   );
 }

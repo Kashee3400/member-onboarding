@@ -2,6 +2,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.applications.models import ReviewStepAccess
+from apps.applications.review_steps import STEP_KEYS
 from apps.core.tenancy import organization_context
 
 from .test_applications import (
@@ -45,7 +46,8 @@ def test_each_role_acts_on_the_steps_chosen_for_it(world, application):
     assert mine(world, world.legal, application) == {"member", "address", "nominee"}
     assert mine(world, world.manager, application) == {"milk", "household", "village"}
     assert mine(world, world.finance, application) == {"bank", "fee"}
-    assert mine(world, world.admin, application) == set()
+    # The admin acts on every step, whatever Review Steps says.
+    assert mine(world, world.admin, application) == set(STEP_KEYS)
 
 
 def test_there_are_eight_steps_in_order(world, application):

@@ -19,6 +19,7 @@ from apps.documents.services import current_signature
 from apps.hierarchy.models import Mpp
 from apps.hierarchy.services import accessible_mpps
 from apps.organizations.models import Membership
+from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
@@ -52,6 +53,7 @@ MIN_SEARCH_LENGTH = 2
 
 # Those who must check a form's numbers against its card and passbook photos.
 NUMBER_VIEWERS = {
+    APPROVE_ALL,
     "applications.approve_am",
     "applications.approve_cs",
     "applications.approve_finance",

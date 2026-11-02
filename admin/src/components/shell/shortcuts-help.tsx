@@ -57,11 +57,11 @@ const SECTIONS: { title: string; keys: [string[], string][] }[] = [
   {
     title: "On a form",
     keys: [
-      [["A"], "Approve"],
+      [["A"], "Approve the step on screen, after asking"],
       [["R"], "Reject, with a reason"],
       [["J"], "Next form in the queue"],
       [["K"], "Previous form in the queue"],
-      [["1-8"], "Jump to that review step"],
+      [["1-8"], "Open that step's tab"],
     ],
   },
 ];
@@ -86,14 +86,15 @@ export function ShortcutsHelp() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      {/* Capped to the screen: the heading stays put and only the list scrolls. */}
+      <DialogContent className="flex max-h-[85svh] flex-col sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="size-4" /> Keyboard shortcuts
           </DialogTitle>
           <DialogDescription>They do nothing while you are typing in a box.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-5">
+        <div className="-mr-2 min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-2" tabIndex={0}>
           {SECTIONS.map((s) => (
             <section key={s.title} className="space-y-2">
               <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{s.title}</h3>

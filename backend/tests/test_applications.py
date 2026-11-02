@@ -488,9 +488,10 @@ def test_a_stage_cannot_decide_twice(world):
     assert world.approve(application, world.manager).status_code == 403
 
 
-def test_an_admin_cannot_approve(world):
+def test_an_admin_without_a_signature_cannot_approve(world):
+    # The admin may act on every step (see test_admin_actions.py), but signs like anyone.
     application = world.submitted()
-    assert world.approve(application, world.admin).status_code == 403
+    assert world.approve(application, world.admin).status_code != 200
 
 
 def test_the_preparer_cannot_approve_their_own_form(world):

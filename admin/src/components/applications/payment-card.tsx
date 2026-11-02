@@ -16,6 +16,8 @@ import { ApiError, api } from "@/lib/api/client";
 import { date, rupees } from "@/lib/format";
 import type { ApplicationDetail } from "@/lib/types";
 
+import { APPROVE_ALL } from "./constants";
+
 const MODES: Record<string, string> = { cash: "Cash", dd: "DD", online: "Online" };
 
 const message = (error: unknown) => (error instanceof ApiError ? error.summary : "Something went wrong. Try again.");
@@ -34,8 +36,9 @@ export function PaymentCard({
   const file = useRef<HTMLInputElement>(null);
   const paid = application.payment;
   const atFinance = application.status === "pending_finance";
-  const isFinance = useCan("applications.approve_finance");
-  const isAreaManager = useCan("applications.approve_am");
+  const actsOnAll = useCan(APPROVE_ALL);
+  const isFinance = useCan("applications.approve_finance") || actsOnAll;
+  const isAreaManager = useCan("applications.approve_am") || actsOnAll;
   const canRecord = application.review_steps.some((step) => step.key === "fee" && step.can_approve);
   const canUpload =
     canRecord || (isFinance && atFinance) || (isAreaManager && application.status === "pending_am");

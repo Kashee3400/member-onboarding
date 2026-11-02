@@ -14,6 +14,7 @@ from apps.documents.models import Document, DocumentType
 from apps.documents.services import current_signature, missing_documents
 from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
+from apps.rbac.catalog import APPROVE_ALL
 
 from . import form, legacy, review_steps
 from .models import (
@@ -472,7 +473,7 @@ def decide(
     if stage is None:
         raise Conflict("This application is not waiting for a decision.")
     permission, next_status = stage
-    if permission not in permissions:
+    if permission not in permissions and APPROVE_ALL not in permissions:
         raise exceptions.PermissionDenied("This stage needs a different role.")
 
     worked_on_it = ApplicationRevision.objects.filter(

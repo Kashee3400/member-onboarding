@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ApplicationDetail, ApplicationDocument } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+import { FloatingViewer } from "./floating-viewer";
 import { Lightbox } from "./lightbox";
 import { NumbersCheck, noteFor, type SensitiveNumbers } from "./numbers-check";
 
@@ -41,6 +42,8 @@ export function DocumentPanel({
   first: string[];
   className?: string;
 }) {
+  // A click floats the document over the page; a double click, or Full screen, fills it.
+  const [floating, setFloating] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const isFirst = (slot: (typeof SLOTS)[number]) => slot.types.some((type) => first.includes(type));
   const slots = [...SLOTS.filter(isFirst), ...SLOTS.filter((slot) => !isFirst(slot))].map((slot) => ({
@@ -80,8 +83,10 @@ export function DocumentPanel({
                   {document ? (
                     <button
                       type="button"
-                      onClick={() => setOpen(items.findIndex((item) => item.id === document.id))}
+                      onClick={() => setFloating(items.findIndex((item) => item.id === document.id))}
+                      onDoubleClick={() => setOpen(items.findIndex((item) => item.id === document.id))}
                       aria-label={`Open ${label}`}
+                      title="Click to open beside the form. Double-click for full screen."
                       className="group relative block w-full overflow-hidden border bg-muted outline-none transition-[border-color,box-shadow] hover:border-primary/50 focus-visible:border-primary focus-visible:shadow-(--lift)"
                     >
                       {/* Private, authenticated files, so the image optimizer cannot fetch them. */}
@@ -120,6 +125,13 @@ export function DocumentPanel({
               );
             })}
       </div>
+      <FloatingViewer
+        items={items}
+        index={floating}
+        onIndex={setFloating}
+        onClose={() => setFloating(null)}
+        onExpand={setOpen}
+      />
       <Lightbox items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />
     </aside>
   );

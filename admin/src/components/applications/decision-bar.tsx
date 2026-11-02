@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -23,26 +23,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, api, type Page } from "@/lib/api/client";
 import { isTyping } from "@/lib/shortcuts";
-import type { ApplicationDetail, ApplicationSummary, FormSchema, RejectReason } from "@/lib/types";
+import type { ApplicationDetail, ApplicationSummary, FormSchema, RejectReason, ReviewStep } from "@/lib/types";
 
 import { STAGE_LABEL, STAGE_QUEUE } from "./constants";
 
 const message = (error: unknown) => (error instanceof ApiError ? error.summary : "Something went wrong. Try again.");
 
 /**
- * The decision, always in reach at the foot of the screen. A and R work from the
- * keyboard, and D too, matching the queue. Afterwards the next oldest form opens,
- * so someone working through a queue never has to go back to it.
+ * The decision, always in reach at the foot of the screen. Approve works on the step
+ * on screen, one at a time, and then the next open step shows. Once the stage is done
+ * the next oldest form opens, so a queue never has to be gone back to. A and R work
+ * from the keyboard, and D too, matching the queue.
  */
 export function DecisionBar({
   application,
   schema,
   blocked,
+  current,
+  onApproved,
 }: {
   application: ApplicationDetail;
   schema: FormSchema;
   /** Why approving can't happen yet. */
   blocked: string | null;
+  /** The step on screen, when it is one of this person's. */
+  current: ReviewStep | null;
+  /** A step was approved and the form stays at this stage: show the next one. */
+  onApproved: (step: string) => void;
 }) {
   const id = application.id;
   const stage = STAGE_LABEL[application.status];
@@ -52,19 +59,24 @@ export function DecisionBar({
   const params = useSearchParams();
   const client = useQueryClient();
   const [approving, setApproving] = useState(false);
-  const [checked, setChecked] = useState<string[]>([]);
-  // Every step left on the form is one of these, so this approval makes the member.
-  const finishes = application.status === "pending_finance" && checked.length === left;
+  const [checked, setChecked] = useState(false);
   const [rejecting, setRejecting] = useState(params.get("reject") === "1");
+  const target = current?.can_approve ? current : null;
+  const targetBlocked = target?.key === "fee" ? blocked : null;
+  // The last step left on the whole form: approving it makes the member.
+  const finishes = application.status === "pending_finance" && left === 1 && !!target;
 
   const decide = useMutation({
     mutationFn: (body: object) => api<ApplicationDetail>(`applications/${id}/decide`, { method: "POST", body }),
     onSuccess: async (result, body) => {
       const rejected = (body as { decision: string }).decision === "rejected";
       if (!rejected && result.status === application.status) {
-        toast.success(checked.length === 1 ? "Step approved." : `${checked.length} steps approved.`);
+        const done = (body as { steps: string[] }).steps[0];
+        const step = application.review_steps.find((item) => item.key === done);
+        toast.success(step ? `Step ${step.number}, ${step.title}, approved.` : "Step approved.");
         client.invalidateQueries({ queryKey: ["queue"] });
         client.invalidateQueries({ queryKey: ["application", id] });
+        onApproved(done);
         return;
       }
       toast.success(
@@ -72,7 +84,7 @@ export function DecisionBar({
           ? "Rejected. It has gone back to the facilitator."
           : result.tr_code
             ? `Approved. Member code ${result.tr_code}`
-            : `Approved as ${stage}.`,
+            : `All your steps are approved. The form moves on from ${stage}.`,
         { duration: result.tr_code ? 10_000 : 4000 },
       );
       client.invalidateQueries({ queryKey: ["queue"] });
@@ -88,14 +100,17 @@ export function DecisionBar({
     },
   });
 
-  const canTick = (key: string) => key !== "fee" || !blocked;
   const askApproval = () => {
-    const ready = open.filter((step) => canTick(step.key));
-    if (!ready.length) {
-      toast.error(blocked ?? "None of your steps are open on this form.");
+    if (!target) {
+      if (open.length) onApproved(current?.key ?? "");
+      else toast.error("None of your steps are open on this form.");
       return;
     }
-    setChecked([]);
+    if (targetBlocked) {
+      toast.error(targetBlocked);
+      return;
+    }
+    setChecked(false);
     setApproving(true);
   };
 
@@ -115,26 +130,47 @@ export function DecisionBar({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const yours = application.review_steps.filter((step) => step.mine);
+  const doneOfYours = yours.filter((step) => step.approved_at).length;
+
   return (
     <>
       <div className="sticky bottom-0 z-20 md:bottom-10 -mx-4 -mb-4 border-t bg-background/90 px-4 py-2.5 backdrop-blur md:-mx-6 md:-mb-6 md:px-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p className="min-w-0 flex-1 text-sm">
-            {blocked ? (
-              <span className="text-amber-700 dark:text-amber-300">{blocked}</span>
-            ) : (
-              <>
+          <div className="min-w-0 flex-1 text-sm">
+            {targetBlocked ? (
+              <span className="text-amber-700 dark:text-amber-300">{targetBlocked}</span>
+            ) : target ? (
+              <span>
                 <span className="font-medium">
-                  {open.length
-                    ? `${open.length} ${open.length === 1 ? "step" : "steps"} for you to approve.`
-                    : "Your steps are done."}
+                  Step {target.number}: {target.title}
                 </span>{" "}
-                <span className="hidden text-muted-foreground xl:inline">
-                  {left} of {application.review_steps.length} steps left on this form.
+                <span className="text-muted-foreground">
+                  · {open.length === 1 ? "your last open step" : `${open.length} of your steps open`}
                 </span>
-              </>
+              </span>
+            ) : open.length ? (
+              <span className="font-medium">
+                This step is done. {open.length}{" "}
+                {open.length === 1 ? "step is" : "steps are"} still yours to approve.
+              </span>
+            ) : (
+              <span className="font-medium">Your steps are done.</span>
             )}
-          </p>
+            {yours.length ? (
+              <div className="mt-1 flex items-center gap-2" aria-hidden>
+                <div className="h-1 w-32 bg-muted">
+                  <div
+                    className="h-full bg-emerald-500 transition-[width] duration-500"
+                    style={{ width: `${(doneOfYours / yours.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {doneOfYours} of {yours.length} of your steps approved
+                </span>
+              </div>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2 max-sm:w-full [&>*]:max-sm:flex-1">
             <Button
               variant="outline"
@@ -143,8 +179,16 @@ export function DecisionBar({
             >
               <X /> Reject <Kbd className="ml-1 hidden sm:inline-flex">R</Kbd>
             </Button>
-            <Button onClick={askApproval} disabled={!open.length}>
-              <Check /> Approve{" "}
+            <Button onClick={askApproval} disabled={!open.length || !!targetBlocked}>
+              {target ? (
+                <>
+                  <Check /> Approve step {target.number}
+                </>
+              ) : (
+                <>
+                  <ArrowRight /> Next open step
+                </>
+              )}
               <Kbd className="ml-1 hidden border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground sm:inline-flex">
                 A
               </Kbd>
@@ -156,45 +200,23 @@ export function DecisionBar({
       <DoubleConfirm
         open={approving}
         onOpenChange={setApproving}
-        title="Which steps have you checked?"
-        description="Tick each step you checked against the documents. The rest stay open for later."
+        title={target ? `Approve step ${target.number}, ${target.title}?` : "Approve this step?"}
+        description="Approve only after checking it against the documents."
         body={
-          <ul className="divide-y border">
-            {open.map((step) => (
-              <li key={step.key}>
-                <label className="flex items-start gap-3 px-3 py-2.5 text-sm">
-                  <Checkbox
-                    className="mt-0.5"
-                    disabled={!canTick(step.key)}
-                    checked={checked.includes(step.key)}
-                    onCheckedChange={(on) =>
-                      setChecked((current) =>
-                        on ? [...current, step.key] : current.filter((key) => key !== step.key),
-                      )
-                    }
-                  />
-                  <span className="min-w-0">
-                    <span className="block font-medium">
-                      {step.number}. {step.title}
-                    </span>
-                    {canTick(step.key) ? null : (
-                      <span className="block text-xs text-amber-700 dark:text-amber-300">{blocked}</span>
-                    )}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          <label className="flex items-start gap-3 border px-3 py-2.5 text-sm">
+            <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(on) => setChecked(!!on)} />
+            <span>I checked every detail of this step against the documents and photos.</span>
+          </label>
         }
-        canContinue={checked.length > 0}
+        canContinue={checked}
         finalTitle={finishes ? "Give final approval?" : "Are you sure?"}
         finalDescription={
           finishes
             ? `${application.applicant_name} becomes a member and gets a member code. This can't be undone.`
-            : `You are approving ${checked.length} ${checked.length === 1 ? "step" : "steps"} of ${application.applicant_name}'s form under your name. This can't be undone.`
+            : `You are approving step ${target?.number} of ${application.applicant_name}'s form under your name. This can't be undone.`
         }
         action={finishes ? "Create member" : "Yes, approve"}
-        onConfirm={() => decide.mutate({ decision: "approved", steps: checked })}
+        onConfirm={() => target && decide.mutate({ decision: "approved", steps: [target.key] })}
       />
 
       <RejectDialog
