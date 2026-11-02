@@ -199,6 +199,9 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Make and store the printed forms as soon as a form is approved.
+PRINT_FORMS_ON_APPROVAL = True
+
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 
 _LOG_PROCESSORS = [

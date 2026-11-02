@@ -1,4 +1,5 @@
-from django.db import transaction
+from django.conf import settings as django_settings
+from django.db import IntegrityError, transaction
 from django.db.models import Count, F, OuterRef, Subquery
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
@@ -61,10 +62,6 @@ def searchable_applications(membership, permissions):
     )
 
 
-# A form waiting longer than this at one stage is shown as late.
-OVERDUE_DAYS = 2
-
-
 def with_waiting_since(queryset):
     """When each form reached its current stage: the last stage approval, or the submission."""
     moved = (
@@ -117,8 +114,39 @@ def printed_form(application, variant: str) -> bytes:
     content = render_pdf(application, organization_profile(), code_settings(), variant)
     path = storage.application_file_path(application, f"form-{variant}")
     storage.write(path, content)
-    GeneratedPdf.objects.create(application=application, variant=variant, relative_path=path)
+    try:
+        with transaction.atomic():
+            GeneratedPdf.objects.create(
+                application=application, variant=variant, relative_path=path
+            )
+    except IntegrityError:
+        # The approval's background copy and a download raced: the first one stays.
+        storage.delete_quietly(path)
+        stored = GeneratedPdf.objects.get(application=application, variant=variant)
+        return storage.read(stored.relative_path)
     return content
+
+
+def draft_form(application, variant: str) -> bytes:
+    """
+    The printed form as it would look if approved now, for checking before the final
+    approval. Rendered on each request and never kept, so it cannot pass for the real one.
+    """
+    if application.status not in STAGES:
+        raise Conflict("A preview is for forms waiting for approval.")
+    return render_pdf(application, organization_profile(), code_settings(), variant, draft=True)
+
+
+def _print_when_committed(application) -> None:
+    """Approval must not wait for, or fail because of, the PDFs."""
+    if not django_settings.PRINT_FORMS_ON_APPROVAL:
+        return
+    from .tasks import make_printed_forms
+
+    application_id, organization_id = str(application.id), str(application.organization_id)
+    transaction.on_commit(
+        lambda: make_printed_forms.delay(application_id, organization_id), robust=True
+    )
 
 
 def _context(application, name: str) -> str:
@@ -528,6 +556,7 @@ def decide(
         member = _create_member(application, now)
         metadata["tr_code"] = member.tr_code
         notifications.application_approved(application, member.tr_code)
+        _print_when_committed(application)
     elif application.status in STAGES:
         notifications.application_awaits(application, STAGES[application.status][0])
 

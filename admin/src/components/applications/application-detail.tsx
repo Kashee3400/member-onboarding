@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, BadgeCheck, Check, FileDown, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BadgeCheck, Check, FileDown, FileSearch, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -488,6 +488,8 @@ export function ApplicationDetail({ id }: { id: string }) {
   const canPrintFull = useCan("applications.download_full_pdf");
   const canPayAtFinance = useCan("applications.approve_finance") && data?.status === "pending_finance";
   const canPayAtAm = useCan("applications.approve_am");
+  // Any approver can check the printed form before it is final.
+  const canPreview = [canPayAtAm, useCan("applications.approve_cs"), useCan("applications.approve_finance")].some(Boolean);
 
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const familyCount = data?.data.family?.length ?? 0;
@@ -584,6 +586,21 @@ export function ApplicationDetail({ id }: { id: string }) {
                 </Button>
               ) : null}
             </div>
+          ) : stage && canPreview ? (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <a
+                  href={`/api/backend/applications/${id}/preview-pdf?variant=${canPrintFull ? "full" : "single"}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="The form as it would print if approved now. Marked as a draft and not kept."
+                />
+              }
+            >
+              <FileSearch /> Preview PDF
+            </Button>
           ) : null}
         </div>
         <StageTrack application={data} />

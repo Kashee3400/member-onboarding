@@ -16,7 +16,7 @@ from apps.organizations.models import Membership
 from apps.rbac.catalog import APPROVAL_PERMISSIONS
 from apps.rbac.services import role_codes_for
 
-from . import review_steps, services
+from . import review_settings, review_steps, services
 from .models import (
     Application,
     ApplicationStepApproval,
@@ -58,13 +58,14 @@ def _my_queue(membership, forms) -> dict:
     now = timezone.now()
     since = [form["waiting_since"] for form in waiting if form["waiting_since"]]
     oldest = min(since, default=None)
-    late = now - timedelta(days=services.OVERDUE_DAYS)
+    days = review_settings.overdue_days()
+    late = now - timedelta(days=days)
     approved = ApplicationStepApproval.objects.filter(decided_by=membership.user)
     today = timezone.localdate()
     return {
         "waiting": len(waiting),
         "overdue": sum(1 for moment in since if moment < late),
-        "overdue_days": services.OVERDUE_DAYS,
+        "overdue_days": days,
         "oldest_days": (now - oldest).days if oldest else None,
         "steps_today": approved.filter(decided_at__date=today).count(),
         "steps_week": approved.filter(decided_at__date__gte=today - timedelta(days=6)).count(),
@@ -72,7 +73,7 @@ def _my_queue(membership, forms) -> dict:
 
 
 def _by_mcc(forms) -> list[dict]:
-    late = timezone.now() - timedelta(days=services.OVERDUE_DAYS)
+    late = timezone.now() - timedelta(days=review_settings.overdue_days())
     rows = (
         services.with_waiting_since(forms.filter(status__in=list(services.STAGES)))
         .values("mpp__mcc__code", "mpp__mcc__name")

@@ -13,6 +13,8 @@ from .views import (
     MemberViewSet,
     MppOpenWorkView,
     OrganizationProfileView,
+    RejectReasonsView,
+    ReviewSettingsView,
     ReviewStepAccessView,
     SignatoriesView,
 )
@@ -26,6 +28,7 @@ urlpatterns = [
     path("search/", GlobalSearchView.as_view(), name="global-search"),
     path("applications/form/", FormSchemaView.as_view(), name="application-form"),
     path("applications/dashboard/", DashboardView.as_view(), name="application-dashboard"),
+    path("applications/reject-reasons/", RejectReasonsView.as_view(), name="reject-reasons"),
     path(
         "hierarchy/mpps/<uuid:pk>/open-work/",
         MppOpenWorkView.as_view(),
@@ -35,6 +38,7 @@ urlpatterns = [
     path("home/", HomeView.as_view(), name="home"),
     path("home/breakdown/", HomeBreakdownView.as_view(), name="home-breakdown"),
     path("settings/review-steps/", ReviewStepAccessView.as_view(), name="review-steps"),
+    path("settings/review/", ReviewSettingsView.as_view(), name="review-settings"),
     path("settings/member-code/", MemberCodeSettingsView.as_view(), name="member-code-settings"),
     path(
         "settings/organization-profile/",

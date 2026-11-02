@@ -5,6 +5,9 @@ The printed membership form, in two variants: "full" (five pages) and "single"
 Everything comes from what was saved at approval, including the exact signatures
 used. The result is stored the first time, so reprints stay byte-identical even if
 the template or anyone's name later changes.
+
+A draft is the same layout before final approval: marked on every page, with no
+member code and only the signatures already given.
 """
 
 import base64
@@ -25,6 +28,8 @@ from ..models import Status
 FONTS = Path(__file__).parent / "fonts"
 VARIANTS = ("full", "single")
 FAMILY_LABELS = {"male": "Male", "female": "Female", "other": "Other"}
+DRAFT_MARK = "DRAFT – NOT APPROVED"
+DRAFT_CODE = "Assigned at approval"
 
 
 def _label(options, value) -> str:
@@ -114,7 +119,7 @@ def _facilitator(application, revision):
     return mark.uploaded_by_name, signature or revision.signature
 
 
-def build_context(application, profile, settings, variant) -> dict:
+def build_context(application, profile, settings, variant, *, draft=False) -> dict:
     data = application.data
     applicant = data.get("applicant", {})
     address = data.get("address", {})
@@ -161,12 +166,15 @@ def build_context(application, profile, settings, variant) -> dict:
             "company_secretary": _signature_image(secretary and secretary.signature),
         }
 
+    member = None if draft else application.member
     return {
         "variant": variant,
+        "draft_mark": DRAFT_MARK if draft else "",
         "fonts": FONTS.as_uri(),
         "company": profile,
         "application": application,
-        "member": application.member,
+        "member": member,
+        "member_code": member.tr_code if member else DRAFT_CODE,
         "applicant": applicant,
         "address": address,
         "bank": data.get("bank", {}),
@@ -223,8 +231,9 @@ def _account_number(application) -> str:
     ).decode()
 
 
-def render_pdf(application, profile, settings, variant) -> bytes:
+def render_pdf(application, profile, settings, variant, *, draft=False) -> bytes:
     html = render_to_string(
-        "applications/pdf/form.html", build_context(application, profile, settings, variant)
+        "applications/pdf/form.html",
+        build_context(application, profile, settings, variant, draft=draft),
     )
     return HTML(string=html, base_url=str(FONTS)).write_pdf()

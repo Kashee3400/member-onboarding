@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.hierarchy.models import Mpp
 
-from . import form, review_steps, services
+from . import form, review_settings, review_steps, services
 from .models import (
     Application,
     ApplicationDecision,
@@ -69,14 +69,14 @@ class ApplicationListSerializer(serializers.ModelSerializer):
         member = getattr(application, "member", None) if application.status == "approved" else None
         return serializers.DateTimeField().to_representation(member.joined_at) if member else None
 
-    @staticmethod
-    def get_is_overdue(application) -> bool:
+    def get_is_overdue(self, application) -> bool:
         since = getattr(application, "waiting_since", None)
-        return bool(
-            since
-            and application.status in services.STAGES
-            and timezone.now() - since > timedelta(days=services.OVERDUE_DAYS)
-        )
+        if not since or application.status not in services.STAGES:
+            return False
+        # Read once per response: the context is shared by every row of a list.
+        if "overdue_days" not in self.context:
+            self.context["overdue_days"] = review_settings.overdue_days()
+        return timezone.now() - since > timedelta(days=self.context["overdue_days"])
 
 
 class DecisionSerializer(serializers.ModelSerializer):
@@ -214,6 +214,33 @@ class SubmitSerializer(serializers.Serializer):
 
 class ReviewStepAccessSerializer(serializers.Serializer):
     steps = serializers.DictField(child=serializers.ListField(child=serializers.CharField()))
+
+
+class RejectReasonSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=200)
+    section = serializers.ChoiceField(choices=review_settings.SECTIONS)
+    fields = serializers.ListField(
+        child=serializers.CharField(max_length=100), required=False, default=list
+    )
+
+    def validate(self, attrs):
+        errors = review_settings.field_errors(attrs["section"], attrs["fields"])
+        if errors:
+            raise serializers.ValidationError({"fields": errors})
+        return attrs
+
+
+class ReviewSettingsSerializer(serializers.Serializer):
+    """The reasons are sent whole, in the order they are offered."""
+
+    overdue_days = serializers.IntegerField(min_value=1, max_value=60)
+    reject_reasons = RejectReasonSerializer(many=True)
+
+    def validate_reject_reasons(self, value):
+        texts = [reason["text"].strip().lower() for reason in value]
+        if len(texts) != len(set(texts)):
+            raise serializers.ValidationError("Each reason must be different.")
+        return value
 
 
 class SensitiveNumbersSerializer(serializers.Serializer):

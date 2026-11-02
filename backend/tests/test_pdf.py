@@ -98,13 +98,13 @@ def test_reprints_are_identical(world, approved, org_a):
 
     assert first == second
     with organization_context(org_a.id):
-        assert GeneratedPdf.objects.count() == 1
+        assert GeneratedPdf.objects.filter(variant="full").count() == 1
 
 
 def test_a_stored_pdf_is_encrypted_on_disk(world, approved, org_a, settings):
     pdf_of(world.client(world.finance), approved, "full")
     with organization_context(org_a.id):
-        path = GeneratedPdf.objects.get().relative_path
+        path = GeneratedPdf.objects.get(variant="full").relative_path
 
     assert not (settings.MEDIA_ROOT / path).read_bytes().startswith(b"%PDF")
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, api, type Page } from "@/lib/api/client";
 import { isTyping } from "@/lib/shortcuts";
-import type { ApplicationDetail, ApplicationSummary, FormSchema } from "@/lib/types";
+import type { ApplicationDetail, ApplicationSummary, FormSchema, RejectReason } from "@/lib/types";
 
 import { STAGE_LABEL, STAGE_QUEUE } from "./constants";
 
@@ -210,24 +210,14 @@ export function DecisionBar({
   );
 }
 
-/** The usual problems, one press each. Each marks the fields the facilitator must fix. */
-const REASONS: { text: string; section: string; fields: string[] }[] = [
-  { text: "Name does not match the Aadhaar card", section: "applicant", fields: ["applicant.full_name"] },
-  { text: "Date of birth does not match the Aadhaar card", section: "applicant", fields: ["applicant.date_of_birth"] },
-  { text: "Father / husband name does not match the Aadhaar card", section: "applicant", fields: ["applicant.relation_name"] },
-  { text: "Aadhaar photo is unclear or cut off", section: "applicant", fields: [] },
-  { text: "Member photo is unclear", section: "applicant", fields: [] },
-  { text: "Member signature is missing or unclear", section: "applicant", fields: [] },
-  { text: "Mobile number is wrong", section: "address", fields: ["address.mobile"] },
-  { text: "Address is incomplete", section: "address", fields: ["address.post_office", "address.pincode"] },
-  { text: "Milk figures do not look right", section: "animals", fields: ["animals.production_lpd", "animals.consumption_lpd"] },
-  { text: "Name does not match the passbook", section: "bank", fields: ["bank.holder_name"] },
-  { text: "IFSC does not match the passbook", section: "bank", fields: ["bank.ifsc"] },
-  { text: "Passbook photo is unclear", section: "bank", fields: [] },
-  { text: "Household members are missing", section: "family", fields: [] },
-  { text: "Nominee details are incomplete", section: "nominee", fields: ["nominee.name", "nominee.relation", "nominee.date_of_birth"] },
-  { text: "Payment slip is missing or does not match", section: "payment", fields: [] },
-];
+/** The usual problems, one press each, as the organization set them under Review Steps. */
+function useRejectReasons() {
+  return useQuery({
+    queryKey: ["reject-reasons"],
+    queryFn: () => api<RejectReason[]>("applications/reject-reasons"),
+    staleTime: 10 * 60_000,
+  });
+}
 
 function RejectDialog({
   open,
@@ -252,7 +242,8 @@ function RejectDialog({
   const [marked, setMarked] = useState<string[]>([]);
   const box = useRef<HTMLTextAreaElement>(null);
   const known = new Set(schema.sections.flatMap((section) => section.fields.map((field) => `${section.key}.${field.key}`)));
-  const reasons = REASONS.filter((item) => mySections.includes(item.section));
+  const offered = useRejectReasons();
+  const reasons = (offered.data ?? []).filter((item) => mySections.includes(item.section));
   const chosen = reasons.filter((item) => picked.includes(item.text));
   const fields = [...new Set([...marked, ...chosen.flatMap((item) => item.fields.filter((path) => known.has(path)))])];
   const reason = [...chosen.map((item) => item.text), note.trim()].filter(Boolean).join(". ");
