@@ -1,3 +1,4 @@
+import { choiceLabel } from "@/lib/form-options";
 import type { ApplicationDetail, ApplicationDocument, FormSchema } from "@/lib/types";
 
 export type Change = { path: string; section: string; label: string; before: string; after: string };
@@ -41,7 +42,7 @@ export function changesOf(
       const was = text(before[field.key]);
       const now = text(after[field.key]);
       if (was === now) continue;
-      const label = (option: string) => field.options?.find((item) => item.value === option)?.label ?? option;
+      const label = (option: string) => choiceLabel(option, field.options, field.retired_options);
       fields.push({
         path: `${section.key}.${field.key}`,
         section: section.key,

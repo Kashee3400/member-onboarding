@@ -16,7 +16,7 @@ from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
 from apps.rbac.catalog import APPROVE_ALL
 
-from . import form, legacy, review_steps
+from . import form, form_lists, legacy, review_steps
 from .models import (
     Application,
     ApplicationDecision,
@@ -301,7 +301,8 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
     _ensure_current(application, version)
 
     if data is not None:
-        merged = {**application.data, **form.clean_draft(data)}
+        cleaned = form.clean_draft(data, saved=application.data, choices=form_lists.choices())
+        merged = {**application.data, **cleaned}
         application.data = merged
     if aadhaar:
         set_aadhaar(application, aadhaar)
@@ -321,11 +322,14 @@ def submit(application, *, user, version=None):
     _ensure_current(application, version)
 
     now = timezone.now()
+    last = application.revisions.order_by("-number").first()
     errors = form.validate_for_submit(
         application.data,
         has_aadhaar=bool(application.aadhaar_index),
         has_account=bool(application.account_index),
         today=timezone.localdate(now),
+        choices=form_lists.choices(),
+        previous=last.data if last else None,
     )
     errors |= missing_documents(application)
     errors |= already_used(application)

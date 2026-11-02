@@ -9,6 +9,7 @@ import '../config.dart';
 import '../models/draft.dart';
 import '../models/form_schema.dart';
 import '../storage/draft_store.dart';
+import '../sync/bank_lookup.dart';
 import '../sync/draft_controller.dart';
 import 'device_services.dart';
 import 'my_records.dart';
@@ -37,6 +38,7 @@ class MemberOnboardingScreen extends StatefulWidget {
 class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   late final DraftStore _store = widget.store ?? SecureDraftStore();
   late final OnboardingApi _api = widget.api ?? OnboardingApi(ApiClient(widget.config));
+  late final BankLookup _banks = BankLookup(api: _api, store: _store, device: widget.device);
 
   static const _formCacheKey = 'form';
   static const _mppCacheKey = 'mpps';
@@ -113,7 +115,12 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     final controller = DraftController(draft: draft, api: _api, store: _store);
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => FormWizard(schema: schema, controller: controller, device: widget.device),
+        builder: (_) => FormWizard(
+          schema: schema,
+          controller: controller,
+          device: widget.device,
+          findBranch: _banks.find,
+        ),
       ),
     );
     await controller.sync();

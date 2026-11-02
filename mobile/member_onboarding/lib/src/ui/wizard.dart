@@ -15,12 +15,16 @@ class FormWizard extends StatefulWidget {
     required this.schema,
     required this.controller,
     this.device = const DeviceServices(),
+    this.findBranch,
     super.key,
   });
 
   final FormSchema schema;
   final DraftController controller;
   final DeviceServices device;
+
+  /// Bank and branch for an IFSC, from the bank master; the online lookup when absent.
+  final Future<(String, String)?> Function(String ifsc)? findBranch;
 
   @override
   State<FormWizard> createState() => _FormWizardState();
@@ -124,6 +128,7 @@ class _FormWizardState extends State<FormWizard> {
         label: spec.label,
         value: value as String?,
         options: spec.options,
+        retired: spec.retired,
         optional: !spec.required,
         error: error,
         onChanged: save,
@@ -180,7 +185,7 @@ class _FormWizardState extends State<FormWizard> {
     _form.setValue('bank', 'ifsc', ifsc);
     if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(ifsc)) return;
 
-    final found = await widget.device.lookupIfsc(ifsc);
+    final found = await (widget.findBranch ?? widget.device.lookupIfsc)(ifsc);
     if (found == null || !mounted) return;
     _form
       ..setValue('bank', 'bank_name', found.$1)
@@ -380,6 +385,7 @@ class _FormWizardState extends State<FormWizard> {
               label: Strings.gender,
               value: person['gender'] as String?,
               options: _schema.familyGenders,
+              retired: _schema.retiredGenders,
               error: _form.serverErrors['family.$index.gender'],
               onChanged: (value) => update(index, 'gender', value),
             ),
@@ -395,6 +401,7 @@ class _FormWizardState extends State<FormWizard> {
               label: Strings.relation,
               value: person['relation'] as String?,
               options: _schema.familyRelations,
+              retired: _schema.retiredRelations,
               error: _form.serverErrors['family.$index.relation'],
               onChanged: (value) => update(index, 'relation', value),
             ),

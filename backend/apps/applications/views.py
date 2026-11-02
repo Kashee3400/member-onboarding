@@ -7,8 +7,9 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from rest_framework import exceptions, status, viewsets
+from rest_framework import exceptions, mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,15 +24,28 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
-from . import form, home, review_settings, review_steps, services
-from .models import Application, LegacyMember, Member, ReviewStepAccess, Signatory, Status
+from . import banks, form, form_lists, home, review_settings, review_steps, services
+from .models import (
+    Application,
+    BankBranch,
+    LegacyMember,
+    Member,
+    ReviewStepAccess,
+    Signatory,
+    Status,
+)
 from .pdf.render import VARIANTS
 from .serializers import (
     ApplicationCreateSerializer,
     ApplicationDetailSerializer,
     ApplicationListSerializer,
     ApplicationSaveSerializer,
+    BankBranchLookupSerializer,
+    BankBranchSerializer,
+    BankImportResultSerializer,
+    BankImportSerializer,
     DecideSerializer,
+    FormListSerializer,
     LegacyMemberSerializer,
     MemberCodeSettingsSerializer,
     MemberSerializer,
@@ -67,7 +81,7 @@ class FormSchemaView(APIView):
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
-        return Response(form.FORM_SCHEMA)
+        return Response(form_lists.schema())
 
 
 class StatusIn(filters.BaseInFilter, filters.CharFilter):
@@ -789,3 +803,101 @@ class MemberCodeSettingsView(APIView):
             metadata=serializer.data,
         )
         return Response(serializer.data)
+
+
+class FormListsView(APIView):
+    """The form's dropdown lists, each as the organization words and orders it."""
+
+    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request):
+        return Response({"lists": form_lists.overview()})
+
+
+class FormListView(APIView):
+    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+
+    @extend_schema(
+        request=FormListSerializer,
+        responses={200: OpenApiTypes.OBJECT, 400: ErrorResponseSerializer},
+    )
+    def put(self, request, key):
+        serializer = FormListSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        options = serializer.validated_data["options"]
+        form_lists.save(
+            key, options, female_only=services.organization_profile().members_female_only
+        )
+        record_event(
+            "form_list.updated",
+            actor=request.user,
+            metadata={
+                "list": key,
+                "options": len(options),
+                "retired": sum(not option["is_active"] for option in options),
+            },
+        )
+        return Response({"lists": form_lists.overview()})
+
+
+class BankBranchViewSet(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.ReadOnlyModelViewSet,
+):
+    """
+    The bank master. Anyone filling forms may read it; changing it is an
+    administrator's job.
+    """
+
+    serializer_class = BankBranchSerializer
+    filterset_fields = ["is_active"]
+    search_fields = ["ifsc", "name", "bank__name", "district"]
+    ordering_fields = {"ifsc": "ifsc", "bank_name": "bank__name", "branch_name": "name"}
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        return BankBranch.objects.select_related("bank").order_by("bank__name", "name")
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve", "by_ifsc"):
+            return [IsAuthenticated(), require_permission("applications.view")()]
+        return [IsAuthenticated(), require_permission("settings.manage")()]
+
+    def perform_create(self, serializer):
+        branch = serializer.save()
+        record_event("bank_branch.created", actor=self.request.user, target=branch)
+
+    def perform_update(self, serializer):
+        branch = serializer.save()
+        record_event(
+            "bank_branch.updated",
+            actor=self.request.user,
+            target=branch,
+            metadata={"fields": sorted(serializer.validated_data)},
+        )
+
+    @extend_schema(responses={200: BankBranchLookupSerializer, 404: ErrorResponseSerializer})
+    @action(detail=False, url_path=r"by-ifsc/(?P<ifsc>[A-Za-z0-9]{11})")
+    def by_ifsc(self, request, ifsc):
+        branch = banks.by_ifsc(ifsc)
+        if branch is None:
+            raise exceptions.NotFound("No branch in use has this IFSC.")
+        return Response(BankBranchLookupSerializer(branch).data)
+
+    @extend_schema(
+        request={"multipart/form-data": BankImportSerializer},
+        responses={200: BankImportResultSerializer, 400: ErrorResponseSerializer},
+    )
+    @action(detail=False, methods=["post"], url_path="import", parser_classes=[MultiPartParser])
+    def import_file(self, request):
+        serializer = BankImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = banks.import_branches(banks.read_rows(serializer.validated_data["file"].read()))
+        record_event(
+            "bank_branch.imported",
+            actor=request.user,
+            metadata={key: result[key] for key in ("created", "updated", "skipped")},
+        )
+        return Response(result)

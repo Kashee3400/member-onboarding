@@ -3,7 +3,10 @@ from rest_framework.routers import SimpleRouter
 
 from .views import (
     ApplicationViewSet,
+    BankBranchViewSet,
     DashboardView,
+    FormListsView,
+    FormListView,
     FormSchemaView,
     GlobalSearchView,
     HomeBreakdownView,
@@ -23,6 +26,7 @@ router = SimpleRouter()
 router.register("applications", ApplicationViewSet, basename="application")
 router.register("members", MemberViewSet, basename="member")
 router.register("legacy-members", LegacyMemberViewSet, basename="legacy-member")
+router.register("banks/branches", BankBranchViewSet, basename="bank-branch")
 
 urlpatterns = [
     path("search/", GlobalSearchView.as_view(), name="global-search"),
@@ -39,6 +43,8 @@ urlpatterns = [
     path("home/breakdown/", HomeBreakdownView.as_view(), name="home-breakdown"),
     path("settings/review-steps/", ReviewStepAccessView.as_view(), name="review-steps"),
     path("settings/review/", ReviewSettingsView.as_view(), name="review-settings"),
+    path("settings/form-lists/", FormListsView.as_view(), name="form-lists"),
+    path("settings/form-lists/<str:key>/", FormListView.as_view(), name="form-list"),
     path("settings/member-code/", MemberCodeSettingsView.as_view(), name="member-code-settings"),
     path(
         "settings/organization-profile/",

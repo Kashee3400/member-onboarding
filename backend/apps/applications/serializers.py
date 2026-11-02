@@ -5,11 +5,13 @@ from rest_framework import serializers
 
 from apps.hierarchy.models import Mpp
 
-from . import form, review_settings, review_steps, services
+from . import banks, form, review_settings, review_steps, services
 from .models import (
     Application,
     ApplicationDecision,
     ApplicationRevision,
+    Bank,
+    BankBranch,
     Decision,
     LegacyMember,
     Member,
@@ -331,3 +333,87 @@ class SearchHitSerializer(serializers.Serializer):
     title = serializers.CharField()
     subtitle = serializers.CharField()
     path = serializers.CharField()
+
+
+class FormOptionSerializer(serializers.Serializer):
+    """Without a value, the option is new and the server gives it one."""
+
+    value = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    label = serializers.CharField(max_length=100)
+    label_hi = serializers.CharField(max_length=100)
+    is_active = serializers.BooleanField(default=True)
+
+
+class FormListSerializer(serializers.Serializer):
+    options = FormOptionSerializer(many=True, allow_empty=False)
+
+
+class BankBranchSerializer(serializers.ModelSerializer):
+    bank_name = serializers.CharField(source="bank.name", max_length=200)
+    branch_name = serializers.CharField(source="name", max_length=200)
+    bank_is_active = serializers.BooleanField(source="bank.is_active", read_only=True)
+
+    class Meta:
+        model = BankBranch
+        fields = [
+            "id",
+            "ifsc",
+            "bank_name",
+            "branch_name",
+            "address",
+            "district",
+            "is_active",
+            "bank_is_active",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "updated_at"]
+
+    def validate_ifsc(self, value):
+        value = value.strip().upper()
+        if not banks.IFSC.match(value):
+            raise serializers.ValidationError("Enter a valid IFSC.")
+        taken = BankBranch.objects.filter(ifsc=value)
+        if self.instance:
+            taken = taken.exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise serializers.ValidationError("Another branch has this IFSC.")
+        return value
+
+    def _bank(self, validated_data):
+        name = " ".join(validated_data.pop("bank")["name"].split())
+        existing = {bank.name.lower(): bank for bank in Bank.objects.filter(name__iexact=name)}
+        return banks.bank_named(name, existing)
+
+    def create(self, validated_data):
+        bank = self._bank(validated_data)
+        return BankBranch.objects.create(bank=bank, **validated_data)
+
+    def update(self, instance, validated_data):
+        if "bank" in validated_data:
+            instance.bank = self._bank(validated_data)
+        return super().update(instance, validated_data)
+
+
+class BankBranchLookupSerializer(serializers.Serializer):
+    ifsc = serializers.CharField()
+    bank_name = serializers.CharField(source="bank.name")
+    branch_name = serializers.CharField(source="name")
+    address = serializers.CharField()
+    district = serializers.CharField()
+
+
+class BankImportSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+
+class BankImportProblemSerializer(serializers.Serializer):
+    row = serializers.IntegerField()
+    problem = serializers.CharField()
+
+
+class BankImportResultSerializer(serializers.Serializer):
+    created = serializers.IntegerField()
+    updated = serializers.IntegerField()
+    skipped = serializers.IntegerField()
+    repeated = serializers.IntegerField()
+    problems = BankImportProblemSerializer(many=True)
