@@ -1,0 +1,6199 @@
+openapi: 3.0.3
+info:
+  title: Member Onboarding API
+  version: 1.0.0
+  description: Multi-organization member onboarding platform.
+paths:
+  /api/v1/applications/:
+    get:
+      operationId: applications_list
+      parameters:
+      - in: query
+        name: created_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: Only forms this person started.
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApplicationListList'
+          description: ''
+    post:
+      operationId: applications_create
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+  /api/v1/applications/{id}/:
+    get:
+      operationId: applications_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+    patch:
+      operationId: applications_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedApplicationSaveRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/decide/:
+    post:
+      operationId: applications_decide_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/discard/:
+    post:
+      operationId: applications_discard_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/documents/:
+    get:
+      operationId: applications_documents_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+          description: ''
+    post:
+      operationId: applications_documents_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/numbers/:
+    post:
+      operationId: applications_numbers_create
+      description: A POST, so nothing caches it. Every look is written to the audit
+        log.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensitiveNumbers'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/payment/:
+    post:
+      operationId: applications_payment_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/pdf/:
+    get:
+      operationId: applications_pdf_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: query
+        name: variant
+        schema:
+          type: string
+          enum:
+          - full
+          - single
+        description: 'Default: full.'
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/submit/:
+    post:
+      operationId: applications_submit_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/counts/:
+    get:
+      operationId: applications_counts_retrieve
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusCounts'
+          description: ''
+  /api/v1/applications/dashboard/:
+    get:
+      operationId: applications_dashboard_retrieve
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/applications/form/:
+    get:
+      operationId: applications_form_retrieve
+      description: The form definition, so clients render exactly what the server
+        validates.
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/applications/summary/:
+    get:
+      operationId: applications_summary_retrieve
+      description: How many forms were started, submitted, approved and so on, between
+        two dates.
+      parameters:
+      - in: query
+        name: from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+      - in: query
+        name: to
+        schema:
+          type: string
+          format: date
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/audit/events/:
+    get:
+      operationId: audit_events_list
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+      - in: query
+        name: actor_id
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: target_id
+        schema:
+          type: string
+      - in: query
+        name: target_type
+        schema:
+          type: string
+      tags:
+      - audit
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/v1/auth/exchange/:
+    post:
+      operationId: auth_exchange_create
+      description: |-
+        Swaps a host application's short-lived signed assertion for an access token.
+
+        No refresh token is issued: the app comes back through its host, so disabling
+        someone there, or moving an MPP, takes effect within one access token lifetime.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Issues tokens for one organization. Failed attempts must survive
+        in the audit log.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/me/navigation/:
+    get:
+      operationId: auth_me_navigation_list
+      description: The sidebar for the signed-in user, filtered by their permissions.
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NavigationItem'
+          description: ''
+  /api/v1/auth/mfa/enroll/:
+    post:
+      operationId: auth_mfa_enroll_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaEnrollRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MfaEnrollResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/mfa/enroll/confirm/:
+    post:
+      operationId: auth_mfa_enroll_confirm_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaConfirmRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MfaConfirmResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/mfa/verify/:
+    post:
+      operationId: auth_mfa_verify_create
+      description: Failed attempts must survive in the audit log, so this view manages
+        its own commits.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaVerifyRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/password/change/:
+    post:
+      operationId: auth_password_change_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/password/forgot/:
+    post:
+      operationId: auth_password_forgot_create
+      description: Answers the same either way, so nobody can test which accounts
+        exist.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordForgotRequest'
+        required: true
+      responses:
+        '202':
+          description: No response body
+  /api/v1/auth/password/reset/:
+    post:
+      operationId: auth_password_reset_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+        required: true
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/trusted-issuers/:
+    get:
+      operationId: auth_trusted_issuers_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTrustedIssuerList'
+          description: ''
+    post:
+      operationId: auth_trusted_issuers_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrustedIssuerRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustedIssuer'
+          description: ''
+  /api/v1/auth/trusted-issuers/{id}/:
+    get:
+      operationId: auth_trusted_issuers_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this trusted issuer.
+        required: true
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustedIssuer'
+          description: ''
+    patch:
+      operationId: auth_trusted_issuers_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this trusted issuer.
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTrustedIssuerRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustedIssuer'
+          description: ''
+  /api/v1/documents/{id}/file/:
+    get:
+      operationId: documents_file_retrieve
+      description: Files are only ever reached here, after the same checks as the
+        application.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - documents
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/hierarchy/bmcs/:
+    get:
+      operationId: hierarchy_bmcs_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: mcc
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBmcList'
+          description: ''
+    post:
+      operationId: hierarchy_bmcs_create
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BmcRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bmc'
+          description: ''
+  /api/v1/hierarchy/bmcs/{id}/:
+    get:
+      operationId: hierarchy_bmcs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this bmc.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bmc'
+          description: ''
+    patch:
+      operationId: hierarchy_bmcs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this bmc.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBmcRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bmc'
+          description: ''
+  /api/v1/hierarchy/mccs/:
+    get:
+      operationId: hierarchy_mccs_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: plant
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMccList'
+          description: ''
+    post:
+      operationId: hierarchy_mccs_create
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MccRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mcc'
+          description: ''
+  /api/v1/hierarchy/mccs/{id}/:
+    get:
+      operationId: hierarchy_mccs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mcc.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mcc'
+          description: ''
+    patch:
+      operationId: hierarchy_mccs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mcc.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMccRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mcc'
+          description: ''
+  /api/v1/hierarchy/mccs/{id}/area-manager/:
+    get:
+      operationId: hierarchy_mccs_area_manager_list
+      description: Whoever holds an MCC reaches all its MPPs and their forms at once.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mcc.
+        required: true
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: plant
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MccAssignment'
+          description: ''
+    post:
+      operationId: hierarchy_mccs_area_manager_create
+      description: Whoever holds an MCC reaches all its MPPs and their forms at once.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mcc.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignMccRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MccAssignment'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/mccs/{id}/area-manager/{membership}/end/:
+    post:
+      operationId: hierarchy_mccs_area_manager_end_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: membership
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/mpps/:
+    get:
+      operationId: hierarchy_mpps_list
+      description: Reads are limited to the MPPs the caller can access.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: mcc
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: route
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMppList'
+          description: ''
+    post:
+      operationId: hierarchy_mpps_create
+      description: Reads are limited to the MPPs the caller can access.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MppRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mpp'
+          description: ''
+  /api/v1/hierarchy/mpps/{id}/:
+    get:
+      operationId: hierarchy_mpps_retrieve
+      description: Reads are limited to the MPPs the caller can access.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mpp.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mpp'
+          description: ''
+    patch:
+      operationId: hierarchy_mpps_partial_update
+      description: Reads are limited to the MPPs the caller can access.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mpp.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMppRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mpp'
+          description: ''
+  /api/v1/hierarchy/mpps/{id}/assignments/:
+    get:
+      operationId: hierarchy_mpps_assignments_list
+      description: Full handover history, newest first.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mpp.
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MppAssignment'
+          description: ''
+    post:
+      operationId: hierarchy_mpps_assignments_create
+      description: Assign the MPP, transferring it from anyone who holds the responsibility.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mpp.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignMppRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MppAssignment'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/mpps/{id}/assignments/{responsibility}/:
+    delete:
+      operationId: hierarchy_mpps_assignments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: responsibility
+        schema:
+          type: string
+          enum:
+          - area_manager
+          - facilitator
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/mpps/{id}/open-work/:
+    get:
+      operationId: hierarchy_mpps_open_work_retrieve
+      description: What a handover would move. Drafts that never left a phone cannot
+        appear here.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/hierarchy/mpps/import/:
+    post:
+      operationId: hierarchy_mpps_import_create
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MppImportRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MppImportResult'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/plants/:
+    get:
+      operationId: hierarchy_plants_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlantList'
+          description: ''
+    post:
+      operationId: hierarchy_plants_create
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plant'
+          description: ''
+  /api/v1/hierarchy/plants/{id}/:
+    get:
+      operationId: hierarchy_plants_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this plant.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plant'
+          description: ''
+    patch:
+      operationId: hierarchy_plants_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this plant.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPlantRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plant'
+          description: ''
+  /api/v1/hierarchy/routes/:
+    get:
+      operationId: hierarchy_routes_list
+      parameters:
+      - in: query
+        name: bmc
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: bmc__mcc
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRouteList'
+          description: ''
+    post:
+      operationId: hierarchy_routes_create
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/hierarchy/routes/{id}/:
+    get:
+      operationId: hierarchy_routes_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this route.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+    patch:
+      operationId: hierarchy_routes_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this route.
+        required: true
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRouteRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/home/:
+    get:
+      operationId: home_retrieve
+      description: The numbers for the home page, chosen by what this person does.
+      tags:
+      - home
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/home/breakdown/:
+    get:
+      operationId: home_breakdown_retrieve
+      description: Counts per facilitator, or per MCC, BMC, route or MPP, for a day
+        or a range.
+      parameters:
+      - in: query
+        name: by
+        schema:
+          type: string
+          enum:
+          - bmc
+          - facilitator
+          - mcc
+          - mcc_facilitator
+          - mpp
+          - route
+      - in: query
+        name: from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: to
+        schema:
+          type: string
+          format: date
+      tags:
+      - home
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/legacy-members/:
+    get:
+      operationId: legacy_members_list
+      description: Members from before this system. Those whose MPP is gone stay with
+        whoever sees all.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - legacy-members
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyMemberList'
+          description: ''
+  /api/v1/legacy-members/{id}/:
+    get:
+      operationId: legacy_members_retrieve
+      description: Members from before this system. Those whose MPP is gone stay with
+        whoever sees all.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this legacy member.
+        required: true
+      tags:
+      - legacy-members
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMember'
+          description: ''
+  /api/v1/members/:
+    get:
+      operationId: members_list
+      parameters:
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - members
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMemberList'
+          description: ''
+  /api/v1/members/{id}/:
+    get:
+      operationId: members_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this member.
+        required: true
+      tags:
+      - members
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: notifications_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: read_at__isnull
+        schema:
+          type: boolean
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/notifications/{id}/read/:
+    post:
+      operationId: notifications_read_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/notifications/read-all/:
+    post:
+      operationId: notifications_read_all_create
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/notifications/unread/:
+    get:
+      operationId: notifications_unread_retrieve
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
+  /api/v1/organization/branding/:
+    get:
+      operationId: organization_branding_retrieve
+      tags:
+      - organization
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+          description: ''
+    patch:
+      operationId: organization_branding_partial_update
+      tags:
+      - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBrandingUpdateRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/organization/branding/{kind}/:
+    post:
+      operationId: organization_branding_create
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+          pattern: ^logo|login_image$
+        required: true
+      tags:
+      - organization
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BrandingImageRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    delete:
+      operationId: organization_branding_destroy
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+          pattern: ^logo|login_image$
+        required: true
+      tags:
+      - organization
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+          description: ''
+  /api/v1/permissions/:
+    get:
+      operationId: permissions_list
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+          description: ''
+  /api/v1/public/branding/:
+    get:
+      operationId: public_branding_retrieve
+      description: The login page needs this before anyone has signed in.
+      parameters:
+      - in: query
+        name: organization
+        schema:
+          type: string
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branding'
+          description: ''
+  /api/v1/public/branding/{slug}/{kind}/:
+    get:
+      operationId: public_branding_image
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+          pattern: ^logo|login_image$
+        required: true
+      - in: path
+        name: slug
+        schema:
+          type: string
+          pattern: ^[-a-zA-Z0-9_]+$
+        required: true
+      - in: query
+        name: v
+        schema:
+          type: string
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/public/invitations/:
+    get:
+      operationId: public_invitations_retrieve
+      description: What an invitation link is for, before the person chooses a password.
+      parameters:
+      - in: query
+        name: organization
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    post:
+      operationId: public_invitations_create
+      description: What an invitation link is for, before the person chooses a password.
+      tags:
+      - public
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+        required: true
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/reports/export/:
+    get:
+      operationId: reports_export_retrieve
+      parameters:
+      - in: query
+        name: mcc
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending_am
+          - pending_cs
+          - pending_finance
+          - rejected
+          - approved
+          - discarded
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Draft
+          * `pending_am` - Pending Area Manager
+          * `pending_cs` - Pending CS & Legal
+          * `pending_finance` - Pending Finance
+          * `rejected` - Rejected
+          * `approved` - Approved
+          * `discarded` - Discarded
+      - in: query
+        name: submitted_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: submitted_to
+        schema:
+          type: string
+          format: date
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/pdf-batches/:
+    get:
+      operationId: reports_pdf_batches_list
+      description: A person's own PDF jobs, newest first.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - done
+          - failed
+          - queued
+          - running
+        description: |-
+          * `queued` - Queued
+          * `running` - Running
+          * `done` - Done
+          * `failed` - Failed
+          * `cancelled` - Cancelled
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPdfBatchList'
+          description: ''
+    post:
+      operationId: reports_pdf_batches_create
+      description: A person's own PDF jobs, newest first.
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfJobRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfBatch'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/reports/pdf-batches/{id}/:
+    get:
+      operationId: reports_pdf_batches_retrieve
+      description: Polled while a job runs, for its progress.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfBatch'
+          description: ''
+  /api/v1/reports/pdf-batches/{id}/cancel/:
+    post:
+      operationId: reports_pdf_batches_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfBatch'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/reports/pdf-batches/{id}/file/:
+    get:
+      operationId: reports_pdf_batches_file_retrieve
+      description: One merged print file of the job.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: part
+        schema:
+          type: integer
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/pdf-batches/{id}/retry/:
+    post:
+      operationId: reports_pdf_batches_retry_create
+      description: A new job for just the forms that could not be made.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfBatch'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/reports/pdf-batches/{id}/zip/:
+    get:
+      operationId: reports_pdf_batches_zip_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reports/pdf-batches/preview/:
+    post:
+      operationId: reports_pdf_batches_preview_create
+      description: How many forms a filter picks, and how long they will take, before
+        anything starts.
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfJobRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrintPreview'
+          description: ''
+  /api/v1/reports/summary/:
+    get:
+      operationId: reports_summary_retrieve
+      parameters:
+      - in: query
+        name: mcc
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending_am
+          - pending_cs
+          - pending_finance
+          - rejected
+          - approved
+          - discarded
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Draft
+          * `pending_am` - Pending Area Manager
+          * `pending_cs` - Pending CS & Legal
+          * `pending_finance` - Pending Finance
+          * `rejected` - Rejected
+          * `approved` - Approved
+          * `discarded` - Discarded
+      - in: query
+        name: submitted_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: submitted_to
+        schema:
+          type: string
+          format: date
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+          description: ''
+  /api/v1/roles/:
+    get:
+      operationId: roles_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - roles
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRoleList'
+          description: ''
+    post:
+      operationId: roles_create
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/roles/{id}/:
+    get:
+      operationId: roles_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role.
+        required: true
+      tags:
+      - roles
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    put:
+      operationId: roles_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role.
+        required: true
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    patch:
+      operationId: roles_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role.
+        required: true
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    delete:
+      operationId: roles_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this role.
+        required: true
+      tags:
+      - roles
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/search/:
+    get:
+      operationId: search_list
+      description: What Ctrl+K finds. Each kind appears only for those allowed to
+        list it.
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+        required: true
+      tags:
+      - search
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchHit'
+          description: ''
+  /api/v1/settings/integrations/:
+    get:
+      operationId: settings_integrations_list
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntegrationRead'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/settings/integrations/{kind}/:
+    get:
+      operationId: settings_integrations_retrieve
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+          enum:
+          - mail
+          - sms
+          - whatsapp
+        required: true
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    put:
+      operationId: settings_integrations_update
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+          enum:
+          - mail
+          - sms
+          - whatsapp
+        required: true
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationWriteRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/settings/integrations/mail/test/:
+    post:
+      operationId: settings_integrations_mail_test_create
+      description: Tries the saved settings by sending to the person who pressed the
+        button.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/settings/member-code/:
+    get:
+      operationId: settings_member_code_retrieve
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberCodeSettings'
+          description: ''
+    put:
+      operationId: settings_member_code_update
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCodeSettingsRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberCodeSettings'
+          description: ''
+  /api/v1/settings/organization-profile/:
+    get:
+      operationId: settings_organization_profile_retrieve
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationProfile'
+          description: ''
+    put:
+      operationId: settings_organization_profile_update
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationProfileRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationProfile'
+          description: ''
+  /api/v1/settings/review-steps/:
+    get:
+      operationId: settings_review_steps_retrieve
+      description: Which role acts on which step of the form. Everyone can still read
+        every step.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: settings_review_steps_update
+      description: Which role acts on which step of the form. Everyone can still read
+        every step.
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewStepAccessRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/settings/signatories/:
+    get:
+      operationId: settings_signatories_retrieve
+      description: Who signs the printed form for each stage a team works.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: settings_signatories_update
+      description: Who signs the printed form for each stage a team works.
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/staff/:
+    get:
+      operationId: staff_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffList'
+          description: ''
+    post:
+      operationId: staff_create
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/:
+    patch:
+      operationId: staff_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdateRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/invite/:
+    post:
+      operationId: staff_invite_create
+      description: Sends a fresh invitation link, which ends any earlier one.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationLink'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/mfa-reset/:
+    post:
+      operationId: staff_mfa_reset_create
+      description: For a lost authenticator. Their next login starts MFA setup again.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/password-reset/:
+    post:
+      operationId: staff_password_reset_create
+      description: |-
+        Gives a locked-out person a one-time password, shown here and nowhere else.
+        Their authenticator stays in place, so this alone cannot get an admin into an
+        account that needs MFA.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryPassword'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/photo/:
+    get:
+      operationId: staff_photo_retrieve
+      description: Everyone in the organization can see a photo. Staff change their
+        own, admins anyone's.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            image/webp:
+              schema:
+                type: string
+                format: binary
+          description: ''
+    post:
+      operationId: staff_photo_create
+      description: Everyone in the organization can see a photo. Staff change their
+        own, admins anyone's.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoUploadRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoUrl'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    delete:
+      operationId: staff_photo_destroy
+      description: Everyone in the organization can see a photo. Staff change their
+        own, admins anyone's.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/signature/:
+    get:
+      operationId: staff_signature_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureStatus'
+          description: ''
+    post:
+      operationId: staff_signature_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignatureUploadRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureStatus'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/{id}/signature/file/:
+    get:
+      operationId: staff_signature_file_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /health/live/:
+    get:
+      operationId: health_live_retrieve
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /health/ready/:
+    get:
+      operationId: health_ready_retrieve
+      description: Reports 503 unless the service can safely take traffic.
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+components:
+  schemas:
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        organization:
+          type: string
+          minLength: 1
+          pattern: ^[-a-zA-Z0-9_]+$
+        token:
+          type: string
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - full_name
+      - organization
+      - password
+      - token
+    ApplicationCreateRequest:
+      type: object
+      properties:
+        client_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        mpp:
+          type: string
+          format: uuid
+      required:
+      - client_id
+      - mpp
+    ApplicationDetail:
+      type: object
+      description: Sensitive numbers appear only as their last four digits.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form_number:
+          type: string
+          maxLength: 20
+        status:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        status_label:
+          type: string
+          readOnly: true
+        mpp:
+          type: string
+          format: uuid
+        mpp_code:
+          type: string
+          readOnly: true
+        mpp_name:
+          type: string
+          readOnly: true
+        applicant_name:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        waiting_since:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it reached its current stage. Only lists and the form
+            page carry it.
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        client_id:
+          type: string
+          description: Generated by the device, so a retried create is not doubled.
+          maxLength: 100
+        form_version:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        version:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Rejects overlapping edits.
+        revision:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Number of submissions so far.
+        data: {}
+        aadhaar_last4:
+          type: string
+          maxLength: 4
+        account_last4:
+          type: string
+          maxLength: 4
+        last_edited_by_name:
+          type: string
+          maxLength: 200
+        rejection_reason:
+          type: string
+        rejected_fields: {}
+        payment: {}
+        computed:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        warnings:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        tr_code:
+          type: string
+          nullable: true
+          readOnly: true
+        fee:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        place:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        review_steps:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decision'
+          readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Revision'
+          readOnly: true
+      required:
+      - applicant_name
+      - client_id
+      - computed
+      - created_at
+      - created_by_name
+      - decisions
+      - fee
+      - id
+      - is_overdue
+      - last_edited_by_name
+      - mpp
+      - mpp_code
+      - mpp_name
+      - place
+      - review_steps
+      - revisions
+      - status_label
+      - tr_code
+      - updated_at
+      - waiting_since
+      - warnings
+    ApplicationList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        form_number:
+          type: string
+          maxLength: 20
+        status:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        status_label:
+          type: string
+          readOnly: true
+        mpp:
+          type: string
+          format: uuid
+        mpp_code:
+          type: string
+          readOnly: true
+        mpp_name:
+          type: string
+          readOnly: true
+        applicant_name:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        waiting_since:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it reached its current stage. Only lists and the form
+            page carry it.
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - applicant_name
+      - created_at
+      - created_by_name
+      - id
+      - is_overdue
+      - mpp
+      - mpp_code
+      - mpp_name
+      - status_label
+      - updated_at
+      - waiting_since
+    ApplicationStatusEnum:
+      enum:
+      - draft
+      - pending_am
+      - pending_cs
+      - pending_finance
+      - rejected
+      - approved
+      - discarded
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `pending_am` - Pending Area Manager
+        * `pending_cs` - Pending CS & Legal
+        * `pending_finance` - Pending Finance
+        * `rejected` - Rejected
+        * `approved` - Approved
+        * `discarded` - Discarded
+    AssignMccRequest:
+      type: object
+      properties:
+        membership:
+          type: string
+          format: uuid
+      required:
+      - membership
+    AssignMppRequest:
+      type: object
+      properties:
+        membership:
+          type: string
+          format: uuid
+        responsibility:
+          $ref: '#/components/schemas/ResponsibilityEnum'
+      required:
+      - membership
+      - responsibility
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        occurred_at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor_id:
+          type: string
+          format: uuid
+          nullable: true
+        actor_name:
+          type: string
+          readOnly: true
+        action:
+          type: string
+          maxLength: 100
+        target_type:
+          type: string
+          maxLength: 100
+        target_id:
+          type: string
+          maxLength: 100
+        request_id:
+          type: string
+          maxLength: 64
+        ip_address:
+          type: string
+          nullable: true
+        metadata: {}
+      required:
+      - action
+      - actor_name
+      - id
+      - occurred_at
+    Bmc:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        mcc:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - mcc
+      - name
+    BmcRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        mcc:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - mcc
+      - name
+    Branding:
+      type: object
+      properties:
+        display_name:
+          type: string
+        tagline:
+          type: string
+        primary_color:
+          type: string
+        accent_color:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        login_image_url:
+          type: string
+          nullable: true
+      required:
+      - accent_color
+      - display_name
+      - login_image_url
+      - logo_url
+      - primary_color
+      - tagline
+    BrandingImageRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    CurrentOrganization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+      - slug
+    CurrentUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        organization:
+          $ref: '#/components/schemas/CurrentOrganization'
+        roles:
+          type: array
+          items:
+            type: string
+        role_names:
+          type: array
+          items:
+            type: string
+        membership_id:
+          type: string
+          format: uuid
+        photo_url:
+          type: string
+          nullable: true
+        has_signature:
+          type: boolean
+        needs_signature:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+      - email
+      - full_name
+      - has_signature
+      - id
+      - membership_id
+      - needs_signature
+      - organization
+      - permissions
+      - photo_url
+      - role_names
+      - roles
+    DecideRequest:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+          maxLength: 2000
+        rejected_fields:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        steps:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 20
+      required:
+      - decision
+    Decision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        revision:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        stage:
+          $ref: '#/components/schemas/ApplicationStatusEnum'
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+        rejected_fields: {}
+        decided_by_name:
+          type: string
+          maxLength: 200
+        decided_at:
+          type: string
+          format: date-time
+      required:
+      - decided_at
+      - decided_by_name
+      - decision
+      - id
+      - revision
+      - stage
+    DecisionEnum:
+      enum:
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `approved` - Approved
+        * `rejected` - Rejected
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        label:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          maxLength: 50
+        size_bytes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        uploaded_by_name:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - document_type
+      - id
+      - label
+      - size_bytes
+      - uploaded_by_name
+    DocumentTypeEnum:
+      enum:
+      - photo
+      - member_signature
+      - member_thumbprint
+      - aadhaar_front
+      - aadhaar_back
+      - passbook
+      - payment_proof
+      type: string
+      description: |-
+        * `photo` - Member photo
+        * `member_signature` - Member signature
+        * `member_thumbprint` - Member thumbprint
+        * `aadhaar_front` - Aadhaar front
+        * `aadhaar_back` - Aadhaar back
+        * `passbook` - Bank passbook
+        * `payment_proof` - Payment proof
+    DocumentUploadRequest:
+      type: object
+      properties:
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        file:
+          type: string
+          format: binary
+      required:
+      - document_type
+      - file
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          nullable: true
+        request_id:
+          type: string
+      required:
+      - code
+      - message
+      - request_id
+    ErrorResponse:
+      type: object
+      description: The body of every non-2xx API response.
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      required:
+      - error
+    ExchangeRequestRequest:
+      type: object
+      properties:
+        assertion:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - assertion
+    ExchangeResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        expires_in:
+          type: integer
+      required:
+      - access
+      - expires_in
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - status
+    IntegrationRead:
+      type: object
+      description: Never includes secret values, only the names of those that are
+        set.
+      properties:
+        kind:
+          type: string
+        is_enabled:
+          type: boolean
+        config: {}
+        configured_secrets:
+          type: array
+          items:
+            type: string
+      required:
+      - config
+      - configured_secrets
+      - is_enabled
+      - kind
+    IntegrationWriteRequest:
+      type: object
+      properties:
+        is_enabled:
+          type: boolean
+        config: {}
+        secrets:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+            minLength: 1
+          writeOnly: true
+          description: Merged into stored secrets. Omitted names are kept; null removes
+            one.
+    Invitation:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        organization:
+          type: string
+      required:
+      - email
+      - full_name
+      - organization
+    InvitationLink:
+      type: object
+      properties:
+        invite_link:
+          type: string
+      required:
+      - invite_link
+    KindEnum:
+      enum:
+      - application
+      - member
+      type: string
+      description: |-
+        * `application` - application
+        * `member` - member
+    LegacyMember:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tr_code:
+          type: string
+          maxLength: 50
+        full_name:
+          type: string
+          maxLength: 200
+        mpp:
+          type: string
+          format: uuid
+          nullable: true
+        mpp_code:
+          type: string
+          readOnly: true
+          default: ''
+        mpp_name:
+          type: string
+          readOnly: true
+          default: ''
+        is_active:
+          type: boolean
+      required:
+      - id
+      - mpp_code
+      - mpp_name
+      - tr_code
+    LoginRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        organization:
+          type: string
+          minLength: 1
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - email
+      - organization
+      - password
+    LoginResponse:
+      type: object
+      description: Either tokens, or an MFA step to finish first.
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        mfa_status:
+          $ref: '#/components/schemas/MfaStatusEnum'
+        mfa_token:
+          type: string
+    LogoutRequestRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    Mcc:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        plant:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+        mpp_count:
+          type: integer
+          readOnly: true
+        allotted:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - allotted
+      - code
+      - id
+      - mpp_count
+      - name
+      - plant
+    MccAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership:
+          type: string
+          format: uuid
+          readOnly: true
+        person:
+          type: string
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - ended_at
+      - id
+      - membership
+      - person
+      - roles
+      - started_at
+    MccRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        plant:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+      - plant
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tr_code:
+          type: string
+          maxLength: 20
+        full_name:
+          type: string
+          maxLength: 200
+        mobile:
+          type: string
+          maxLength: 10
+        mpp:
+          type: string
+          format: uuid
+        mpp_code:
+          type: string
+          readOnly: true
+        aadhaar_last4:
+          type: string
+          maxLength: 4
+        joined_at:
+          type: string
+          format: date-time
+      required:
+      - aadhaar_last4
+      - full_name
+      - id
+      - joined_at
+      - mobile
+      - mpp
+      - mpp_code
+      - tr_code
+    MemberCodeSettings:
+      type: object
+      properties:
+        state_code:
+          type: string
+          pattern: ^\d{2}$
+        hamlet_code:
+          type: string
+          pattern: ^\d{2}$
+        form_prefix:
+          type: string
+          maxLength: 4
+        entry_fee:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        share_price:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        share_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+      required:
+      - hamlet_code
+      - state_code
+    MemberCodeSettingsRequest:
+      type: object
+      properties:
+        state_code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+        hamlet_code:
+          type: string
+          minLength: 1
+          pattern: ^\d{2}$
+        form_prefix:
+          type: string
+          minLength: 1
+          maxLength: 4
+        entry_fee:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        share_price:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        share_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+      required:
+      - hamlet_code
+      - state_code
+    MfaConfirmRequest:
+      type: object
+      properties:
+        mfa_token:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          minLength: 1
+          maxLength: 6
+      required:
+      - code
+      - mfa_token
+    MfaConfirmResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        recovery_codes:
+          type: array
+          items:
+            type: string
+      required:
+      - access
+      - recovery_codes
+      - refresh
+    MfaEnrollRequest:
+      type: object
+      properties:
+        mfa_token:
+          type: string
+          minLength: 1
+      required:
+      - mfa_token
+    MfaEnrollResponse:
+      type: object
+      properties:
+        secret:
+          type: string
+        otpauth_uri:
+          type: string
+      required:
+      - otpauth_uri
+      - secret
+    MfaStatusEnum:
+      enum:
+      - verify
+      - enroll
+      type: string
+      description: |-
+        * `verify` - verify
+        * `enroll` - enroll
+    MfaVerifyRequest:
+      type: object
+      properties:
+        mfa_token:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          minLength: 1
+          maxLength: 6
+        recovery_code:
+          type: string
+          minLength: 1
+          maxLength: 20
+      required:
+      - mfa_token
+    ModeEnum:
+      enum:
+      - cash
+      - dd
+      - online
+      type: string
+      description: |-
+        * `cash` - cash
+        * `dd` - dd
+        * `online` - online
+    Mpp:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        mcc:
+          type: string
+          format: uuid
+        route:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+          description: Shown to people everywhere.
+          maxLength: 30
+        source_code:
+          type: string
+          description: Internal code in the source ERP, for matching only.
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        village_code:
+          type: string
+          pattern: ^\d{8}$
+          maxLength: 8
+        village_name:
+          type: string
+          maxLength: 150
+        state_code:
+          type: string
+          description: First two digits of a member code. Blank uses the organization's
+            default.
+          maxLength: 2
+        hamlet_code:
+          type: string
+          description: Two digits after the village, as a village can have several
+            MPPs.
+          maxLength: 2
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - mcc
+      - name
+      - village_code
+    MppAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership:
+          type: string
+          format: uuid
+          readOnly: true
+        person:
+          type: string
+          readOnly: true
+        responsibility:
+          allOf:
+          - $ref: '#/components/schemas/ResponsibilityEnum'
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - ended_at
+      - id
+      - membership
+      - person
+      - responsibility
+      - started_at
+    MppImportProblem:
+      type: object
+      properties:
+        row:
+          type: integer
+        problem:
+          type: string
+      required:
+      - problem
+      - row
+    MppImportRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    MppImportResult:
+      type: object
+      properties:
+        created:
+          type: integer
+        updated:
+          type: integer
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/MppImportProblem'
+      required:
+      - created
+      - problems
+      - updated
+    MppRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        mcc:
+          type: string
+          format: uuid
+        route:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+          minLength: 1
+          description: Shown to people everywhere.
+          maxLength: 30
+        source_code:
+          type: string
+          description: Internal code in the source ERP, for matching only.
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        village_code:
+          type: string
+          minLength: 1
+          pattern: ^\d{8}$
+          maxLength: 8
+        village_name:
+          type: string
+          maxLength: 150
+        state_code:
+          type: string
+          description: First two digits of a member code. Blank uses the organization's
+            default.
+          maxLength: 2
+        hamlet_code:
+          type: string
+          description: Two digits after the village, as a village can have several
+            MPPs.
+          maxLength: 2
+        is_active:
+          type: boolean
+      required:
+      - code
+      - mcc
+      - name
+      - village_code
+    NavigationItem:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        icon:
+          type: string
+        path:
+          type: string
+          nullable: true
+        description:
+          type: string
+        children:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - children
+      - description
+      - icon
+      - key
+      - label
+      - path
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+        application:
+          type: string
+          format: uuid
+          nullable: true
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - title
+    OrganizationProfile:
+      type: object
+      properties:
+        company_name_hi:
+          type: string
+          maxLength: 200
+        company_name_hi_short:
+          type: string
+          maxLength: 200
+        cin:
+          type: string
+          maxLength: 30
+        address_line_1:
+          type: string
+          maxLength: 200
+        address_line_2:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        website:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        city_hi:
+          type: string
+          maxLength: 100
+        city_short_hi:
+          type: string
+          maxLength: 100
+        place:
+          type: string
+          maxLength: 100
+        board_resolution_no:
+          type: string
+          maxLength: 100
+        board_resolution_date:
+          type: string
+          format: date
+          nullable: true
+        members_female_only:
+          type: boolean
+    OrganizationProfileRequest:
+      type: object
+      properties:
+        company_name_hi:
+          type: string
+          maxLength: 200
+        company_name_hi_short:
+          type: string
+          maxLength: 200
+        cin:
+          type: string
+          maxLength: 30
+        address_line_1:
+          type: string
+          maxLength: 200
+        address_line_2:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        website:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        city_hi:
+          type: string
+          maxLength: 100
+        city_short_hi:
+          type: string
+          maxLength: 100
+        place:
+          type: string
+          maxLength: 100
+        board_resolution_no:
+          type: string
+          maxLength: 100
+        board_resolution_date:
+          type: string
+          format: date
+          nullable: true
+        members_female_only:
+          type: boolean
+    PaginatedApplicationListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationList'
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    PaginatedBmcList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bmc'
+    PaginatedLegacyMemberList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyMember'
+    PaginatedMccList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mcc'
+    PaginatedMemberList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+    PaginatedMppList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mpp'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedPdfBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PdfBatch'
+    PaginatedPlantList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plant'
+    PaginatedRoleList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    PaginatedRouteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+    PaginatedStaffList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Staff'
+    PaginatedTrustedIssuerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrustedIssuer'
+    PasswordChangeRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - current_password
+      - new_password
+    PasswordForgotRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        organization:
+          type: string
+          minLength: 1
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - email
+      - organization
+    PasswordResetRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - token
+      - uid
+    PatchedApplicationSaveRequest:
+      type: object
+      properties:
+        version:
+          type: integer
+        data: {}
+        aadhaar_number:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 12
+        account_number:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 18
+    PatchedBmcRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        mcc:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedBrandingUpdateRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 200
+        tagline:
+          type: string
+          maxLength: 200
+        primary_color:
+          type: string
+          minLength: 1
+          pattern: ^#[0-9A-Fa-f]{6}$
+          maxLength: 7
+        accent_color:
+          type: string
+          minLength: 1
+          pattern: ^#[0-9A-Fa-f]{6}$
+          maxLength: 7
+    PatchedMccRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        plant:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedMppRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        mcc:
+          type: string
+          format: uuid
+        route:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+          minLength: 1
+          description: Shown to people everywhere.
+          maxLength: 30
+        source_code:
+          type: string
+          description: Internal code in the source ERP, for matching only.
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        village_code:
+          type: string
+          minLength: 1
+          pattern: ^\d{8}$
+          maxLength: 8
+        village_name:
+          type: string
+          maxLength: 150
+        state_code:
+          type: string
+          description: First two digits of a member code. Blank uses the organization's
+            default.
+          maxLength: 2
+        hamlet_code:
+          type: string
+          description: Two digits after the village, as a village can have several
+            MPPs.
+          maxLength: 2
+        is_active:
+          type: boolean
+    PatchedPlantRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedRoleRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        requires_mfa:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+    PatchedRouteRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        bmc:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+    PatchedStaffUpdateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        is_active:
+          type: boolean
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    PatchedTrustedIssuerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        issuer:
+          type: string
+          minLength: 1
+          maxLength: 200
+        audience:
+          type: string
+          minLength: 1
+          maxLength: 200
+        public_key:
+          type: string
+          minLength: 1
+          description: RSA public key in PEM format.
+        default_role_code:
+          description: Role given on first sign-in. Blank grants nothing.
+          oneOf:
+          - type: string
+            maxLength: 60
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+        syncs_mpp_assignments:
+          type: boolean
+          description: Treat the host's MPP list as the source of truth.
+        is_active:
+          type: boolean
+    PaymentRequest:
+      type: object
+      description: The form's "office use" block. Some deposits have no slip or UTR
+        number.
+      properties:
+        bank_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        branch_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        reference:
+          type: string
+          maxLength: 100
+        amount:
+          type: integer
+          minimum: 1
+        deposited_on:
+          type: string
+          format: date
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: cash
+        bank_address:
+          type: string
+          maxLength: 300
+        share_quantity:
+          type: integer
+          minimum: 0
+      required:
+      - amount
+      - bank_name
+      - branch_name
+      - deposited_on
+    PdfBatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/PdfBatchStatusEnum'
+        variant:
+          type: string
+          maxLength: 10
+        want_zip:
+          type: boolean
+        want_merged:
+          type: boolean
+        label:
+          type: string
+          maxLength: 300
+        form_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        phase:
+          $ref: '#/components/schemas/PhaseEnum'
+        cursor:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        processed:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        failed_count:
+          type: integer
+          readOnly: true
+        failed_forms: {}
+        current_form:
+          type: string
+          maxLength: 20
+        merged_parts:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        error:
+          type: string
+          maxLength: 300
+        queue_position:
+          type: integer
+          nullable: true
+          description: 1 when it is next in line. Null once it has started.
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        requested_by_name:
+          type: string
+          maxLength: 200
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - expires_at
+      - failed_count
+      - id
+      - merged_parts
+      - queue_position
+      - requested_by_name
+    PdfBatchStatusEnum:
+      enum:
+      - queued
+      - running
+      - done
+      - failed
+      - cancelled
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `running` - Running
+        * `done` - Done
+        * `failed` - Failed
+        * `cancelled` - Cancelled
+    PdfJobRequestRequest:
+      type: object
+      description: 'Which approved members to print: by the day of final approval,
+        place or person.'
+      properties:
+        approved_from:
+          type: string
+          format: date
+        approved_to:
+          type: string
+          format: date
+        search:
+          type: string
+          maxLength: 100
+        mcc:
+          type: string
+          format: uuid
+        bmc:
+          type: string
+          format: uuid
+        route:
+          type: string
+          format: uuid
+        mpp:
+          type: string
+          format: uuid
+        variant:
+          $ref: '#/components/schemas/VariantEnum'
+        want_zip:
+          type: boolean
+          default: true
+        want_merged:
+          type: boolean
+          default: false
+        exclude:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 2000
+      required:
+      - variant
+    Permission:
+      type: object
+      properties:
+        code:
+          type: string
+        description:
+          type: string
+      required:
+      - code
+      - description
+    PermissionsEnum:
+      enum:
+      - applications.approve_am
+      - applications.approve_cs
+      - applications.approve_finance
+      - applications.create
+      - applications.download_full_pdf
+      - applications.edit
+      - applications.submit
+      - applications.view
+      - audit.view
+      - dashboard.view
+      - hierarchy.manage
+      - hierarchy.view
+      - members.view
+      - mpp.assign
+      - mpp.view_all
+      - reports.export
+      - reports.view
+      - roles.manage
+      - roles.view
+      - settings.manage
+      - staff.manage
+      - staff.view
+      type: string
+      description: |-
+        * `applications.approve_am` - applications.approve_am
+        * `applications.approve_cs` - applications.approve_cs
+        * `applications.approve_finance` - applications.approve_finance
+        * `applications.create` - applications.create
+        * `applications.download_full_pdf` - applications.download_full_pdf
+        * `applications.edit` - applications.edit
+        * `applications.submit` - applications.submit
+        * `applications.view` - applications.view
+        * `audit.view` - audit.view
+        * `dashboard.view` - dashboard.view
+        * `hierarchy.manage` - hierarchy.manage
+        * `hierarchy.view` - hierarchy.view
+        * `members.view` - members.view
+        * `mpp.assign` - mpp.assign
+        * `mpp.view_all` - mpp.view_all
+        * `reports.export` - reports.export
+        * `reports.view` - reports.view
+        * `roles.manage` - roles.manage
+        * `roles.view` - roles.view
+        * `settings.manage` - settings.manage
+        * `staff.manage` - staff.manage
+        * `staff.view` - staff.view
+    PhaseEnum:
+      enum:
+      - render
+      - merge
+      type: string
+      description: |-
+        * `render` - Making forms
+        * `merge` - Joining into files for print
+    PhotoUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    PhotoUrl:
+      type: object
+      properties:
+        photo_url:
+          type: string
+      required:
+      - photo_url
+    Plant:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+    PlantRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+    PrintPreview:
+      type: object
+      properties:
+        count:
+          type: integer
+        limit:
+          type: integer
+        ready:
+          type: integer
+          description: Forms already made once, which take no time.
+        estimated_seconds:
+          type: integer
+        estimated_bytes:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrintPreviewRow'
+      required:
+      - count
+      - estimated_bytes
+      - estimated_seconds
+      - limit
+      - ready
+      - rows
+    PrintPreviewRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        form_number:
+          type: string
+        full_name:
+          type: string
+        tr_code:
+          type: string
+        mpp:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+      required:
+      - approved_at
+      - form_number
+      - full_name
+      - id
+      - mpp
+      - tr_code
+    RefreshRequestRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    ReportSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+      required:
+      - by_status
+      - total
+    ResponsibilityEnum:
+      enum:
+      - facilitator
+      - area_manager
+      type: string
+      description: |-
+        * `facilitator` - Facilitator
+        * `area_manager` - Area Manager
+    ReviewStepAccessRequest:
+      type: object
+      properties:
+        steps:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+              minLength: 1
+      required:
+      - steps
+    Revision:
+      type: object
+      properties:
+        number:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        data: {}
+        aadhaar_last4:
+          type: string
+          maxLength: 4
+        account_last4:
+          type: string
+          maxLength: 4
+        submitted_by_name:
+          type: string
+          maxLength: 200
+        submitted_at:
+          type: string
+          format: date-time
+      required:
+      - aadhaar_last4
+      - account_last4
+      - data
+      - number
+      - submitted_at
+      - submitted_by_name
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 60
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          maxLength: 100
+        is_system:
+          type: boolean
+          readOnly: true
+        requires_mfa:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+      required:
+      - code
+      - id
+      - is_system
+      - name
+      - permissions
+    RoleRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 60
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        requires_mfa:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+      required:
+      - code
+      - name
+      - permissions
+    Route:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        bmc:
+          type: string
+          format: uuid
+        mcc:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 30
+        name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - bmc
+      - code
+      - id
+      - mcc
+      - name
+    RouteRequest:
+      type: object
+      description: The unique constraint includes the organization, which clients
+        never send.
+      properties:
+        bmc:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        is_active:
+          type: boolean
+      required:
+      - bmc
+      - code
+      - name
+    SearchHit:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        subtitle:
+          type: string
+        path:
+          type: string
+      required:
+      - id
+      - kind
+      - path
+      - subtitle
+      - title
+    SensitiveNumbers:
+      type: object
+      properties:
+        aadhaar_number:
+          type: string
+        account_number:
+          type: string
+      required:
+      - aadhaar_number
+      - account_number
+    SignatureStatus:
+      type: object
+      properties:
+        has_signature:
+          type: boolean
+      required:
+      - has_signature
+    SignatureUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    Staff:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        has_signature:
+          type: boolean
+          readOnly: true
+        needs_signature:
+          type: boolean
+          description: Facilitators and Area Managers sign forms, and so do the heads
+            chosen to.
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - has_signature
+      - id
+      - is_active
+      - needs_signature
+      - photo_url
+      - roles
+      - status
+    StaffCreateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - email
+      - full_name
+      - role_ids
+    StatusCounts:
+      type: object
+      properties:
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        total:
+          type: integer
+      required:
+      - by_status
+      - total
+    SubmitRequest:
+      type: object
+      properties:
+        version:
+          type: integer
+    TemporaryPassword:
+      type: object
+      properties:
+        temporary_password:
+          type: string
+      required:
+      - temporary_password
+    TokenPair:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TrustedIssuer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        issuer:
+          type: string
+          maxLength: 200
+        audience:
+          type: string
+          maxLength: 200
+        public_key:
+          type: string
+          description: RSA public key in PEM format.
+        default_role_code:
+          description: Role given on first sign-in. Blank grants nothing.
+          oneOf:
+          - type: string
+            maxLength: 60
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+        syncs_mpp_assignments:
+          type: boolean
+          description: Treat the host's MPP list as the source of truth.
+        is_active:
+          type: boolean
+      required:
+      - audience
+      - id
+      - issuer
+      - name
+      - public_key
+    TrustedIssuerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        issuer:
+          type: string
+          minLength: 1
+          maxLength: 200
+        audience:
+          type: string
+          minLength: 1
+          maxLength: 200
+        public_key:
+          type: string
+          minLength: 1
+          description: RSA public key in PEM format.
+        default_role_code:
+          description: Role given on first sign-in. Blank grants nothing.
+          oneOf:
+          - type: string
+            maxLength: 60
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+        syncs_mpp_assignments:
+          type: boolean
+          description: Treat the host's MPP list as the source of truth.
+        is_active:
+          type: boolean
+      required:
+      - audience
+      - issuer
+      - name
+      - public_key
+    UnreadCount:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
+    VariantEnum:
+      enum:
+      - full
+      - single
+      type: string
+      description: |-
+        * `full` - full
+        * `single` - single
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

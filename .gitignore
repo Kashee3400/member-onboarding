@@ -1,0 +1,47 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime output
+*.log
+media/
+staticfiles/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Database backups can hold member data.
+*.dump
+
+# Flutter and Android build output
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.gradle/
+local.properties
+android/app/.cxx/
+
+# Node and Next.js
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Exports that may hold member data
+*.csv
+*.xlsx

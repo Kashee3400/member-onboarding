@@ -1,0 +1,200 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
+import '../api/api_client.dart';
+import '../api/onboarding_api.dart';
+import '../models/draft.dart';
+import '../storage/draft_store.dart';
+
+enum SyncState { saved, saving, offline, conflict, failed }
+
+/// Owns one form: saves locally at once, then syncs quietly when it can.
+class DraftController extends ChangeNotifier {
+  DraftController({
+    required this.draft,
+    required OnboardingApi api,
+    required DraftStore store,
+    this.debounce = const Duration(seconds: 2),
+    this.offlineRetry = const Duration(minutes: 1),
+  }) : _api = api,
+       _store = store;
+
+  final Draft draft;
+  final OnboardingApi _api;
+  final DraftStore _store;
+  final Duration debounce;
+
+  /// How often a form on screen tries again while there is no network.
+  final Duration offlineRetry;
+
+  SyncState state = SyncState.saved;
+  String? aadhaarError;
+  Map<String, String> serverErrors = const {};
+
+  Timer? _timer;
+  Future<void>? _running;
+  bool _changedWhileSyncing = false;
+
+  void _changed() {
+    draft.needsSync = true;
+    unawaited(_store.save(draft));
+    _timer?.cancel();
+    _timer = Timer(debounce, () => unawaited(sync()));
+    notifyListeners();
+  }
+
+  void setValue(String section, String key, Object? value) {
+    draft.data[section] = {...draft.section(section), key: value};
+    serverErrors = Map.of(serverErrors)..remove('$section.$key');
+    _changed();
+  }
+
+  void setFamily(List<Map<String, dynamic>> family) {
+    draft.data['family'] = family;
+    _changed();
+  }
+
+  void setAadhaar(String number) {
+    draft.pendingAadhaar = number;
+    aadhaarError = null;
+    _changed();
+  }
+
+  void setAccount(String number) {
+    draft.pendingAccount = number;
+    _changed();
+  }
+
+  void attachDocument(String type, String path) {
+    draft.pendingDocuments[type] = path;
+    draft.uploadedDocuments.remove(type);
+    _changed();
+  }
+
+  /// One sync at a time. Changes made meanwhile are picked up straight after.
+  Future<void> sync() {
+    final running = _running;
+    if (running != null) {
+      _changedWhileSyncing = true;
+      return running;
+    }
+    final future = _sync().whenComplete(() {
+      _running = null;
+      if (_changedWhileSyncing) {
+        _changedWhileSyncing = false;
+        unawaited(sync());
+      }
+    });
+    return _running = future;
+  }
+
+  void _apply(Map<String, dynamic> server) {
+    draft
+      ..version = server['version'] as int
+      ..status = server['status'] as String
+      ..aadhaarLast4 = server['aadhaar_last4'] as String
+      ..accountLast4 = server['account_last4'] as String;
+  }
+
+  Future<void> _sync() async {
+    if (!draft.needsSync) return;
+    state = SyncState.saving;
+    notifyListeners();
+
+    try {
+      if (draft.serverId == null) {
+        final created = await _api.createApplication(clientId: draft.clientId, mppId: draft.mppId);
+        draft.serverId = created['id'] as String;
+        _apply(created);
+      }
+
+      final aadhaar = draft.pendingAadhaar;
+      final account = draft.pendingAccount;
+      final saved = await _api.saveApplication(
+        draft.serverId!,
+        version: draft.version!,
+        data: draft.data,
+        aadhaarNumber: aadhaar,
+        accountNumber: account,
+      );
+      _apply(saved);
+      // The server holds them now, so they must not stay on the phone.
+      if (draft.pendingAadhaar == aadhaar) draft.pendingAadhaar = null;
+      if (draft.pendingAccount == account) draft.pendingAccount = null;
+
+      for (final entry in Map.of(draft.pendingDocuments).entries) {
+        final file = File(entry.value);
+        await _api.uploadDocument(draft.serverId!, entry.key, file);
+        draft.pendingDocuments.remove(entry.key);
+        draft.uploadedDocuments.add(entry.key);
+        // The picture is on the server, so this copy of an ID card should go.
+        if (await file.exists()) await file.delete();
+      }
+
+      draft.needsSync = false;
+      state = SyncState.saved;
+    } on OfflineException {
+      state = SyncState.offline;
+      _timer?.cancel();
+      _timer = Timer(offlineRetry, () => unawaited(sync()));
+    } on ApiException catch (error) {
+      if (error.code == 'stale_version') {
+        state = SyncState.conflict;
+      } else if (error.code == 'duplicate_record') {
+        aadhaarError = error.message;
+        draft.pendingAadhaar = null;
+        state = SyncState.failed;
+      } else {
+        serverErrors = error.fieldErrors;
+        state = SyncState.failed;
+      }
+    }
+
+    await _store.save(draft);
+    notifyListeners();
+  }
+
+  /// Throws nothing for an invalid form: the problems land in [serverErrors].
+  Future<bool> submit() async {
+    _timer?.cancel();
+    draft.needsSync = draft.needsSync || draft.serverId == null;
+    await sync();
+    if (state != SyncState.saved) return false;
+
+    try {
+      final submitted = await _api.submitApplication(draft.serverId!, draft.version!);
+      _apply(submitted);
+      serverErrors = const {};
+      await _store.delete(draft.clientId);
+      notifyListeners();
+      return true;
+    } on OfflineException {
+      state = SyncState.offline;
+    } on ApiException catch (error) {
+      serverErrors = error.fieldErrors.isEmpty ? {'form': error.message} : error.fieldErrors;
+      state = SyncState.failed;
+    }
+    notifyListeners();
+    return false;
+  }
+
+  /// After a conflict: take the server's copy and drop this device's changes.
+  Future<void> reloadFromServer() async {
+    final server = await _api.fetchApplication(draft.serverId!);
+    _apply(server);
+    draft
+      ..data = (server['data'] as Map).cast<String, dynamic>()
+      ..needsSync = false;
+    state = SyncState.saved;
+    await _store.save(draft);
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}

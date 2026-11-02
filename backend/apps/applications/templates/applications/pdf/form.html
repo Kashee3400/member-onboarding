@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Two families, because each file holds one script. Letters and digits try Latin first. */
+  @font-face { font-family: FormLatin; font-weight: 400; src: url("{{ fonts }}/latin-400.woff"); }
+  @font-face { font-family: FormLatin; font-weight: 700; src: url("{{ fonts }}/latin-700.woff"); }
+  @font-face { font-family: FormHindi; font-weight: 400; src: url("{{ fonts }}/devanagari-400.woff"); }
+  @font-face { font-family: FormHindi; font-weight: 700; src: url("{{ fonts }}/devanagari-700.woff"); }
+
+  @page { size: A4; margin: 11mm 10mm 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: FormLatin, FormHindi, sans-serif; font-size: 8.6pt; line-height: 1.5; color: #27304a; }
+  .page { break-after: page; }
+  .page:last-child { break-after: auto; }
+  p { margin: 0 0 7pt; }
+  b { color: #1b2340; }
+  table { width: 100%; border-collapse: collapse; }
+
+  .head { position: relative; min-height: 34mm; text-align: center; }
+  .head h1 { margin: 0; font-size: 17pt; font-weight: 700; word-spacing: 3pt; color: #1b2340; }
+  .head .line { margin: 0; font-size: 8.4pt; }
+  .photo { position: absolute; top: 0; right: 0; width: 30mm; text-align: right; font-size: 7.5pt; white-space: nowrap; }
+  .photo img { display: block; width: 25mm; height: 26mm; margin-left: auto; object-fit: cover; }
+  .photo .sign { height: 9mm; object-fit: contain; border: 0.5pt solid #c7cede; }
+
+  .title { margin: 1mm 0 2mm; text-align: center; font-size: 11pt; font-weight: 700; text-decoration: underline; color: #1b2340; }
+  .fill { font-weight: 700; color: #1b2340; }
+
+  .grid th, .grid td { border: 0.5pt solid #c7cede; padding: 2.4mm 1.5mm; text-align: center; font-weight: 400; }
+  .grid th { font-weight: 700; color: #1b2340; }
+  .family { table-layout: fixed; }
+  .family th, .family td { height: 9.5mm; padding: 1mm; font-size: 8pt; }
+
+  .nominee { border: 0.8pt solid #1b2340; padding: 2mm 2.5mm; margin-bottom: 3mm; }
+  .terms p { margin-bottom: 5pt; text-align: justify; }
+  .terms .sub { margin-left: 0; }
+
+  .declare h2 { margin: 0 0 2mm; text-align: center; font-size: 13pt; font-weight: 400; color: #1b2340; }
+  .declare p { margin-bottom: 7pt; }
+  .signed { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8mm; }
+  .signed .mark { width: 72mm; text-align: center; }
+  .signed .mark img { height: 12mm; max-width: 60mm; object-fit: contain; }
+
+  .facts td { border: 0.5pt solid #c7cede; padding: 2mm 3mm; width: 50%; }
+  .rule { border: 0; border-top: 0.5pt solid #d8dde8; margin: 2.5mm 0; }
+  .sign-row { display: flex; gap: 12mm; }
+  .sign-row div { flex: 1; }
+  .stamp { display: block; height: 18mm; max-width: 42mm; object-fit: contain; background: #fff; }
+  .office { text-align: center; font-weight: 700; color: #1b2340; }
+  .right { text-align: right; }
+  .accountant img, .secretary img { height: 12mm; max-width: 40mm; object-fit: contain; }
+  .split { display: flex; justify-content: space-between; align-items: flex-end; }
+
+  .cards { display: flex; gap: 10mm; justify-content: center; }
+  .cards img { width: 80mm; height: 48mm; object-fit: contain; }
+  .passbook { display: block; margin: 7mm auto 3mm; width: 125mm; height: 62mm; object-fit: contain; }
+  .cut { border-top: 0.8pt dashed #5b6b8c; margin: 3mm 0; }
+  .receipt { border: 1pt solid #1b2340; padding: 4mm; }
+  .receipt .head { min-height: 0; }
+  .receipt .head h1 { font-size: 15pt; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div class="head">
+    <h1>{{ company.company_name_hi }}</h1>
+    <p class="line"><b>CIN :</b> {{ company.cin }}</p>
+    <p class="line"><b>पंजीकृत कार्यालय:</b>{{ company.address_line_1 }}</p>
+    <p class="line">{{ company.address_line_2 }}</p>
+    <p class="line"><b>दूरभाष:</b>{{ company.phone }} , <b>वेबसाइट:</b>{{ company.website }} , <b>ई-मेल:</b>{{ company.email }}</p>
+    <div class="photo">
+      {% if images.photo %}<img src="{{ images.photo }}" alt="">{% endif %}
+      {% if images.member_mark %}<img class="sign" src="{{ images.member_mark }}" alt="">{% endif %}
+      Latitude : {{ location.latitude }}<br>Longitude : {{ location.longitude }}
+    </div>
+  </div>
+
+  <p style="margin-top:3mm"><b>फार्म संख्या : {{ application.form_number }}</b></p>
+  <p class="title">सदस्यता आवेदन प्रपत्र</p>
+
+  <p>सेवा में,<br>निदेशक मंडल,<br>{{ company.company_name_hi_short }},<br>{{ company.city_hi }}</p>
+
+  <p><b>1.</b> मैं ,___<span class="fill">{{ applicant.full_name }}</span>__(अंग्रेजी के बड़े अक्षरों में जो भविष्य में चेक / शेयर प्रमाणपत्र के लिए मान्य हो )____<span class="fill">{{ applicant.full_name_hi }}</span>____(हिन्दी में) {{ relation_label }}_______<span class="fill">{{ applicant.relation_name }}</span>______(अंग्रेजी के बड़े अक्षरों में)____<span class="fill">{{ applicant.relation_name_hi }}</span>____ (हिन्दी में )
+  लिंग :____<span class="fill">{{ gender_label }}</span>____उम्र :_______<span class="fill">{{ age }}</span>_________,प्राप्त शैक्षिक योग्यता ___<span class="fill">{{ education_label }}</span>___,श्रेणी ____<span class="fill">{{ category_label }}</span>______ से संबंध रखता / रखती हूँ, और मेरा परिवार ____<span class="fill">{{ family_status_label }}</span>____( बीपीएल / एपीएल परिवार) हैं। मैं घर संख्या ___<span class="fill">{{ address.house_number }}</span>___,गाँव ___<span class="fill">{{ application.mpp.name }}</span>____,पोस्ट ऑफिस____<span class="fill">{{ address.post_office }}</span>_____,
+  तहसील ____<span class="fill">{{ address.tehsil }}</span>___, जिला ___<span class="fill">{{ address.district }}</span>_____,राज्य _<span class="fill">{{ address.state }}</span>__,पिन कोड ___<span class="fill">{{ address.pincode }}</span>__
+  की निवासी हूँ। मेरा मोबाइल नम्बर ____<span class="fill">{{ address.mobile }}</span>__हैं।मेरा ईमेल __<span class="fill">{{ address.email }}</span>__हैं। मैं अपने घर के दुधारू पशुओं से दूध केउत्पादन का कार्य करती हूँ और एक सदस्या के रूप में {{ company.company_name_hi_short }}, {{ company.city_short_hi }} (जो आगे कंपनी के रूप में उल्लेखित होगी ) में अपना नाम दर्ज कराना चाहती हूँ ।</p>
+
+  <p><b>2.</b> मैंने इस कंपनी के अंतर्नियम पढ़े हैं / पढ़वाए हैं और संस्था के अंतर्नियमों के प्रावधानों को समझ गयी हूँ और यह वचन देती हूँ कि उनका अनुपालन करूँगी।</p>
+
+  <p style="margin-bottom:1mm"><b>3.</b> मेरे पशुओं की संख्या तथा दूध उत्पादन का विवरण <b>{{ form_date }}</b> (तिथि-महीना -साल ) तक निम्न हैं:</p>
+  <table class="grid">
+    <tr><th>नस्ल</th><th>बछियां (संख्या)</th><th>दूध नहीं दे रही पशुओं की (संख्या))</th><th>दूध दे रही पशुओं की (संख्या)</th><th>दूध उत्पादन (लीटर प्रति दिन)</th></tr>
+    <tr><td>स्वदेशी गाय</td><td>{{ animals.indigenous.heifer }}</td><td>{{ animals.indigenous.dry }}</td><td>{{ animals.indigenous.in_milk }}</td><td rowspan="4">{{ production }}</td></tr>
+    <tr><td>वर्ण संकर गाय</td><td>{{ animals.crossbred.heifer }}</td><td>{{ animals.crossbred.dry }}</td><td>{{ animals.crossbred.in_milk }}</td></tr>
+    <tr><td>भैंसें</td><td>{{ animals.buffalo.heifer }}</td><td>{{ animals.buffalo.dry }}</td><td>{{ animals.buffalo.in_milk }}</td></tr>
+    <tr><th>कुल</th><td>{{ animals.total.heifer }}</td><td>{{ animals.total.dry }}</td><td>{{ animals.total.in_milk }}</td></tr>
+  </table>
+
+  <p style="margin-top:2mm;margin-bottom:3pt"><b>4.</b>घर में खपत होने वाले दूध की मात्रा <b>{{ consumption }}</b> (लीटर प्रति दिन) तथा घर में उपलब्ध बिक्री योग्य अतिरिक्त दूध की मात्रा <b>{{ surplus }}</b>( लीटर प्रति दिन) हैं।</p>
+  <p style="margin-bottom:0"><b>5.</b>मेरा बैंक के बचत खाते का विवरण इस प्रकार है और मैं अपने बचत खाते में दूध भुगतान की राशि प्राप्त करने के लिए सहमति प्रदान करती हूँ ।<br>
+  नाम (बचत खाते के अनुसार):____<span class="fill">{{ bank.holder_name }}</span>____ (अंग्रेजी के बड़े अक्षरों में)<br>
+  बचत खाता संख्या : <span class="fill">{{ account_number }}</span><br>
+  आई.एफ.एस.सी. कोड : <span class="fill">{{ bank.ifsc }}</span><br>
+  बैंक का नाम : <span class="fill">{{ bank.bank_name }}</span> , शाखा का नाम: <span class="fill">{{ bank.branch_name }}</span><br>
+  <b>6.</b> मेरे साथ निवास करने वाले परिजनों का विवरण:</p>
+  <table class="grid family">
+    <tr><th>क्र. सं.</th><th>नाम</th><th>लिंग<br>(पुरुष / महिला)</th><th>उम्र<br>(वर्ष में)</th><th>आवेदक के<br>साथ संबंध</th><th>क्र. सं.</th><th>नाम</th><th>लिंग<br>(पुरुष / महिला)</th><th>उम्र<br>(वर्ष में)</th><th>आवेदक के<br>साथ संबंध</th></tr>
+    {% for left, right in family_rows %}
+    <tr><td>{{ left.number }}.</td><td>{{ left.name }}</td><td>{{ left.gender }}</td><td>{{ left.age }}</td><td>{{ left.relation }}</td><td>{{ right.number }}.</td><td>{{ right.name }}</td><td>{{ right.gender }}</td><td>{{ right.age }}</td><td>{{ right.relation }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% if variant == "full" %}
+<section class="page terms">
+  <p style="margin-bottom:1mm"><b>6.1.</b>नामित का विवरण :</p>
+  <div class="nominee">
+    नामित का नाम : <b>{{ nominee.name }}</b> आवेदक के साथ संबंध <b>{{ nominee_relation }}</b> नामित का पता <b>{{ nominee.address }}</b><br>
+    यदि नामित अवयस्क हैं तो (अ) अभिभावक का नाम <b>{{ nominee.guardian_name }}</b> (ब) नामित की उम्र <b>{{ nominee_age }}</b> वर्ष
+  </div>
+
+  <p><b>7.</b>मैं कंपनी की सदस्यता लेने के लिए {{ fees.share_price }} रुपये प्रति शेयर की दर से {{ fees.share_count }} शेयर जिसकी कुल राशि {{ fees.share_total }} रुपये है तथा प्रवेश शुल्क {{ fees.entry_fee }} रुपये देने के लिए सहमत हूँ और मैं कंपनी द्वारा दूध के संग्रहिकरण से संबंधित गतिविधि और दूध भुगतान से समय-समय पर दूध की वार्षिक मात्रा की आपूर्ति के अनुसार अतिरिक्त शेयर पूंजी के लिए राशि कटौती के लिए सहमति देती हूँ।</p>
+  <p><b>7.1</b> मैं इसके लिए प्रवेश शुल्क {{ fees.entry_fee }}/- रुपये जमा करने की बैंक रसीद / डी.डी. साथ संलग्न कर रही हूँ और शेष राशि {{ fees.share_total }}/- रुपये दूध संग्रहण केंद्र जहाँ मैं दूध दे सकती हूँ के शुरू होने या मेरी सदस्यता कोड के सक्रिय होने की तारीख से, जो भी बाद में हो , छः (6) माह के अंदर मेरे दूध भुगतान से कटौती किए जाने की सहमति देती हूँ।</p>
+  <p><b>7.2</b> यदि मैं क्रमांक 7 या 7.1 की शर्तों को पूरा नहीं कर पाती हूँ तो कंपनी मेरी सदस्यता निरस्त कर सकती है, जिसमें मुझे कोई आपत्ति नहीं होगी। कंपनी द्वारा किसी भी कारण से सदस्यता नहीं दिये जाने पर या सदस्यता निरस्त होने पर प्रवेश शुल्क वापस नहीं होगा।</p>
+  <p><b>8.</b> कंपनी के अंतर्नियम 4.3 के अंतर्गत निदेशक मंडल द्वारा समय-समय पर बनाए गए नियमों के अनुसार प्रत्येक सदस्य को अपनी दूध आपूर्ति के अनुपात में अंश पूँजी रखना अनिवार्य हैं। इसलिए मैं कंपनी को अधिकृत करती हूँ कि जब भी मेरे सदस्यता कोड में, मेरे द्वारा कंपनी को दिए गए दूध की मात्रा, मेरे द्वारा ली गयी अंश पूँजी से अधिक होती हैं तो कंपनी 1/- रूपए या बोर्ड द्वारा समय समय पर निर्धारित अन्य राशि प्रति लीटर की दर से अतिरिक्त पूँजी की राशि, मेरे दूध भुगतान से कटौती कर सकती हैं और तदनुसार निदेशक मंडल की स्वीकृति उपरांत अंश प्रमाण-पत्र जारी कर सकती हैं। मैं इससे पूर्णतः सहमत हूँ।</p>
+  <p><b>9.</b>मैंने यह भली-भांति समझ लिया है कि सदस्या के रूप में नामांकित होने पर मैं कंपनी की सदस्यता बनाए रखने के लिए कंपनी की सभी शर्तों का पालन करूँगी। मैं दूध की आपूर्ति के अनुरुप कंपनी में अंश पूँजी लूँगी और मैं श्रेणी -A श्रेणी -B, श्रेणी -C की सदस्या बनूँगी। वार्षिक दूध आपूर्ति के अतिरिक्त मुझे कंपनी के द्वारा निर्धारित श्रेणी - A श्रेणी - B, श्रेणी – C की सदस्यता में बने रहने के लिए अन्य शर्तों का भी पालन करना होगा।</p>
+  <p><b>10.</b> मैं अपनी सदस्यता कायम रखने के लिए घर में उपलब्ध बिक्री योग्य पूरा अतिरिक्त दूध कंपनी में देने और कंपनी द्वारा निर्धारित सर्दी-गर्मी का अनुपात और समय- समय पर निर्धारित दूध के गुणवत्ता मानकों का पालन करने का वचन देती हूँ।</p>
+  <p><b>11.</b>मुझे यह ज्ञात है कि :<br>(क) कंपनी समय-समय पर जैसा भी तय करे, मेरे द्वारा लिए गए अंश पूँजी पर डिविडेंड देगी, तथा कंपनी के द्वारा सदस्यता सम्बंधित लाभ उतने ही दूध की मात्रा पर देय होगा जिसके अनुपात में मेरे द्वारा अंश पूँजी ली गयी हैं।</p>
+  <p>(ख) मेरे द्वारा वार्षिक दूध की आपूर्ति अंश पूँजी से अधिक होने पर मेरा सदस्यता कोड उस वित्तीय वर्ष के लिए निष्क्रिय किया जा सकता है जिससे मैं दूध की आपूर्ति कंपनी को नहीं कर सकूँगी।</p>
+  <p>(ग)फ्लश सीजन (नवम्बर, दिसंबर, जनवरी, फ़रवरी) में आपूर्ति किये गए दूध की मात्रा लीन सीजन (अप्रैल, मई, जून, जुलाई) में आपूर्ति किये गए दूध से तीन गुणा से अधिक होने परफ्लश सीजन के दौरान कंपनी मेरा दूध स्वीकार करना बंद कर सकती हैं।</p>
+  <p><b>12.</b> मुझे यह समझाया गया है कि :<br>(क) कंपनी द्वारा सदस्यता से जुड़े फायदे उन्हीं सदस्याओं को मिलेंगे जो सदस्यता जारी रखने की शर्तों को पूरा करेंगी।</p>
+  <p>(ख) कंपनी उन सदस्याओं की सदस्यता रद्ध कर सकती हैं जो कंपनी के कार्यों के विरूद्ध कार्य करेंगी या जिनके द्वारा किया गया कोई भी कार्य कंपनी के हितों के खिलाफ होगा।</p>
+  <p>(ग) कंपनी में मेरी सदस्यता बरकरार नहीं रहेगीं अगर मैं आवेदन में संलग्न सदस्यता के शर्तों की अनुपालना पूरी नहीं कर पाती हूँ।</p>
+  <p><b>13.</b> मैं कंपनी अधिनियम 2013 के भाग XXIA के अनुसार तथा कंपनी के अंतर्नियम एवं बार्हिनियम के अनुच्छेदों, बोर्ड, आमसभा द्वारा समय-समय पर बनाए गए सदस्यता एवं संरक्षणता सम्बन्धी सभी नियमों का अनुपालन करूँगी।</p>
+  <p><b>14.</b> मुझे ज्ञात है कि कंपनी द्वारा सदस्यता नहीं दिए जाने पर अथवा सदस्यता निरस्त हो जाने पर कंपनी मेरी अंश पूँजी की राशि का भुगतान सिर्फ चैक / डी. डी. / बैंक ट्रांसफर द्वारा करेगी इसलिए यह मेरे स्वयं की जिम्मेदारी है की इस राशि को प्राप्त करने के लिए कंपनी को अपने बैंक खातों की सही जानकारी दूँगी।</p>
+  <p><b>15.</b> किसी भी प्रकार के विवाद की स्थिति में न्यायिक क्षेत्राधिकार वाराणसी शहर होगा तथा विवाद का निस्तारण मध्यस्थतम एवं सुलह अधिनियम 1996 के तहत होगा। एकल पंच की नियुक्ति मुख्य कार्यकारी, {{ company.company_name_hi_short }} द्वारा की जाएगी।</p>
+  <p><b>16.</b> मैं यह घोषणा करती हूँ कि:<br>(क) मेरी सदस्यता रहने तक, मेरे परिवार का कोई भी सदस्य जो मेरे साथ मेरे घर में रह रहा है, कंपनी का सदस्य नहीं बनेगा।</p>
+  <p>(ख) मैं, कंपनी में अपनी सदस्यता के कार्यकाल के दौरान केवल एक ही सदस्यता कोड रखूँगी।</p>
+  <p><b>17.</b>मैंने क्रमांक 7 से 16 में लिखी गयी शर्तों को पढ़कर / पढ़वाकर समझ लिया है और मैं इनसे सहमत हूँ और इससे सम्बंधित घोषणा पर हस्ताक्षर कर रही हूँ।</p>
+  <p><b>18.</b>मैं प्रमाणित करती हूँ कि मेरे द्वारा दिया गया उपरोक्त विवरण पूर्णतः सही है और कंपनी को मेरे आवेदन पत्र को स्वीकार या अस्वीकार करने का हक हैं। मैं यहां प्रमाण के तौर पर आधार कार्ड / पैन कार्ड / वोटर कार्ड / ड्राइविंग लाइसैंस एवं बैंक पासबुक संलग्न कर रही हूँ।</p>
+</section>
+
+<section class="page declare">
+  <h2>आवेदक द्वारा घोषणा पत्र</h2>
+  <p><b>19.</b> मैं यह घोषणा करती हूँ कि यदि कंपनी मेरी सदस्यता हेतु आवेदन स्वीकार करती हैं और मुझे कंपनी की सदस्यता प्राप्त होती हैं तो मैं कंपनी द्वारा समय-समय पर निर्धारित नियमों और शर्तों का अनुपालन करूँगी। मुझे यह समझाया गया हैं कि मेरी सदस्यता कंपनी द्वारा निरस्त कर दी जाएगी यदि मैं निम्नलिखित सदस्यता के शर्तों को पूरा नहीं कर पाती हूँ।</p>
+  <p><b>1.</b> सदस्य अपने घर के दुधारू पशुओं से दूध के उत्पादन में प्रवृत्त हैं और गाय / गायों और भैंस / भैंसों की देखरेख एवं उनके प्रबंधन हेतु जिम्मेदार हैं।</p>
+  <p><b>2.</b> सदस्य ने एक वर्ष में कम से कम 200 दिन और न्यूनतम 500 लीटर दूध की आपूर्ति की हो।</p>
+  <p><b>3.</b> प्रत्येक वित्तीय वर्ष में मुख्यता अप्रैल से जुलाई के लीन महीनों के दौरान आपूर्तित दूध की तुलना मेंफ्लश महीनों, नवम्बर से फ़रवरी, के दौरान आपूर्तित दूध की कुल मात्रा, तीन गुणा से अधिक नहीं होनी चाहिए।</p>
+  <p><b>4.</b> सदस्या के द्वारा आपूर्तित दूध की गुणवत्ता कंपनी के द्वारा समय-समय पर निश्चित गुणवत्ता मानकों के अनुसार होनी चाहिए।</p>
+  <p><b>5.</b> कोई भी कंपनी का सदस्य नहीं बनेगा यदि,</p>
+  <p>(अ) उसका कोई भी व्यावसायिक हित है जो कंपनी के व्यवसाय के साथ टकराव में है, या</p>
+  <p>(ब) वह चालू वित्त वर्ष या पूर्ववर्ती दो वित्त वर्षो के दौरान, जो 6 महीने से कम ना हो, की अवधि के लिए कंपनी के साथ ऑन रोल या ठेकेदार के माध्यम से या अनुबंध पर रोजगार में हो।</p>
+  <p><b>6.</b> सदस्यता रद्द भी की जा सकती हैं अगर......</p>
+  <p>अ. सदस्य के कोड में उनके घर में उत्पादित दूध की तुलना में अधिक दूध डाले जाने पर</p>
+  <p>ब. झूठी सदस्यता होने पर यानी एक ही परिवार में एक से अधिक सदस्यता होने पर ( सहायक परिवार सहित )</p>
+  <p>स. किसी और का दूध प्रदान करने के लिए अपने कोड का प्रयोग होने पर</p>
+  <p>द. सहायक के नाम पर सदस्यता दी जाने पर</p>
+  <p>इस के अतिरिक्त,</p>
+  <p><b>7.</b> बिना अयोग्य घोषित किए हुए सदस्यता तब तक जारी रहेगी जब तक,</p>
+  <p>क. पिछले छ: महिनों या अधिक की अवधि में सदस्य ने कंपनी को दिए जाने वाले किसी 1000 / - या अधिक रूपयों के भुगतान में चूक नहीं की है।</p>
+  <p>ख. सदस्या कंपनी के संचालन सहित कंपनी के हित के लिए हानिकारक किसी कार्य में लिप्त नहीं हैं।</p>
+  <p>ग. सदस्या किसी ऐसे व्यवसाय में लिप्त नहीं हैं जो कंपनी के व्यावसायिक हित के विरूद्ध हैं।</p>
+  <p>घ. सदस्या ने जान बूझ कर कंपनी को धोखा नहीं दिया है।</p>
+  <p>ङ सदस्या ने कंपनी को कोई गलत सूचना नहीं प्रदान की है। कंपनी स्व-प्रेरणा के आधार पर या किसी सदस्या से शिकायत प्राप्त होने पर सूचना का सत्यापन कर सकती है।</p>
+  <p>च. सदस्या कंपनी को अपने घर के संपूर्ण अधिशेष दूध की आपूर्ति करने में चूक करता /करती हुई नहीं पायी गई है।</p>
+  <p><b>8.</b> मैं यह पुष्टि करती हूँ की मैंने रु. {{ fees.entry_fee }}/- (गैर- प्रत्यप्रणीय प्रवेश शुल्क) की रशीद {{ company.company_name_hi_short }} से प्राप्त कर ली है।</p>
+  <p><b>9.</b> मैं, अपने विवरण को कंपनी द्वारा बैंक/वित्तीय प्राधिकरण/किसी अन्य तृतीय पक्ष के साथ साझा किए जाने की सहमति देती हूँ, ताकि ऋण सेवा पात्रता या किसी अन्य लाभ की सुविधा प्रदान की जा सके, जिसके लिए कंपनी द्वारा हमारे विवरण को साझा किया जाना आवश्यक हो, लागू कानूनों और विनियमों के अनुसार।</p>
+  <div class="signed">
+    <b>तिथि: {{ form_date }}</b>
+    <div class="mark">
+      {% if images.member_mark %}<img src="{{ images.member_mark }}" alt=""><br>{% endif %}
+      <b>आवेदक के हस्ताक्षर/बाएं हाथ के अंगूठे का निशान</b>
+    </div>
+  </div>
+</section>
+
+<section class="page">
+  <table class="facts">
+    <tr><td>दूध उत्पादक सदस्या का नाम: <b>{{ applicant.full_name }}</b></td><td>यूपीएसआरएलएम द्वारा समर्थित एसएचजी की सदस्य हैं: <b>{{ shg_label }}</b></td></tr>
+    <tr><td>बस्ती / टोला का नाम: <b>{{ address.hamlet_name }}</b></td><td>बस्ती / टोला का कोड : <b>{{ address.hamlet_code }}</b></td></tr>
+    <tr><td>गांव का नाम : <b>{{ application.mpp.name }}</b></td><td>गांव का कोड : <b>{{ application.mpp.village_code }}</b></td></tr>
+    <tr><td>तहसील का नाम : <b>{{ address.tehsil }}</b></td><td>जिला का नाम : <b>{{ address.district }}</b></td></tr>
+    <tr><td>दूध इकट्ठा करने के स्थान ( एम. पी. पी) का नाम : <b>{{ application.mpp.name }}</b></td><td>एम. पी. पी. कोड : <b>{{ application.mpp.code }}</b></td></tr>
+    <tr><td>एम.सी.सी./बी.एम.सी., जिसके साथ एम. पी. पी. सलंग्न है: <b>{{ application.mpp.mcc.name }}</b></td><td>एम.सी.सी./बी.एम.सी.कोड: <b>{{ application.mpp.mcc.code }}</b></td></tr>
+    <tr><td colspan="2">दूध उत्पादक का 12 अंकों का आधार कार्ड संख्या: <b>{{ masked_aadhaar }}</b></td></tr>
+  </table>
+  <p style="margin-top:3mm">हम यहां पुष्टि करते है कि ऊपर लिखित विवरण आवेदक द्वारा दिया गया है और उसके द्वारा हमारे सम्मुख हस्ताक्षरित किया गया है।</p>
+  <hr class="rule">
+  <div class="sign-row">
+    <div>
+      {% if images.facilitator %}<img class="stamp" src="{{ images.facilitator }}" alt="">{% endif %}
+      फैसिलिटेटर का नाम और हस्ताक्षर<b>: {{ facilitator_name }}</b><br><br>तिथि: {{ form_date }}
+    </div>
+    <div>
+      {% if images.area_manager %}<img class="stamp" src="{{ images.area_manager }}" alt="">{% endif %}
+      {{ area_manager.decided_by_name }}<br>पी.आई.बी. / संकलन अधिकारी का नाम और हस्ताक्षर<br><br>तिथि: {{ area_manager_date }}
+    </div>
+  </div>
+  <hr class="rule">
+  <p class="office">ऑफिस के प्रयोग के लिए</p>
+  <hr class="rule">
+  <p>प्राप्त राशि रु. {{ fees.total }}/- (रु. {{ fees.entry_fee }}/- गैर- प्रत्यप्रणीय प्रवेश शुल्क और रु {{ fees.share_price }}/- प्रति शेयर मूल्य की दर से {{ fees.share_count }} शेयरों के लिए रु {{ fees.share_total }} की राशि )</p>
+  <p>बैंक का नाम जिसमें पैसे जमा किए <b>{{ payment.bank_name }}</b> ब्रांच का नाम <b>{{ payment.branch_name }}</b></p>
+  <p>बैंक स्लिप नं / यू टी आर नं. : <b>{{ payment_reference }}</b></p>
+  <div class="split"><span>जमा राशि : <b>{{ payment.amount }}</b></span><span>दिनांक : <b>{{ payment_date }}</b></span></div>
+  <div class="split accountant" style="margin-top:3mm">
+    <span>तिथि:</span><span>प्राप्ति सील</span>
+    <span class="right">{% if images.finance %}<img src="{{ images.finance }}" alt=""><br>{% endif %}<b>लेखाकार के हस्ताक्षर({{ finance.signed_by_name|default:finance.decided_by_name }})</b></span>
+  </div>
+  <hr class="rule">
+  <p>यह आवेदन पत्र बोर्ड के प्रस्ताव क्रमांक संख्या_________{{ company.board_resolution_no }}______दिनाक________{{ board_date }}_____ द्वारा अनुमोदित हैं।</p>
+  <hr class="rule">
+  <div class="split secretary">
+    <span>दिनांक : {{ board_date }}<br><br>स्थान : {{ company.place }}</span>
+    <span class="right">{% if images.company_secretary %}<img src="{{ images.company_secretary }}" alt=""><br>{% endif %}<b>कंपनी सचिव के हस्ताक्षर({{ company_secretary.signed_by_name|default:company_secretary.decided_by_name }})</b></span>
+  </div>
+  <hr class="rule">
+  <p><b>सदस्या को दिया गया 16 अंकों का कोड : {{ member.tr_code }}</b></p>
+</section>
+
+<section class="page">
+  <div class="cards">
+    {% if images.aadhaar_front %}<img src="{{ images.aadhaar_front }}" alt="">{% endif %}
+    {% if images.aadhaar_back %}<img src="{{ images.aadhaar_back }}" alt="">{% endif %}
+  </div>
+  {% if images.passbook %}<img class="passbook" src="{{ images.passbook }}" alt="">{% endif %}
+  <div class="cut"></div>
+  <div class="receipt">
+    <div class="head">
+      <h1>{{ company.company_name_hi }}</h1>
+      <p class="line"><b>CIN :</b> {{ company.cin }}</p>
+      <p class="line"><b>पंजीकृत कार्यालय:</b> {{ company.address_line_1 }} {{ company.address_line_2 }}</p>
+    </div>
+    <p class="title" style="margin-top:4mm">प्राप्ति रसीद</p>
+    <div class="split"><b>फार्म संख्या : {{ application.form_number }}</b><b>तिथि: {{ form_date }}</b></div>
+    <p style="margin-top:3mm">श्रीमती / कुमारी- ______<span class="fill">{{ applicant.full_name }}</span>______जो कि गाँव -____<span class="fill">{{ application.mpp.name }}</span>____ब्लॉक - ______________,जिला -___<span class="fill">{{ address.district }}</span>____की निवासी हैं, के द्वारा आवेदन फॉर्म संख्या - ____<span class="fill">{{ application.form_number }}</span>___के अनुसार रु. {{ fees.entry_fee }}/- गैर- प्रत्यप्रणीय प्रवेश शुल्क और रु {{ fees.share_price }}/- प्रति शेयर मूल्य की दर से {{ fees.share_count }} शेयरों के लिए रु {{ fees.share_total }} की राशि {{ company.company_name_hi_short }} द्वारा प्राप्त कर ली गयी है |</p>
+    <p><b>यह रसीद उपरोक्त शेयर सर्टिफिकेट के मिलने तक की अवधि के लिए ही मान्य होगी।</b></p>
+    <div class="split" style="margin-top:6mm">
+      <b>कंपनी स्टैम्प</b>
+      <span><b>{{ company.company_name_hi_short }}<br>{{ facilitator_name }}<br>की तरफ से अधिकृत प्राप्तकर्ता का नाम, पद और हस्ताक्षर</b></span>
+    </div>
+  </div>
+</section>
+{% endif %}
+</body>
+</html>

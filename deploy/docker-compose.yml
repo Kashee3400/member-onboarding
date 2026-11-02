@@ -1,0 +1,71 @@
+# PostgreSQL stays outside: point DATABASE_URL at the existing database server.
+# Run from this folder, with a filled-in .env beside this file.
+
+x-backend: &backend
+  build:
+    context: ..
+    dockerfile: deploy/backend.Dockerfile
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - ${MEDIA_PATH:-/var/lib/member-onboarding/media}:/var/lib/member-onboarding/media
+
+services:
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: sh -c "python manage.py migrate --noinput && python manage.py sync_system_roles"
+
+  backend:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/health/live/', headers={'Host': 'localhost'}))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    <<: *backend
+    command: celery -A config worker -l INFO --concurrency 2
+    depends_on:
+      backend:
+        condition: service_started
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+
+  admin:
+    build:
+      context: ..
+      dockerfile: deploy/admin.Dockerfile
+      args:
+        NEXT_PUBLIC_DEFAULT_ORGANIZATION: ${NEXT_PUBLIC_DEFAULT_ORGANIZATION:-}
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_PATH:-/etc/member-onboarding/tls}:/etc/nginx/tls:ro
+    depends_on:
+      - backend
+      - admin
