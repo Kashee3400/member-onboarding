@@ -128,7 +128,8 @@ def test_a_renamed_and_retired_choice_still_prints(world, approved):
 
     text = text_of(pdf_of(world.client(world.finance), approved, "single").content)
 
-    assert "Backward class" in text
+    # The words may wrap onto two lines of the printed form.
+    assert "Backward class" in " ".join(text.split())
 
 
 def test_there_is_no_form_before_final_approval(world):
