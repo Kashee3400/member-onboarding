@@ -202,6 +202,9 @@ CELERY_BEAT_SCHEDULE = {
 # Make and store the printed forms as soon as a form is approved.
 PRINT_FORMS_ON_APPROVAL = True
 
+# Give each organization a starting checklist for every review step.
+SEED_REVIEW_CHECKS = True
+
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 
 _LOG_PROCESSORS = [

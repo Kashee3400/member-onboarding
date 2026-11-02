@@ -72,6 +72,7 @@ import { changesOf, type Change, type Changes } from "./changes";
 import { APPROVE_ALL, STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./constants";
 import { CopyButton } from "./copy-button";
 import { DecisionBar } from "./decision-bar";
+import { CheckedList, StepChecklist } from "./step-checklist";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
@@ -1044,6 +1045,11 @@ function StepContent({
           <StatusBadge status="draft" label={step.approved_at ? "Approved" : "Not approved yet"} />
         )}
       </div>
+      {step.approved_at ? (
+        <CheckedList step={step} />
+      ) : status === "yours" && step.checks.length ? (
+        <StepChecklist application={application} step={step} />
+      ) : null}
       {extra}
       {parts.length ? parts : <Card className="p-5 text-sm text-muted-foreground">Nothing was filled in for this step.</Card>}
       {step.documents.length ? (

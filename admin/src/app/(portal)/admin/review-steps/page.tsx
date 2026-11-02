@@ -161,7 +161,7 @@ export default function ReviewStepsPage() {
     <>
       <PageHeader
         title="Review Steps"
-        description="Choose which role approves each step of a form, who signs it, when it counts as late, and the ready-made reject reasons."
+        description="Choose which role approves each step of a form, who signs it, what reviewers tick on each step, when a form counts as late, and the ready-made reject reasons."
       />
       {state.error ? (
         <ErrorState error={state.error} onRetry={() => state.refetch()} />

@@ -126,6 +126,7 @@ def steps_for(membership=None, application=None) -> list[dict]:
             "can_approve": step.key in open_steps,
             "approved_by_name": approved[step.key].decided_by_name if step.key in approved else "",
             "approved_at": approved[step.key].decided_at if step.key in approved else None,
+            "approved_checks": approved[step.key].checks if step.key in approved else [],
         }
         for number, step in enumerate(STEPS, start=1)
     ]

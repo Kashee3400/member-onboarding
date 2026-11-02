@@ -249,6 +249,8 @@ class ReviewSettings(OrganizationOwnedModel):
     overdue_days = models.PositiveSmallIntegerField(
         default=2, help_text="A form waiting longer than this at one stage is shown as late."
     )
+    # Set once the default checklists were offered, so an emptied checklist stays empty.
+    checks_seeded = models.BooleanField(default=False)
 
     class Meta:
         db_table = "application_review_settings"
@@ -274,6 +276,21 @@ class RejectReason(OrganizationOwnedModel):
 
     def __str__(self):
         return self.text
+
+
+class ReviewCheck(OrganizationOwnedModel):
+    """One line of a review step's checklist: every one is ticked before the step is approved."""
+
+    step = models.CharField(max_length=20)
+    text = models.CharField(max_length=200)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = "application_review_check"
+        ordering = ["step", "position", "created_at"]
+
+    def __str__(self):
+        return f"{self.step}: {self.text}"
 
 
 class FormOption(OrganizationOwnedModel):
@@ -352,6 +369,8 @@ class ApplicationStepApproval(OrganizationOwnedModel):
     )
     decided_by_name = models.CharField(max_length=200)
     decided_at = models.DateTimeField()
+    # The checklist as it read when the step was approved, every line ticked.
+    checks = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = "application_step_approval"
@@ -363,6 +382,31 @@ class ApplicationStepApproval(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.application_id} {self.step}"
+
+
+class StepCheckTick(OrganizationOwnedModel):
+    """
+    A check one reviewer ticked while reviewing, kept by its text: a check reworded since
+    is not ticked. Only this submission counts, as with approvals.
+    """
+
+    application = models.ForeignKey(Application, on_delete=models.CASCADE, related_name="+")
+    revision = models.PositiveIntegerField()
+    step = models.CharField(max_length=20)
+    text = models.CharField(max_length=200)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        db_table = "application_step_check_tick"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["application", "revision", "step", "user", "text"],
+                name="unique_step_check_tick",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.application_id} {self.step}: {self.text}"
 
 
 class Signatory(OrganizationOwnedModel):

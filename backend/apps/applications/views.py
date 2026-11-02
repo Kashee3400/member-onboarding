@@ -24,7 +24,17 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
-from . import banks, form, form_lists, home, place, review_settings, review_steps, services
+from . import (
+    banks,
+    form,
+    form_lists,
+    home,
+    place,
+    review_checks,
+    review_settings,
+    review_steps,
+    services,
+)
 from .models import (
     Application,
     BankBranch,
@@ -57,6 +67,8 @@ from .serializers import (
     SearchHitSerializer,
     SensitiveNumbersSerializer,
     StatusCountsSerializer,
+    StepTickSerializer,
+    StepTicksSerializer,
     SubmitSerializer,
 )
 
@@ -135,7 +147,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             "discard": "applications.edit",
             "submit": "applications.submit",
         }.get(self.action, "applications.view")
-        if self.action in ("decide", "payment", "numbers"):
+        if self.action in ("decide", "payment", "numbers", "checks"):
             # Which approval permission applies depends on the stage.
             return [IsAuthenticated()]
         return [IsAuthenticated(), require_permission(required)()]
@@ -296,6 +308,29 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             steps=data.get("steps"),
         )
         return self._detail(application)
+
+    @extend_schema(
+        request=StepTickSerializer,
+        responses={
+            200: StepTicksSerializer,
+            400: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=True, methods=["post"])
+    def checks(self, request, pk=None):
+        """Ticks or unticks one check of a step this person can approve now."""
+        serializer = StepTickSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        ticked = review_checks.tick(
+            self.get_object(),
+            user=request.user,
+            step=data["step"],
+            text=data["text"],
+            on=data["ticked"],
+        )
+        return Response({"step": data["step"], "ticked": ticked})
 
     @extend_schema(
         request=None,
@@ -685,7 +720,7 @@ class RejectReasonsView(APIView):
 
 
 class ReviewSettingsView(APIView):
-    """When a waiting form is late, and the reject reasons reviewers are offered."""
+    """When a waiting form is late, the reject reasons reviewers are offered, and checklists."""
 
     permission_classes = [IsAuthenticated, require_permission("settings.manage")]
 
@@ -694,6 +729,11 @@ class ReviewSettingsView(APIView):
             "overdue_days": review_settings.overdue_days(),
             "reject_reasons": review_settings.serialized(review_settings.reject_reasons()),
             "sections": review_settings.sections(),
+            "checks": review_checks.by_step(),
+            "steps": [
+                {"key": step.key, "number": number, "title": step.title}
+                for number, step in enumerate(review_steps.STEPS, start=1)
+            ],
         }
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
@@ -708,15 +748,16 @@ class ReviewSettingsView(APIView):
         serializer = ReviewSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        review_settings.save(overdue_days=data["overdue_days"], reasons=data["reject_reasons"])
-        record_event(
-            "review_settings.updated",
-            actor=request.user,
-            metadata={
-                "overdue_days": data["overdue_days"],
-                "reject_reasons": len(data["reject_reasons"]),
-            },
-        )
+        metadata = {
+            "overdue_days": data["overdue_days"],
+            "reject_reasons": len(data["reject_reasons"]),
+        }
+        with transaction.atomic():
+            review_settings.save(overdue_days=data["overdue_days"], reasons=data["reject_reasons"])
+            if "checks" in data:
+                review_checks.save(data["checks"])
+                metadata["checks"] = {key: len(texts) for key, texts in data["checks"].items()}
+        record_event("review_settings.updated", actor=request.user, metadata=metadata)
         return Response(self._state())
 
 

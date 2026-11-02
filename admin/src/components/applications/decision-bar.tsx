@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -26,6 +26,7 @@ import { isTyping } from "@/lib/shortcuts";
 import type { ApplicationDetail, ApplicationSummary, FormSchema, RejectReason, ReviewStep } from "@/lib/types";
 
 import { STAGE_LABEL, STAGE_QUEUE } from "./constants";
+import { checksKey, unticked } from "./step-checklist";
 
 const message = (error: unknown) => (error instanceof ApiError ? error.summary : "Something went wrong. Try again.");
 
@@ -62,7 +63,16 @@ export function DecisionBar({
   const [checked, setChecked] = useState(false);
   const [rejecting, setRejecting] = useState(params.get("reject") === "1");
   const target = current?.can_approve ? current : null;
-  const targetBlocked = target?.key === "fee" ? blocked : null;
+  const saving = useIsMutating({ mutationKey: checksKey(id) }) > 0;
+  const toTick = target ? unticked(target).length : 0;
+  // The fee waits for its payment; any step with a checklist waits for every tick.
+  const targetBlocked =
+    (target?.key === "fee" ? blocked : null) ??
+    (toTick
+      ? `Tick every check of step ${target?.number} before approving: ${toTick} of ${target?.checks.length} left.`
+      : saving
+        ? "Saving your ticks…"
+        : null);
   // The last step left on the whole form: approving it makes the member.
   const finishes = application.status === "pending_finance" && left === 1 && !!target;
 
@@ -201,14 +211,29 @@ export function DecisionBar({
         open={approving}
         onOpenChange={setApproving}
         title={target ? `Approve step ${target.number}, ${target.title}?` : "Approve this step?"}
-        description="Approve only after checking it against the documents."
-        body={
-          <label className="flex items-start gap-3 border px-3 py-2.5 text-sm">
-            <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(on) => setChecked(!!on)} />
-            <span>I checked every detail of this step against the documents and photos.</span>
-          </label>
+        description={
+          target?.checks.length
+            ? "What you ticked is kept with the approval, under your name."
+            : "Approve only after checking it against the documents."
         }
-        canContinue={checked}
+        body={
+          target?.checks.length ? (
+            <ul className="space-y-1 border px-3 py-2.5 text-sm">
+              {target.checks.map((check) => (
+                <li key={check} className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  {check}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <label className="flex items-start gap-3 border px-3 py-2.5 text-sm">
+              <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(on) => setChecked(!!on)} />
+              <span>I checked every detail of this step against the documents and photos.</span>
+            </label>
+          )
+        }
+        canContinue={!!target?.checks.length || checked}
         finalTitle={finishes ? "Give final approval?" : "Are you sure?"}
         finalDescription={
           finishes

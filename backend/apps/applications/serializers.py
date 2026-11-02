@@ -7,7 +7,7 @@ from rest_framework import serializers
 from apps.hierarchy.models import Mpp
 from apps.hierarchy.services import mpp_place
 
-from . import banks, form, place, review_settings, review_steps, services
+from . import banks, form, place, review_checks, review_settings, review_steps, services
 from .models import (
     Application,
     ApplicationDecision,
@@ -167,7 +167,8 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     def get_review_steps(self, application) -> list[dict]:
         request = self.context.get("request")
         membership = request.user.active_membership if request else None
-        return review_steps.steps_for(membership, application)
+        steps = review_steps.steps_for(membership, application)
+        return review_checks.with_checks(steps, application, request.user if request else None)
 
     @staticmethod
     def get_place(application) -> dict:
@@ -268,17 +269,51 @@ class RejectReasonSerializer(serializers.Serializer):
         return attrs
 
 
+class ReviewChecksField(serializers.DictField):
+    """Each step's checklist, in order. A step left out, or emptied, has none."""
+
+    child = serializers.ListField(
+        child=serializers.CharField(max_length=200), max_length=review_checks.MAX_CHECKS
+    )
+
+    def to_internal_value(self, data):
+        checks = super().to_internal_value(data)
+        errors = {}
+        for step, texts in checks.items():
+            if step not in review_steps.STEP_KEYS:
+                errors[step] = ["This is not a review step."]
+                continue
+            lowered = [text.lower() for text in texts]
+            if len(lowered) != len(set(lowered)):
+                errors[step] = ["Each check must be different."]
+        if errors:
+            raise serializers.ValidationError(errors)
+        return checks
+
+
 class ReviewSettingsSerializer(serializers.Serializer):
-    """The reasons are sent whole, in the order they are offered."""
+    """The reasons and checklists are sent whole, in the order they are offered."""
 
     overdue_days = serializers.IntegerField(min_value=1, max_value=60)
     reject_reasons = RejectReasonSerializer(many=True)
+    checks = ReviewChecksField(required=False)
 
     def validate_reject_reasons(self, value):
         texts = [reason["text"].strip().lower() for reason in value]
         if len(texts) != len(set(texts)):
             raise serializers.ValidationError("Each reason must be different.")
         return value
+
+
+class StepTickSerializer(serializers.Serializer):
+    step = serializers.ChoiceField(choices=review_steps.STEP_KEYS)
+    text = serializers.CharField(max_length=200)
+    ticked = serializers.BooleanField()
+
+
+class StepTicksSerializer(serializers.Serializer):
+    step = serializers.CharField()
+    ticked = serializers.ListField(child=serializers.CharField())
 
 
 class SensitiveNumbersSerializer(serializers.Serializer):

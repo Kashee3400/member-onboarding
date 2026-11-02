@@ -167,6 +167,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/applications/{id}/checks/:
+    post:
+      operationId: applications_checks_create
+      description: Ticks or unticks one check of a step this person can approve now.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepTickRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepTicks'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/applications/{id}/contact-otp/:
     post:
       operationId: applications_contact_otp_create
@@ -3960,8 +4001,8 @@ paths:
   /api/v1/settings/review/:
     get:
       operationId: settings_review_retrieve
-      description: When a waiting form is late, and the reject reasons reviewers are
-        offered.
+      description: When a waiting form is late, the reject reasons reviewers are offered,
+        and checklists.
       tags:
       - settings
       security:
@@ -3976,8 +4017,8 @@ paths:
           description: ''
     put:
       operationId: settings_review_update
-      description: When a waiting form is late, and the reject reasons reviewers are
-        offered.
+      description: When a waiting form is late, the reject reasons reviewers are offered,
+        and checklists.
       tags:
       - settings
       requestBody:
@@ -7501,7 +7542,8 @@ components:
         * `area_manager` - Area Manager
     ReviewSettingsRequest:
       type: object
-      description: The reasons are sent whole, in the order they are offered.
+      description: The reasons and checklists are sent whole, in the order they are
+        offered.
       properties:
         overdue_days:
           type: integer
@@ -7511,6 +7553,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RejectReasonRequest'
+        checks:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 200
+            maxItems: 10
       required:
       - overdue_days
       - reject_reasons
@@ -7860,6 +7911,53 @@ components:
       required:
       - by_status
       - total
+    StepEnum:
+      enum:
+      - member
+      - address
+      - milk
+      - bank
+      - household
+      - nominee
+      - village
+      - fee
+      type: string
+      description: |-
+        * `member` - member
+        * `address` - address
+        * `milk` - milk
+        * `bank` - bank
+        * `household` - household
+        * `nominee` - nominee
+        * `village` - village
+        * `fee` - fee
+    StepTickRequest:
+      type: object
+      properties:
+        step:
+          $ref: '#/components/schemas/StepEnum'
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200
+        ticked:
+          type: boolean
+      required:
+      - step
+      - text
+      - ticked
+    StepTicks:
+      type: object
+      properties:
+        step:
+          type: string
+        ticked:
+          type: array
+          items:
+            type: string
+      required:
+      - step
+      - ticked
     SubmitRequest:
       type: object
       properties:

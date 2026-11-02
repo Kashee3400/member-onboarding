@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -15,10 +15,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api/client";
 import type { RejectReason, ReviewSettings } from "@/lib/types";
 
-type Body = Pick<ReviewSettings, "overdue_days" | "reject_reasons">;
+/** Without `checks`, the checklists stay as they are. */
+type Body = Pick<ReviewSettings, "overdue_days" | "reject_reasons"> & { checks?: ReviewSettings["checks"] };
+
+const MAX_CHECKS = 10;
 
 /** Every change is saved at once: the list is sent whole, in the order shown. */
 function useSave() {
@@ -299,7 +303,163 @@ function RejectReasons({ state }: { state: ReviewSettings }) {
   );
 }
 
-/** The late threshold and the reject reasons, both kept per organization. */
+function ChecklistDialog({
+  step,
+  initial,
+  onClose,
+  onSave,
+}: {
+  step: ReviewSettings["steps"][number];
+  initial: string[];
+  onClose: () => void;
+  onSave: (checks: string[], done: () => void, fail: (error: unknown) => void) => void;
+}) {
+  const [text, setText] = useState(initial.join("\n"));
+  const [error, setError] = useState<unknown>(null);
+  const [pending, setPending] = useState(false);
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const lowered = lines.map((line) => line.toLowerCase());
+  const problem =
+    lines.length > MAX_CHECKS
+      ? `Keep it to ${MAX_CHECKS} checks or fewer.`
+      : lines.some((line) => line.length > 200)
+        ? "Keep each check under 200 letters."
+        : new Set(lowered).size !== lowered.length
+          ? "Each check must be different."
+          : null;
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (problem) return;
+    setPending(true);
+    onSave(lines, onClose, (failure) => {
+      setPending(false);
+      setError(failure);
+    });
+  };
+
+  return (
+    <FormDialog
+      title={`Checklist for step ${step.number}, ${step.title}`}
+      description="The reviewer ticks every check before approving this step. The ticked checks are kept with the approval."
+      onClose={onClose}
+      onSubmit={submit}
+      error={error}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!!problem || pending}>
+            {pending ? "Saving…" : "Save checklist"}
+          </Button>
+        </>
+      }
+    >
+      <Field
+        label="Checks"
+        htmlFor="checklist-text"
+        help={
+          problem ? (
+            <span className="text-destructive">{problem}</span>
+          ) : (
+            `One check per line, up to ${MAX_CHECKS}. Short and concrete: "Name matches the passbook". Leave it empty for no checklist.`
+          )
+        }
+      >
+        <Textarea
+          id="checklist-text"
+          rows={6}
+          value={text}
+          autoFocus
+          aria-invalid={!!problem}
+          onChange={(event) => setText(event.target.value)}
+        />
+      </Field>
+      <p className="text-xs text-muted-foreground tabular-nums">
+        {lines.length ? `${lines.length} ${lines.length === 1 ? "check" : "checks"}` : "No checklist"}
+      </p>
+    </FormDialog>
+  );
+}
+
+function Checklists({ state }: { state: ReviewSettings }) {
+  const save = useSave();
+  const [editing, setEditing] = useState<string | null>(null);
+  const step = state.steps.find((item) => item.key === editing) ?? null;
+
+  return (
+    <Card className="gap-4 p-5">
+      <div>
+        <h2 className="font-medium">Step checklists</h2>
+        <p className="text-sm text-muted-foreground">
+          What a reviewer must tick on each step before approving it. Every reviewer checks the same things, and the
+          approval keeps what was ticked.
+        </p>
+      </div>
+      <ul className="divide-y border">
+        {state.steps.map((item) => {
+          const checks = state.checks[item.key] ?? [];
+          return (
+            <li key={item.key} className="flex items-start gap-3 px-3 py-2.5">
+              <span className="mt-0.5 w-5 shrink-0 text-sm text-muted-foreground tabular-nums">{item.number}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{item.title}</p>
+                {checks.length ? (
+                  <ul className="mt-1 space-y-0.5">
+                    {checks.map((check) => (
+                      <li key={check} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <ListChecks className="mt-px size-3.5 shrink-0" aria-hidden /> {check}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No checklist. The step is approved without one.</p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Edit the checklist for ${item.title}`}
+                onClick={() => setEditing(item.key)}
+              >
+                <Pencil />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+      {step ? (
+        <ChecklistDialog
+          step={step}
+          initial={state.checks[step.key] ?? []}
+          onClose={() => setEditing(null)}
+          onSave={(checks, done, fail) =>
+            save.mutate(
+              {
+                overdue_days: state.overdue_days,
+                reject_reasons: state.reject_reasons,
+                checks: { ...state.checks, [step.key]: checks },
+              },
+              {
+                onSuccess: () => {
+                  toast.success(`Checklist for ${step.title} saved.`);
+                  done();
+                },
+                onError: fail,
+              },
+            )
+          }
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+/** The late threshold, the reject reasons and the step checklists, all kept per organization. */
 export function ReviewSettingsCards() {
   const state = useQuery({
     queryKey: ["review-settings"],
@@ -311,6 +471,7 @@ export function ReviewSettingsCards() {
   return (
     <>
       <LateThreshold key={`late-${state.data.overdue_days}`} state={state.data} />
+      <Checklists state={state.data} />
       <RejectReasons state={state.data} />
     </>
   );

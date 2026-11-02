@@ -16,7 +16,7 @@ from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
 from apps.rbac.catalog import APPROVE_ALL
 
-from . import form, form_lists, legacy, place, review_steps
+from . import form, form_lists, legacy, place, review_checks, review_steps
 from .models import (
     Application,
     ApplicationDecision,
@@ -530,6 +530,7 @@ def decide(
         chosen = _steps_to_approve(application, user, steps)
         if review_steps.FEE_STEP in chosen:
             _ensure_payment_recorded(application)
+        checked = review_checks.proof(application, user, chosen)
         ApplicationStepApproval.objects.bulk_create(
             ApplicationStepApproval(
                 organization_id=application.organization_id,
@@ -539,6 +540,7 @@ def decide(
                 decided_by=user,
                 decided_by_name=display_name(user),
                 decided_at=now,
+                checks=checked[step],
             )
             for step in sorted(chosen)
         )

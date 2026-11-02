@@ -182,6 +182,12 @@ export type ReviewStep = {
   can_approve: boolean;
   approved_by_name: string;
   approved_at: string | null;
+  /** The checklist to tick before approving. Empty: the step has none. */
+  checks: string[];
+  /** What this person has ticked so far, on this submission. */
+  ticked: string[];
+  /** The checks the approver ticked, as worded then. */
+  approved_checks: string[];
 };
 
 export type ApplicationDetail = ApplicationSummary & {
@@ -489,4 +495,7 @@ export type ReviewSettings = {
   overdue_days: number;
   reject_reasons: RejectReason[];
   sections: { key: string; title: string; step: string; fields: { path: string; label: string }[] }[];
+  /** Each step's checklist, by step key. */
+  checks: Record<string, string[]>;
+  steps: { key: string; number: number; title: string }[];
 };
