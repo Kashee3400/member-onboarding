@@ -272,6 +272,8 @@ export type FormSchema = {
       /** Retired choices: no longer offered, but older forms may still hold them. */
       retired_options?: FormChoice[];
       option_list?: string;
+      /** Filled from the MPP by the server, never typed. */
+      locked?: boolean;
     }[];
   }[];
   family?: {

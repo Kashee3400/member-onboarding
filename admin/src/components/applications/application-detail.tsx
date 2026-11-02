@@ -10,6 +10,23 @@ import {
   ChevronRight,
   CircleCheck,
   CircleX,
+  Building2,
+  CalendarDays,
+  CreditCard,
+  GraduationCap,
+  Hash,
+  IdCard,
+  LocateFixed,
+  Lock,
+  Mail,
+  Mailbox,
+  Map as MapIcon,
+  Phone,
+  Smartphone,
+  Tag,
+  TextCursor,
+  UsersRound,
+  Wallet,
   Eye,
   FileDown,
   FileSearch,
@@ -88,18 +105,58 @@ function Facts({ children, className }: { children: React.ReactNode; className?:
   return <dl className={cn("grid gap-x-6 gap-y-4 sm:grid-cols-2", className)}>{children}</dl>;
 }
 
+/** Read in order: the first match wins, so the specific comes before the general. */
+const FIELD_ICONS: [RegExp, LucideIcon][] = [
+  [/aadhaar/i, IdCard],
+  [/ifsc/i, Hash],
+  [/account/i, CreditCard],
+  [/branch/i, Building2],
+  [/bank/i, Landmark],
+  [/mobile/i, Smartphone],
+  [/landline/i, Phone],
+  [/email/i, Mail],
+  [/latitude|longitude/i, LocateFixed],
+  [/birth|date|as on|deposited/i, CalendarDays],
+  [/education/i, GraduationCap],
+  [/category/i, Tag],
+  [/family status|bpl|apl/i, Wallet],
+  [/shg/i, UsersRound],
+  [/relation/i, Users],
+  [/amount|fee/i, IndianRupee],
+  [/mode/i, CreditCard],
+  [/milk|production|consumption|surplus/i, Milk],
+  [/post office/i, Mailbox],
+  [/tehsil|district|state/i, MapIcon],
+  [/village|hamlet|pooling|mpp|mcc|bmc|route/i, MapPin],
+  [/house|address/i, House],
+  [/terms|declar|sahayak|household member/i, ScrollText],
+  [/pin|code|no\.|number|reference/i, Hash],
+  [/name|by$|gender|nominee|guardian|father|husband/i, UserRound],
+];
+
+/** Where in FIELD_ICONS a label's icon is, or -1 for none. */
+const iconIndex = (label: string) => FIELD_ICONS.findIndex(([pattern]) => pattern.test(label));
+
 function Fact({
   label,
   children,
   flagged,
   change,
+  icon,
+  trailing,
 }: {
   label: string;
   children: React.ReactNode;
   flagged?: boolean;
   /** Set when a resubmission changed this, to show what it was. */
   change?: Change;
+  /** Chosen from the label when not given. */
+  icon?: LucideIcon;
+  /** At the end of the box: verified, locked, copy. */
+  trailing?: React.ReactNode;
 }) {
+  const found = iconIndex(label);
+  const Icon = flagged ? AlertTriangle : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
   return (
     <div className="min-w-0 space-y-1.5">
       <dt className={cn("text-xs font-medium", flagged ? "text-destructive" : "text-foreground/80")}>
@@ -112,13 +169,14 @@ function Fact({
       <dd
         aria-readonly="true"
         className={cn(
-          "flex min-h-9 items-center border bg-muted/50 px-3 py-1.5 text-sm wrap-break-word",
+          "flex min-h-10 items-center gap-2.5 border bg-muted/40 px-3 py-1.5 text-sm",
           flagged && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
           change && !flagged && "border-amber-500/60 bg-amber-500/10",
         )}
       >
-        {flagged ? <AlertTriangle className="mr-1.5 size-3.5 shrink-0" /> : null}
-        {children ?? <span className="text-muted-foreground">—</span>}
+        <Icon className={cn("size-4 shrink-0", flagged ? "text-destructive" : "text-muted-foreground/80")} />
+        <span className="min-w-0 flex-1 wrap-break-word">{children ?? <span className="text-muted-foreground">—</span>}</span>
+        {trailing}
       </dd>
       {change ? (
         <p className="text-xs text-muted-foreground">
@@ -258,11 +316,17 @@ function FormSection({
               label={field.label}
               flagged={application.rejected_fields.includes(path)}
               change={changes.byPath.get(path)}
+              trailing={
+                path === "address.mobile" || path === "address.email" ? (
+                  <Verified at={path === "address.mobile" ? verified.mobile : verified.email} given={!!values[field.key]} />
+                ) : field.locked && application.mpp_place?.[field.key] ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground" title="Filled from the MPP">
+                    <Lock className="size-3.5" /> MPP
+                  </span>
+                ) : null
+              }
             >
               {shown(field, values[field.key])}
-              {path === "address.mobile" || path === "address.email" ? (
-                <Verified at={path === "address.mobile" ? verified.mobile : verified.email} given={!!values[field.key]} />
-              ) : null}
             </Fact>
           );
         })}
@@ -281,14 +345,14 @@ function Verified({ at, given }: { at: string | null; given: boolean }) {
   if (!given) return null;
   return at ? (
     <span
-      className="ml-auto inline-flex shrink-0 items-center gap-1 pl-3 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+      className="inline-flex shrink-0 items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
       title={`Confirmed by OTP on ${dateTime(at)}`}
     >
       <CircleCheck className="size-4" /> Verified
     </span>
   ) : (
     <span
-      className="ml-auto inline-flex shrink-0 items-center gap-1 pl-3 text-xs font-medium text-destructive"
+      className="inline-flex shrink-0 items-center gap-1 bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive"
       title="Not confirmed by OTP"
     >
       <CircleX className="size-4" /> Not verified
@@ -929,7 +993,11 @@ function StepContent({
           <Fact label="Form No.">
             <span className="font-mono tabular-nums">{application.form_number || "—"}</span>
           </Fact>
-          <Fact label="Aadhaar card No." change={changes.byPath.get("applicant.aadhaar_number")}>
+          <Fact
+            label="Aadhaar card No."
+            change={changes.byPath.get("applicant.aadhaar_number")}
+            trailing={numbers.full ? <CopyButton value={numbers.aadhaar.replaceAll(" ", "")} label="Copy Aadhaar" /> : null}
+          >
             <span className="font-mono tabular-nums">{numbers.aadhaar || null}</span>
           </Fact>
         </Facts>
@@ -937,7 +1005,11 @@ function StepContent({
     ) : step.key === "bank" ? (
       <Card className="gap-4 p-5">
         <Facts>
-          <Fact label="Account number" change={changes.byPath.get("bank.account_number")}>
+          <Fact
+            label="Account number"
+            change={changes.byPath.get("bank.account_number")}
+            trailing={numbers.full ? <CopyButton value={numbers.account} label="Copy account number" /> : null}
+          >
             <span className="font-mono tabular-nums">{numbers.account || null}</span>
           </Fact>
         </Facts>
