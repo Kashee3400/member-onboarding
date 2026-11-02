@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.applications.home import _my_queue
-from apps.applications.services import OVERDUE_DAYS, visible_applications
+from apps.applications.services import visible_applications
 from apps.core.tenancy import organization_context
 from apps.organizations.models import Membership, Organization
 from apps.rbac.catalog import APPROVAL_PERMISSIONS
@@ -21,11 +21,11 @@ from .services import notify
 logger = structlog.get_logger(__name__)
 
 
-def _wording(waiting: int, overdue: int) -> str:
+def _wording(waiting: int, overdue: int, days: int) -> str:
     text = f"{waiting} form waits for you" if waiting == 1 else f"{waiting} forms wait for you"
     if overdue:
         late = "" if waiting == 1 else f" {overdue} of them"
-        text += f",{late} over {OVERDUE_DAYS} days"
+        text += f",{late} over {days} days"
     return text
 
 
@@ -61,7 +61,7 @@ def send_for_organization(day) -> int:
                 continue
             notify(
                 [membership],
-                title=_wording(queue["waiting"], queue["overdue"]),
+                title=_wording(queue["waiting"], queue["overdue"], queue["overdue_days"]),
                 body=f"Open your queue to work through them: {settings.PORTAL_URL}/approvals",
             )
         sent += 1
