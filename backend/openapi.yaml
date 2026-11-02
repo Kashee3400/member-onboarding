@@ -9,6 +9,16 @@ paths:
       operationId: applications_list
       parameters:
       - in: query
+        name: approved_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: approved_to
+        schema:
+          type: string
+          format: date
+      - in: query
         name: created_from
         schema:
           type: string
@@ -1087,6 +1097,106 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bmc'
           description: ''
+  /api/v1/hierarchy/mcc-covers/:
+    get:
+      operationId: hierarchy_mcc_covers_list
+      description: Someone works a colleague's MCCs while they are away. Ended covers
+        stay as history.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+          enum:
+          - current
+          - past
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMccCoverList'
+          description: ''
+    post:
+      operationId: hierarchy_mcc_covers_create
+      description: Someone works a colleague's MCCs while they are away. Ended covers
+        stay as history.
+      tags:
+      - hierarchy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GiveCoverRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MccCover'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/hierarchy/mcc-covers/{id}/end/:
+    post:
+      operationId: hierarchy_mcc_covers_end_create
+      description: Stop it now, or call it off before it begins.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this mcc cover.
+        required: true
+      tags:
+      - hierarchy
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/hierarchy/mccs/:
     get:
       operationId: hierarchy_mccs_list
@@ -2072,6 +2182,42 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/notifications/preferences/:
+    get:
+      operationId: notifications_preferences_retrieve
+      description: Each person's own choices, for the organization they are signed
+        in to.
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preference'
+          description: ''
+    patch:
+      operationId: notifications_preferences_partial_update
+      description: Each person's own choices, for the organization they are signed
+        in to.
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPreferenceRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preference'
+          description: ''
   /api/v1/notifications/read-all/:
     post:
       operationId: notifications_read_all_create
@@ -3575,6 +3721,15 @@ components:
         is_overdue:
           type: boolean
           readOnly: true
+        tr_code:
+          type: string
+          nullable: true
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
         updated_at:
           type: string
           format: date-time
@@ -3620,10 +3775,6 @@ components:
           items:
             type: string
           readOnly: true
-        tr_code:
-          type: string
-          nullable: true
-          readOnly: true
         fee:
           type: object
           additionalProperties: {}
@@ -3650,6 +3801,7 @@ components:
           readOnly: true
       required:
       - applicant_name
+      - approved_at
       - client_id
       - computed
       - created_at
@@ -3718,12 +3870,21 @@ components:
         is_overdue:
           type: boolean
           readOnly: true
+        tr_code:
+          type: string
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
         updated_at:
           type: string
           format: date-time
           readOnly: true
       required:
       - applicant_name
+      - approved_at
       - created_at
       - created_by_name
       - id
@@ -3732,6 +3893,7 @@ components:
       - mpp_code
       - mpp_name
       - status_label
+      - tr_code
       - updated_at
       - waiting_since
     ApplicationStatusEnum:
@@ -4117,6 +4279,31 @@ components:
       required:
       - access
       - expires_in
+    GiveCoverRequest:
+      type: object
+      properties:
+        absent:
+          type: string
+          format: uuid
+        colleague:
+          type: string
+          format: uuid
+        starts_on:
+          type: string
+          format: date
+        ends_on:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required:
+      - absent
+      - colleague
+      - ends_on
+      - reason
+      - starts_on
     Health:
       type: object
       properties:
@@ -4334,6 +4521,79 @@ components:
       - person
       - roles
       - started_at
+    MccCover:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        absent:
+          type: string
+          format: uuid
+          readOnly: true
+        absent_name:
+          type: string
+          readOnly: true
+        colleague:
+          type: string
+          format: uuid
+          readOnly: true
+        colleague_name:
+          type: string
+          readOnly: true
+        starts_on:
+          type: string
+          format: date
+          readOnly: true
+        ends_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/StateEnum'
+          readOnly: true
+        mccs:
+          type: array
+          items:
+            type: string
+          description: 'What the cover reaches: whatever the person away holds now.'
+          readOnly: true
+        given_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        ended_by_name:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - absent
+      - absent_name
+      - colleague
+      - colleague_name
+      - created_at
+      - ended_at
+      - ended_by_name
+      - ends_on
+      - given_by_name
+      - id
+      - mccs
+      - reason
+      - starts_on
+      - state
     MccRequest:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -4943,6 +5203,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyMember'
+    PaginatedMccCoverList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MccCover'
     PaginatedMccList:
       type: object
       required:
@@ -5349,6 +5632,11 @@ components:
           maxLength: 150
         is_active:
           type: boolean
+    PatchedPreferenceRequest:
+      type: object
+      properties:
+        morning_summary:
+          type: boolean
     PatchedRoleRequest:
       type: object
       properties:
@@ -5726,6 +6014,11 @@ components:
       required:
       - code
       - name
+    Preference:
+      type: object
+      properties:
+        morning_summary:
+          type: boolean
     PrintPreview:
       type: object
       properties:
@@ -6068,6 +6361,18 @@ components:
       - email
       - full_name
       - role_ids
+    StateEnum:
+      enum:
+      - upcoming
+      - active
+      - over
+      - ended
+      type: string
+      description: |-
+        * `upcoming` - upcoming
+        * `active` - active
+        * `over` - over
+        * `ended` - ended
     StatusCounts:
       type: object
       properties:

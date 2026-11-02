@@ -12,7 +12,7 @@ from apps.audit.services import record_event
 from apps.rbac.permissions import require_permission
 
 from .mail import MailNotConfigured, send_mail
-from .models import Notification
+from .models import Notification, Preference
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -62,6 +62,33 @@ class MarkAllReadView(APIView):
     def post(self, request):
         _mine(request).filter(read_at__isnull=True).update(read_at=timezone.now())
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Preference
+        fields = ["morning_summary"]
+
+
+class PreferenceView(APIView):
+    """Each person's own choices, for the organization they are signed in to."""
+
+    def _mine(self, request):
+        membership = request.user.active_membership
+        return Preference.objects.filter(membership=membership).first() or Preference(
+            membership=membership, organization_id=membership.organization_id
+        )
+
+    @extend_schema(responses={200: PreferenceSerializer})
+    def get(self, request):
+        return Response(PreferenceSerializer(self._mine(request)).data)
+
+    @extend_schema(request=PreferenceSerializer, responses={200: PreferenceSerializer})
+    def patch(self, request):
+        serializer = PreferenceSerializer(self._mine(request), data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class MailTestView(APIView):

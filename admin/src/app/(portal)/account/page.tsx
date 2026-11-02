@@ -3,12 +3,15 @@
 import { KeyRound } from "lucide-react";
 import Link from "next/link";
 
+import { MorningSummarySetting } from "@/components/admin/morning-summary-setting";
 import { PhotoField } from "@/components/admin/photo-field";
 import { SignatureSetup } from "@/components/admin/signature-setup";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useMe } from "@/hooks/use-session";
+
+const APPROVALS = ["applications.approve_am", "applications.approve_cs", "applications.approve_finance"];
 
 export default function AccountPage() {
   const me = useMe();
@@ -45,6 +48,7 @@ export default function AccountPage() {
           <SignatureSetup membership={me.membership_id} hasSignature={me.has_signature} />
         </Card>
       ) : null}
+      {me.permissions.some((code) => APPROVALS.includes(code)) ? <MorningSummarySetting /> : null}
     </>
   );
 }

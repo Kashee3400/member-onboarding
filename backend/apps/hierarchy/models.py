@@ -176,6 +176,45 @@ class MccAssignment(OrganizationOwnedModel):
         return f"{self.mcc_id} -> {self.membership_id}"
 
 
+class MccCover(OrganizationOwnedModel):
+    """
+    One person works another's MCCs for a few days, say during leave. It follows
+    whatever MCCs the absent person holds, keeps theirs untouched, and stops on its
+    own after the last day, as access checks the dates rather than waiting for a job.
+    """
+
+    absent = models.ForeignKey(Membership, on_delete=models.PROTECT, related_name="covers_needed")
+    colleague = models.ForeignKey(Membership, on_delete=models.PROTECT, related_name="covers_given")
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    reason = models.CharField(max_length=300)
+    given_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    ended_at = models.DateTimeField(null=True, blank=True)
+    ended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        db_table = "hierarchy_mcc_cover"
+        ordering = ["-starts_on", "-created_at"]
+        indexes = [
+            models.Index(fields=["colleague", "ends_on"], name="mcc_cover_colleague_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(ends_on__gte=F("starts_on")), name="mcc_cover_ends_after_it_starts"
+            ),
+            models.CheckConstraint(
+                condition=~Q(absent=F("colleague")), name="mcc_cover_not_oneself"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.colleague_id} covers {self.absent_id}"
+
+
 class MppAssignment(OrganizationOwnedModel):
     """
     Who is responsible for an MPP, and when. Rows are closed, never rewritten, so

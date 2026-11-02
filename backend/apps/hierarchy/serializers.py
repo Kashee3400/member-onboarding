@@ -1,3 +1,5 @@
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.organizations.models import Membership
@@ -6,6 +8,7 @@ from .models import (
     Bmc,
     Mcc,
     MccAssignment,
+    MccCover,
     Mpp,
     MppAssignment,
     Plant,
@@ -143,6 +146,77 @@ class MccAssignmentSerializer(serializers.ModelSerializer):
 
     def get_roles(self, assignment) -> list[str]:
         return _person(assignment.membership)["roles"]
+
+
+def _user_name(user) -> str | None:
+    return (user.full_name or user.email) if user else None
+
+
+class MccCoverSerializer(serializers.ModelSerializer):
+    absent_name = serializers.SerializerMethodField()
+    colleague_name = serializers.SerializerMethodField()
+    given_by_name = serializers.SerializerMethodField()
+    ended_by_name = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+    mccs = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MccCover
+        fields = [
+            "id",
+            "absent",
+            "absent_name",
+            "colleague",
+            "colleague_name",
+            "starts_on",
+            "ends_on",
+            "reason",
+            "state",
+            "mccs",
+            "given_by_name",
+            "created_at",
+            "ended_at",
+            "ended_by_name",
+        ]
+        read_only_fields = fields
+
+    def get_absent_name(self, cover) -> str:
+        return _user_name(cover.absent.user)
+
+    def get_colleague_name(self, cover) -> str:
+        return _user_name(cover.colleague.user)
+
+    def get_given_by_name(self, cover) -> str:
+        return _user_name(cover.given_by)
+
+    def get_ended_by_name(self, cover) -> str | None:
+        return _user_name(cover.ended_by)
+
+    @extend_schema_field(serializers.ChoiceField(choices=["upcoming", "active", "over", "ended"]))
+    def get_state(self, cover) -> str:
+        today = timezone.localdate()
+        if cover.ended_at:
+            return "ended"
+        if cover.ends_on < today:
+            return "over"
+        return "upcoming" if cover.starts_on > today else "active"
+
+    def get_mccs(self, cover) -> list[str]:
+        """What the cover reaches: whatever the person away holds now."""
+        held = getattr(cover.absent, "open_mccs", None)
+        if held is None:
+            held = cover.absent.mcc_assignments.filter(ended_at__isnull=True).select_related("mcc")
+        return sorted(item.mcc.code for item in held)
+
+
+class GiveCoverSerializer(serializers.Serializer):
+    absent = serializers.PrimaryKeyRelatedField(queryset=Membership.objects.filter(is_active=True))
+    colleague = serializers.PrimaryKeyRelatedField(
+        queryset=Membership.objects.filter(is_active=True)
+    )
+    starts_on = serializers.DateField()
+    ends_on = serializers.DateField()
+    reason = serializers.CharField(max_length=300)
 
 
 class AssignMccSerializer(serializers.Serializer):

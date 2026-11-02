@@ -5,6 +5,7 @@ from pathlib import Path
 
 import environ
 import structlog
+from celery.schedules import crontab
 
 from apps.core.logging import redact_sensitive_values
 
@@ -190,6 +191,13 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
+# Run by the `beat` service. Without it, cron can call `manage.py send_morning_summary`.
+CELERY_BEAT_SCHEDULE = {
+    "morning-summary": {
+        "task": "apps.notifications.tasks.send_morning_summary",
+        "schedule": crontab(hour=9, minute=0),
+    },
+}
 
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 

@@ -40,6 +40,14 @@ services:
       backend:
         condition: service_started
 
+  # Exactly one: two would send each scheduled job twice.
+  beat:
+    <<: *backend
+    command: celery -A config beat -l INFO --schedule /tmp/celerybeat-schedule
+    depends_on:
+      backend:
+        condition: service_started
+
   redis:
     image: redis:8-alpine
     restart: unless-stopped

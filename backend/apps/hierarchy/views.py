@@ -1,7 +1,8 @@
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import exceptions, status, viewsets
+from rest_framework import exceptions, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -16,12 +17,14 @@ from apps.rbac.permissions import require_permission
 from apps.rbac.services import permissions_for
 
 from .imports import import_masters, read_rows
-from .models import Bmc, Mcc, MccAssignment, Mpp, Plant, Responsibility, Route
+from .models import Bmc, Mcc, MccAssignment, MccCover, Mpp, Plant, Responsibility, Route
 from .serializers import (
     AssignMccSerializer,
     AssignMppSerializer,
     BmcSerializer,
+    GiveCoverSerializer,
     MccAssignmentSerializer,
+    MccCoverSerializer,
     MccSerializer,
     MppAssignmentSerializer,
     MppImportResultSerializer,
@@ -32,11 +35,14 @@ from .serializers import (
 )
 from .services import (
     REQUIRED_PERMISSION,
+    CoverError,
     accessible_mpps,
     assign_mcc,
     assign_mpp,
     end_assignment,
+    end_cover,
     end_mcc_assignment,
+    give_cover,
 )
 
 
@@ -117,6 +123,59 @@ class MccViewSet(_MasterViewSet):
 
         assignment = assign_mcc(mcc=mcc, membership=membership, actor=request.user)
         return Response(MccAssignmentSerializer(assignment).data, status=status.HTTP_201_CREATED)
+
+
+class MccCoverViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """Someone works a colleague's MCCs while they are away. Ended covers stay as history."""
+
+    serializer_class = MccCoverSerializer
+    search_fields = ["absent__user__full_name", "colleague__user__full_name", "reason"]
+    ordering_fields = ["starts_on", "ends_on", "created_at"]
+
+    def get_permissions(self):
+        code = "hierarchy.view" if self.request.method in ("GET", "HEAD") else "mpp.assign"
+        return [IsAuthenticated(), require_permission(code)()]
+
+    def get_queryset(self):
+        held = MccAssignment.objects.filter(ended_at__isnull=True).select_related("mcc")
+        covers = MccCover.objects.select_related(
+            "absent__user", "colleague__user", "given_by", "ended_by"
+        ).prefetch_related(Prefetch("absent__mcc_assignments", queryset=held, to_attr="open_mccs"))
+        today = timezone.localdate()
+        state = self.request.query_params.get("state")
+        if state == "current":
+            return covers.filter(ended_at__isnull=True, ends_on__gte=today)
+        if state == "past":
+            return covers.filter(Q(ended_at__isnull=False) | Q(ends_on__lt=today))
+        return covers
+
+    @extend_schema(parameters=[OpenApiParameter("state", str, enum=["current", "past"])])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        request=GiveCoverSerializer,
+        responses={201: MccCoverSerializer, 400: ErrorResponseSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = GiveCoverSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            cover = give_cover(**serializer.validated_data, actor=request.user)
+        except CoverError as exc:
+            raise exceptions.ValidationError({"detail": [str(exc)]}) from exc
+        return Response(
+            MccCoverSerializer(self.get_queryset().get(pk=cover.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(request=None, responses={204: None, 404: ErrorResponseSerializer})
+    @action(detail=True, methods=["post"])
+    def end(self, request, pk=None):
+        """Stop it now, or call it off before it begins."""
+        if not end_cover(cover=self.get_object(), actor=request.user):
+            raise exceptions.NotFound("This cover is already over.")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BmcViewSet(_MasterViewSet):

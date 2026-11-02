@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Confirm } from "@/components/admin/confirm";
 import { messageOf } from "@/components/admin/feedback";
 import { FormDialog } from "@/components/admin/form-dialog";
+import { MccCovers } from "@/components/admin/mcc-covers";
 import { DataTable, type Column } from "@/components/common/data-table";
 import { Field } from "@/components/common/field";
 import { Listbox } from "@/components/common/listbox";
@@ -159,7 +160,8 @@ function ManageMcc({ mcc, onClose }: { mcc: Mcc; onClose: () => void }) {
 
 /**
  * People who approve hold whole MCCs: an Area Manager, or one of a CS or Finance team.
- * Someone with MCCs works only those; a head with none keeps every MCC.
+ * Someone with MCCs works only those; a head with none keeps every MCC. Leave cover
+ * lends one person's MCCs to a colleague for some days.
  */
 export function MccAssignments() {
   const [open, setOpen] = useState<Mcc | null>(null);
@@ -211,6 +213,7 @@ export function MccAssignments() {
 
   return (
     <>
+      <MccCovers />
       <DataTable<Mcc>
         id="assignment-mccs"
         endpoint="hierarchy/mccs"

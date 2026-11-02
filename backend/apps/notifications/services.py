@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from apps.hierarchy.models import Responsibility
-from apps.hierarchy.services import accessible_mpps
+from apps.hierarchy.services import accessible_mpps, covers_running
 from apps.organizations.models import Membership
 from apps.rbac.models import Role
 from apps.rbac.services import permissions_for
@@ -23,12 +23,19 @@ def assigned_to(mpp, responsibility) -> list[Membership]:
 
 
 def area_managers_of(mpp) -> list[Membership]:
-    """Everyone holding the MPP's MCC, and anyone given this one MPP directly."""
+    """Everyone holding the MPP's MCC or covering for one who does, and anyone given this MPP."""
+    covering = covers_running().filter(
+        absent__mcc_assignments__mcc_id=mpp.mcc_id, absent__mcc_assignments__ended_at__isnull=True
+    )
     return list(
         Membership.objects.filter(
             Q(
                 mcc_assignments__mcc_id=mpp.mcc_id,
                 mcc_assignments__ended_at__isnull=True,
+                role_links__role__permissions__contains=["applications.approve_am"],
+            )
+            | Q(
+                pk__in=covering.values("colleague"),
                 role_links__role__permissions__contains=["applications.approve_am"],
             )
             | Q(

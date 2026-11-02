@@ -67,3 +67,11 @@ def send_password_reset(organization_id: str, to: str, link: str) -> None:
             )
         except MailNotConfigured, smtplib.SMTPException, OSError:
             logger.warning("password_reset_email_failed")
+
+
+@shared_task
+def send_morning_summary() -> int:
+    # Imported here: the summary reads applications, which import this module.
+    from .summary import send_morning_summaries
+
+    return send_morning_summaries()

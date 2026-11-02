@@ -65,6 +65,24 @@ export type MccAssignment = {
   started_at: string;
   ended_at: string | null;
 };
+/** Someone works a colleague's MCCs for some days. `mccs` is what the person away holds now. */
+export type MccCover = {
+  id: string;
+  absent: string;
+  absent_name: string;
+  colleague: string;
+  colleague_name: string;
+  starts_on: string;
+  ends_on: string;
+  reason: string;
+  state: "upcoming" | "active" | "over" | "ended";
+  mccs: string[];
+  given_by_name: string;
+  created_at: string;
+  ended_at: string | null;
+  ended_by_name: string | null;
+};
+export type NotificationPreference = { morning_summary: boolean };
 export type Mpp = Plant & { mcc: string; route: string | null; village_code: string; village_name: string; state_code: string; hamlet_code: string; source_code: string };
 
 export type Assignment = {

@@ -43,3 +43,10 @@ Migrations and role updates run before the new backend starts.
 ## Backups
 
 Schedule `backup.sh` nightly. Test a restore on a spare machine before relying on it.
+
+## Scheduled jobs
+
+The `beat` service sends each approver a morning summary at 9:00 (Asia/Kolkata). Run only
+one `beat`. Without it, a daily cron job can run
+`docker compose exec backend python manage.py send_morning_summary` instead; running both
+does no harm, as nobody gets a second summary on the same day.

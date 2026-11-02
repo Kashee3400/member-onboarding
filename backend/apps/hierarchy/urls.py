@@ -4,6 +4,7 @@ from rest_framework.routers import SimpleRouter
 from .views import (
     BmcViewSet,
     MccAssignmentEndView,
+    MccCoverViewSet,
     MccViewSet,
     MppAssignmentEndView,
     MppImportView,
@@ -15,6 +16,7 @@ from .views import (
 router = SimpleRouter()
 router.register("plants", PlantViewSet, basename="plant")
 router.register("mccs", MccViewSet, basename="mcc")
+router.register("mcc-covers", MccCoverViewSet, basename="mcc-cover")
 router.register("bmcs", BmcViewSet, basename="bmc")
 router.register("routes", RouteViewSet, basename="route")
 router.register("mpps", MppViewSet, basename="mpp")
