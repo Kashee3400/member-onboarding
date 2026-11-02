@@ -231,6 +231,7 @@ class ChoiceBox extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.retired = const [],
     this.optional = false,
     this.error,
     super.key,
@@ -239,6 +240,9 @@ class ChoiceBox extends StatelessWidget {
   final String label;
   final String? value;
   final List<ChoiceOption> options;
+
+  /// Not offered, but named when the form already holds one.
+  final List<ChoiceOption> retired;
   final ValueChanged<String> onChanged;
   final bool optional;
   final String? error;
@@ -266,10 +270,9 @@ class ChoiceBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = options.where((option) => option.value == value).firstOrNull;
     return _TapBox(
       label: label,
-      text: selected?.label,
+      text: choiceLabel(value, options, retired),
       placeholder: Strings.choose,
       icon: Icons.keyboard_arrow_down,
       optional: optional,

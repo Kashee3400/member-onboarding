@@ -268,9 +268,49 @@ export type FormSchema = {
       label: string;
       type: string;
       required: boolean;
-      options?: { value: string; label: string }[];
+      options?: FormChoice[];
+      /** Retired choices: no longer offered, but older forms may still hold them. */
+      retired_options?: FormChoice[];
+      option_list?: string;
     }[];
   }[];
+  family?: {
+    max_members: number;
+    genders: FormChoice[];
+    relations: FormChoice[];
+    retired_genders?: FormChoice[];
+    retired_relations?: FormChoice[];
+  };
+};
+
+export type FormChoice = { value: string; label: string; label_hi?: string };
+
+/** One of the form's dropdown lists, as an administrator edits it. */
+export type FormList = {
+  key: string;
+  title: string;
+  description: string;
+  options: { value: string; label: string; label_hi: string; active: boolean }[];
+};
+
+export type BankBranch = {
+  id: string;
+  ifsc: string;
+  bank_name: string;
+  branch_name: string;
+  address: string;
+  district: string;
+  is_active: boolean;
+  bank_is_active: boolean;
+  updated_at: string;
+};
+
+export type BankImportResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  repeated: number;
+  problems: { row: number; problem: string }[];
 };
 
 export type LegacyMember = {

@@ -22,18 +22,18 @@ from weasyprint import HTML
 from apps.documents import storage
 from apps.documents.models import Document, DocumentType, StaffSignature
 
-from .. import form
+from .. import form, form_lists
 from ..models import Status
 
 FONTS = Path(__file__).parent / "fonts"
 VARIANTS = ("full", "single")
-FAMILY_LABELS = {"male": "Male", "female": "Female", "other": "Other"}
 DRAFT_MARK = "DRAFT – NOT APPROVED"
 DRAFT_CODE = "Assigned at approval"
 
 
-def _label(options, value) -> str:
-    return next((o["label"] for o in options if o["value"] == value), value or "")
+def _label(labels, value) -> str:
+    """A value no list knows, like a nominee relation typed before the list, prints as typed."""
+    return labels.get(value) or str(value or "")
 
 
 def _indian_date(value) -> str:
@@ -78,7 +78,7 @@ def _animal_table(values) -> dict:
     return table
 
 
-def _family_rows(family) -> list:
+def _family_rows(family, labels) -> list:
     """Rows numbered 1 to 3 on the left and 4 to 6 on the right, as printed."""
     people = []
     for number in range(1, form.MAX_FAMILY_MEMBERS + 1):
@@ -87,9 +87,9 @@ def _family_rows(family) -> list:
             {
                 "number": number,
                 "name": person.get("name", ""),
-                "gender": FAMILY_LABELS.get(person.get("gender"), ""),
+                "gender": _label(labels["gender"], person.get("gender")),
                 "age": person.get("age", ""),
-                "relation": _label(form.FAMILY_RELATIONS, person.get("relation")),
+                "relation": _label(labels["family_relation"], person.get("relation")),
             }
         )
     half = form.MAX_FAMILY_MEMBERS // 2
@@ -149,6 +149,7 @@ def build_context(application, profile, settings, variant, *, draft=False) -> di
     totals = form.computed_totals(data)
     share_count = application.payment.get("share_quantity", settings.share_count)
     share_total = settings.share_price * share_count
+    labels = form_lists.labels()
 
     images = {
         "photo": _document_image(documents, DocumentType.PHOTO),
@@ -184,19 +185,19 @@ def build_context(application, profile, settings, variant, *, draft=False) -> di
         "form_date": _indian_date(submitted_on),
         "age": form.age_on(born, submitted_on),
         "nominee_age": form.age_on(nominee_born, submitted_on),
-        "nominee_relation": str(nominee.get("relation", "")).title(),
-        "relation_label": str(applicant.get("relation_type", "")).upper(),
-        "gender_label": _label(form.GENDERS, applicant.get("gender")),
-        "education_label": _label(form.EDUCATION, applicant.get("education")),
-        "category_label": _label(form.CATEGORIES, applicant.get("category")),
-        "family_status_label": _label(form.FAMILY_STATUS, applicant.get("family_status")),
+        "nominee_relation": _label(labels["nominee_relation"], nominee.get("relation")).title(),
+        "relation_label": _label(labels["relation_type"], applicant.get("relation_type")).upper(),
+        "gender_label": _label(labels["gender"], applicant.get("gender")),
+        "education_label": _label(labels["education"], applicant.get("education")),
+        "category_label": _label(labels["category"], applicant.get("category")),
+        "family_status_label": _label(labels["family_status"], applicant.get("family_status")),
         "shg_label": "Yes" if applicant.get("is_shg_member") else "No",
         "account_number": _account_number(application),
         "animals": _animal_table(animals),
         "production": animals.get("production_lpd", ""),
         "consumption": animals.get("consumption_lpd", ""),
         "surplus": f"{totals['surplus_lpd']:g}",
-        "family_rows": _family_rows(data.get("family", [])),
+        "family_rows": _family_rows(data.get("family", []), labels),
         "masked_aadhaar": f"XXXX XXXX {application.aadhaar_last4}",
         "facilitator_name": facilitator_name,
         "area_manager": area_manager,

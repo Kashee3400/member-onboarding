@@ -114,6 +114,20 @@ class OnboardingApi {
   Future<Map<String, dynamic>> fetchFormJson() async =>
       await _client.get('applications/form/') as Map<String, dynamic>;
 
+  /// Bank and branch from the organization's bank master, or null when it has no
+  /// branch in use with this IFSC.
+  Future<(String, String)?> findBranch(String ifsc) async {
+    try {
+      final body =
+          await _client.get('banks/branches/by-ifsc/${Uri.encodeComponent(ifsc)}/')
+              as Map<String, dynamic>;
+      return ('${body['bank_name']}', '${body['branch_name']}');
+    } on ApiException catch (error) {
+      if (error.status == 404) return null;
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchMppsJson() async {
     final body = await _client.get('hierarchy/mpps/', query: {'page_size': '200'});
     return _results(body);

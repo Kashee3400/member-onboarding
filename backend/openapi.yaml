@@ -1077,6 +1077,187 @@ paths:
               schema:
                 $ref: '#/components/schemas/TrustedIssuer'
           description: ''
+  /api/v1/banks/branches/:
+    get:
+      operationId: banks_branches_list
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - banks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBankBranchList'
+          description: ''
+    post:
+      operationId: banks_branches_create
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      tags:
+      - banks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankBranchRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankBranch'
+          description: ''
+  /api/v1/banks/branches/{id}/:
+    get:
+      operationId: banks_branches_retrieve
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this bank branch.
+        required: true
+      tags:
+      - banks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankBranch'
+          description: ''
+    patch:
+      operationId: banks_branches_partial_update
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this bank branch.
+        required: true
+      tags:
+      - banks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBankBranchRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankBranch'
+          description: ''
+  /api/v1/banks/branches/by-ifsc/{ifsc}/:
+    get:
+      operationId: banks_branches_by_ifsc_retrieve
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      parameters:
+      - in: path
+        name: ifsc
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9]{11}$
+        required: true
+      tags:
+      - banks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankBranchLookup'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/banks/branches/import/:
+    post:
+      operationId: banks_branches_import_create
+      description: |-
+        The bank master. Anyone filling forms may read it; changing it is an
+        administrator's job.
+      tags:
+      - banks
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BankImportRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankImportResult'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/documents/{id}/file/:
     get:
       operationId: documents_file_retrieve
@@ -3728,6 +3909,56 @@ paths:
                 items:
                   $ref: '#/components/schemas/SearchHit'
           description: ''
+  /api/v1/settings/form-lists/:
+    get:
+      operationId: settings_form_lists_retrieve
+      description: The form's dropdown lists, each as the organization words and orders
+        it.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/settings/form-lists/{key}/:
+    put:
+      operationId: settings_form_lists_update
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        required: true
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormListRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/settings/integrations/:
     get:
       operationId: settings_integrations_list
@@ -4784,6 +5015,129 @@ components:
       - actor_name
       - id
       - occurred_at
+    BankBranch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        ifsc:
+          type: string
+          maxLength: 11
+        bank_name:
+          type: string
+          maxLength: 200
+        branch_name:
+          type: string
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 300
+        district:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
+        bank_is_active:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bank_is_active
+      - bank_name
+      - branch_name
+      - id
+      - ifsc
+      - updated_at
+    BankBranchLookup:
+      type: object
+      properties:
+        ifsc:
+          type: string
+        bank_name:
+          type: string
+        branch_name:
+          type: string
+        address:
+          type: string
+        district:
+          type: string
+      required:
+      - address
+      - bank_name
+      - branch_name
+      - district
+      - ifsc
+    BankBranchRequest:
+      type: object
+      properties:
+        ifsc:
+          type: string
+          minLength: 1
+          maxLength: 11
+        bank_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        branch_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 300
+        district:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
+      required:
+      - bank_name
+      - branch_name
+      - ifsc
+    BankImportProblem:
+      type: object
+      properties:
+        row:
+          type: integer
+        problem:
+          type: string
+      required:
+      - problem
+      - row
+    BankImportRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    BankImportResult:
+      type: object
+      properties:
+        created:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        repeated:
+          type: integer
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankImportProblem'
+      required:
+      - created
+      - problems
+      - repeated
+      - skipped
+      - updated
     Bmc:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -5203,6 +5557,36 @@ components:
       required:
       - access
       - expires_in
+    FormListRequest:
+      type: object
+      properties:
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormOptionRequest'
+      required:
+      - options
+    FormOptionRequest:
+      type: object
+      description: Without a value, the option is new and the server gives it one.
+      properties:
+        value:
+          type: string
+          maxLength: 40
+        label:
+          type: string
+          minLength: 1
+          maxLength: 100
+        label_hi:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - label
+      - label_hi
     GiveCoverRequest:
       type: object
       properties:
@@ -6222,6 +6606,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditEvent'
+    PaginatedBankBranchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankBranch'
     PaginatedBmcList:
       type: object
       required:
@@ -6697,6 +7104,29 @@ components:
           writeOnly: true
           minLength: 1
           maxLength: 18
+    PatchedBankBranchRequest:
+      type: object
+      properties:
+        ifsc:
+          type: string
+          minLength: 1
+          maxLength: 11
+        bank_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        branch_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 300
+        district:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
     PatchedBmcRequest:
       type: object
       description: The unique constraint includes the organization, which clients

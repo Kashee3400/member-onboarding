@@ -211,6 +211,22 @@ NAVIGATION = (
                 description="Series, form prefix and fees",
             ),
             NavItem(
+                "administration.form_lists",
+                "Form Lists",
+                "list",
+                "/admin/form-lists",
+                "settings.manage",
+                description="Choices offered in the membership form",
+            ),
+            NavItem(
+                "administration.banks",
+                "Banks",
+                "landmark",
+                "/admin/banks",
+                "settings.manage",
+                description="Banks and branches, found by IFSC",
+            ),
+            NavItem(
                 "administration.audit",
                 "Audit Log",
                 "history",

@@ -47,6 +47,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCan } from "@/hooks/use-session";
 import { api } from "@/lib/api/client";
 import { date, dateTime, humanize, initials } from "@/lib/format";
+import { choiceLabel } from "@/lib/form-options";
 import type { ApplicationDetail as Application, ApplicationDocument, FormSchema } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,7 @@ function shown(field: SchemaField, value: unknown) {
   if (value === false) return "No";
   if (value === undefined || value === null || value === "") return null;
   if (field.type === "date") return date(String(value));
-  return field.options?.find((option) => option.value === value)?.label ?? String(value);
+  return choiceLabel(value, field.options, field.retired_options);
 }
 
 /** Two columns of read-only fields, laid out as the old portal had them. */
@@ -490,7 +491,15 @@ function PlaceSection({ application }: { application: Application }) {
   );
 }
 
-function FamilySection({ family, change }: { family: NonNullable<Application["data"]["family"]>; change?: Change }) {
+function FamilySection({
+  family,
+  lists,
+  change,
+}: {
+  family: NonNullable<Application["data"]["family"]>;
+  lists: FormSchema["family"];
+  change?: Change;
+}) {
   return (
     <Section id="family" title={change ? "Household members (changed)" : "Household members"}>
       {change ? (
@@ -512,8 +521,12 @@ function FamilySection({ family, change }: { family: NonNullable<Application["da
             {family.map((person) => (
               <TableRow key={`${person.name}-${person.relation}`}>
                 <TableCell>{person.name}</TableCell>
-                <TableCell className="capitalize">{person.relation}</TableCell>
-                <TableCell className="capitalize">{person.gender}</TableCell>
+                <TableCell className="capitalize">
+                  {choiceLabel(person.relation, lists?.relations, lists?.retired_relations)}
+                </TableCell>
+                <TableCell className="capitalize">
+                  {choiceLabel(person.gender, lists?.genders, lists?.retired_genders)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{person.age}</TableCell>
               </TableRow>
             ))}
@@ -936,7 +949,9 @@ function StepContent({
       if (section) return <FormSection key={key} section={section} application={application} changes={changes} />;
       if (key === "place") return <PlaceSection key={key} application={application} />;
       if (key === "family" && family.length) {
-        return <FamilySection key={key} family={family} change={changes.byPath.get("family")} />;
+        return (
+          <FamilySection key={key} family={family} lists={schema.family} change={changes.byPath.get("family")} />
+        );
       }
       if (key === "payment" && payment) return <div key={key}>{payment}</div>;
       return null;

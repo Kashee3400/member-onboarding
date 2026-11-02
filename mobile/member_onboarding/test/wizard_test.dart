@@ -537,6 +537,86 @@ void main() {
     expect(draft.place, {'tehsil': 'Gyanpur'});
     expect(Draft.decode(draft.encode()).place, {'tehsil': 'Gyanpur'});
   });
+
+  wizardTest('the bank master is asked before the online lookup', (tester) async {
+    final controller = newController();
+    final asked = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FormWizard(
+          schema: schema,
+          controller: controller,
+          device: const _FakeDevice(),
+          findBranch: (ifsc) async {
+            asked.add(ifsc);
+            return ('State Bank of India', 'Bhadohi');
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    await goToStep(tester, 4);
+
+    await tester.enterText(
+      find.descendant(of: boxFor('bank.ifsc'), matching: find.byType(TextField)),
+      'SBIN0001234',
+    );
+    await tester.pumpAndSettle();
+
+    expect(asked, ['SBIN0001234']);
+    expect(controller.draft.section('bank')['bank_name'], 'State Bank of India');
+    expect(controller.draft.section('bank')['branch_name'], 'Bhadohi');
+  });
+
+  wizardTest('a retired choice still reads on an older form, but is not offered', (tester) async {
+    final withRetired = FormSchema(
+      version: 1,
+      maxFamilyMembers: 2,
+      familyGenders: schema.familyGenders,
+      familyRelations: schema.familyRelations,
+      sections: [
+        section('applicant', 'आवेदक', const [
+          FormFieldSpec(
+            key: 'gender',
+            label: 'लिंग',
+            type: 'choice',
+            required: true,
+            options: [ChoiceOption(value: 'female', label: 'महिला')],
+            retired: [ChoiceOption(value: 'other', label: 'अन्य')],
+          ),
+        ]),
+        ...schema.sections.skip(1),
+      ],
+    );
+    final controller = newController()..setValue('applicant', 'gender', 'other');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FormWizard(schema: withRetired, controller: controller),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('अन्य'), findsOneWidget);
+
+    await tester.ensureVisible(boxFor('applicant.gender'));
+    await tester.tap(boxFor('applicant.gender'));
+    await tester.pumpAndSettle();
+
+    // The sheet offers today's choices only; the old one shows just in the box.
+    expect(find.widgetWithText(ListTile, 'महिला'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'अन्य'), findsNothing);
+  });
+
+  wizardTest('a relation typed before it was a list shows as typed', (tester) async {
+    final controller = newController();
+    controller.draft.data['family'] = [
+      {'name': 'राम', 'gender': 'male', 'age': 40, 'relation': 'Grandson'},
+    ];
+    await pump(tester, controller);
+    await goToStep(tester, 5);
+
+    expect(find.text('Grandson'), findsOneWidget);
+  });
 }
 
 class _FakeDevice extends DeviceServices {

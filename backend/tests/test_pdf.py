@@ -109,6 +109,28 @@ def test_a_stored_pdf_is_encrypted_on_disk(world, approved, org_a, settings):
     assert not (settings.MEDIA_ROOT / path).read_bytes().startswith(b"%PDF")
 
 
+def test_a_renamed_and_retired_choice_still_prints(world, approved):
+    lists = world.client(world.admin).get("/api/v1/settings/form-lists/").data["lists"]
+    category = next(item for item in lists if item["key"] == "category")
+    options = [
+        {
+            "value": option["value"],
+            "label": "Backward class" if option["value"] == "obc" else option["label"],
+            "label_hi": option["label_hi"],
+            "is_active": option["value"] != "obc",
+        }
+        for option in category["options"]
+    ]
+    response = world.client(world.admin).put(
+        "/api/v1/settings/form-lists/category/", {"options": options}, format="json"
+    )
+    assert response.status_code == 200, response.content
+
+    text = text_of(pdf_of(world.client(world.finance), approved, "single").content)
+
+    assert "Backward class" in text
+
+
 def test_there_is_no_form_before_final_approval(world):
     application = world.submitted()
     assert pdf_of(world.client(world.manager), application, "single").status_code == 409

@@ -276,6 +276,69 @@ class RejectReason(OrganizationOwnedModel):
         return self.text
 
 
+class FormOption(OrganizationOwnedModel):
+    """
+    One choice in one of the form's lists. Never deleted, only retired: saved forms
+    keep the value, and their printouts still need its label.
+    """
+
+    list_key = models.CharField(max_length=30)
+    value = models.CharField(max_length=40)
+    label = models.CharField(max_length=100)
+    label_hi = models.CharField(max_length=100)
+    position = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "application_form_option"
+        ordering = ["list_key", "position", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "list_key", "value"], name="unique_form_option"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.list_key}: {self.value}"
+
+
+class Bank(OrganizationOwnedModel):
+    name = models.CharField(max_length=200)
+    erp_code = models.CharField(max_length=20, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "bank"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="unique_bank_name"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class BankBranch(OrganizationOwnedModel):
+    """A branch as the passbook names it, found by its IFSC while a form is filled."""
+
+    bank = models.ForeignKey(Bank, on_delete=models.PROTECT, related_name="branches")
+    name = models.CharField(max_length=200)
+    ifsc = models.CharField(max_length=11)
+    address = models.CharField(max_length=300, blank=True)
+    district = models.CharField(max_length=100, blank=True)
+    erp_code = models.CharField(max_length=20, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "bank_branch"
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "ifsc"], name="unique_branch_ifsc"),
+        ]
+
+    def __str__(self):
+        return self.ifsc
+
+
 class ApplicationStepApproval(OrganizationOwnedModel):
     """One review step passed, for one submission of a form."""
 

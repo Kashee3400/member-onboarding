@@ -6,6 +6,7 @@ disagree about what the form contains. Drafts may be incomplete. `validate_for_s
 is the single gate into the approval workflow.
 """
 
+import copy
 import re
 from datetime import date
 
@@ -48,6 +49,21 @@ FAMILY_RELATIONS = _choices(
     ("other", "Other"),
 )
 
+# --- Option lists -------------------------------------------------------------------
+# The values above are what each organization starts with. From then on it keeps its
+# own lists (see form_lists.py); a field names its list with `option_list`.
+OPTION_LISTS = {
+    "gender": GENDERS,
+    "relation_type": RELATIONS,
+    "education": EDUCATION,
+    "category": CATEGORIES,
+    "family_status": FAMILY_STATUS,
+    "family_relation": FAMILY_RELATIONS,
+    "nominee_relation": FAMILY_RELATIONS,
+}
+DEFAULT_CHOICES = {key: {o["value"] for o in options} for key, options in OPTION_LISTS.items()}
+# ------------------------------------------------------------------------------------
+
 
 def _field(key, label, kind="text", required=True, **extra):
     return {"key": key, "label": label, "type": kind, "required": required, **extra}
@@ -55,6 +71,11 @@ def _field(key, label, kind="text", required=True, **extra):
 
 # Locked: the server copies these from the MPP whenever the MPP knows them.
 FROM_MPP = {"locked": True, "source": "mpp"}
+
+
+def _choice(key, label, option_list, required=True):
+    options = OPTION_LISTS[option_list]
+    return _field(key, label, "choice", required, options=options, option_list=option_list)
 
 
 FORM_SCHEMA = {
@@ -66,20 +87,14 @@ FORM_SCHEMA = {
             "fields": [
                 _field("full_name", "Full name"),
                 _field("full_name_hi", "Full name in Hindi", required=False),
-                _field("relation_type", "Relation", "choice", options=RELATIONS),
+                _choice("relation_type", "Relation", "relation_type"),
                 _field("relation_name", "Father / husband name"),
                 _field("relation_name_hi", "Father / husband name in Hindi", required=False),
-                _field("gender", "Gender", "choice", options=GENDERS),
+                _choice("gender", "Gender", "gender"),
                 _field("date_of_birth", "Date of birth", "date"),
-                _field("education", "Education", "choice", options=EDUCATION),
-                _field("category", "Category", "choice", options=CATEGORIES),
-                _field(
-                    "family_status",
-                    "Family status",
-                    "choice",
-                    required=False,
-                    options=FAMILY_STATUS,
-                ),
+                _choice("education", "Education", "education"),
+                _choice("category", "Category", "category"),
+                _choice("family_status", "Family status", "family_status", required=False),
                 _field("is_shg_member", "Member of a UPSRLM SHG", "boolean", required=False),
             ],
         },
@@ -140,7 +155,7 @@ FORM_SCHEMA = {
             "title": "Nominee",
             "fields": [
                 _field("name", "Nominee name"),
-                _field("relation", "Relation with applicant"),
+                _choice("relation", "Relation with applicant", "nominee_relation"),
                 _field("date_of_birth", "Nominee date of birth", "date"),
                 _field("address", "Nominee address"),
                 _field("guardian_name", "Guardian name", required=False),
@@ -179,6 +194,47 @@ FORM_SCHEMA["family"] = {
 }
 
 _SECTION_KEYS = {section["key"] for section in FORM_SCHEMA["sections"]} | {"family"}
+
+# (section, field, list) for every choice on the form; the household rows use two more.
+CHOICE_FIELDS = tuple(
+    (section["key"], field["key"], field["option_list"])
+    for section in FORM_SCHEMA["sections"]
+    for field in section["fields"]
+    if "option_list" in field
+)
+FAMILY_CHOICES = (("gender", "gender"), ("relation", "family_relation"))
+
+
+def _split(options):
+    shown = lambda o: {k: o[k] for k in ("value", "label", "label_hi")}  # noqa: E731
+    return (
+        [shown(o) for o in options if o["active"]],
+        [shown(o) for o in options if not o["active"]],
+    )
+
+
+def schema_with(lists: dict[str, list[dict]]) -> dict:
+    """
+    The form with an organization's own lists. Retired choices travel separately, so
+    old answers still read correctly while no one can pick them again.
+    """
+    schema = copy.deepcopy(FORM_SCHEMA)
+    for section in schema["sections"]:
+        for field in section["fields"]:
+            if "option_list" in field:
+                field["options"], field["retired_options"] = _split(lists[field["option_list"]])
+    family = schema["family"]
+    family["genders"], family["retired_genders"] = _split(lists["gender"])
+    family["relations"], family["retired_relations"] = _split(lists["family_relation"])
+    return schema
+
+
+def _allowed(value, option_list, choices, kept) -> bool:
+    """An active choice, or one already on the form before it was retired."""
+    if value in (None, ""):
+        return True
+    return isinstance(value, str) and (value in choices[option_list] or value in kept)
+
 
 _AADHAAR = re.compile(r"^[2-9]\d{11}$")
 _MOBILE = re.compile(r"^[6-9]\d{9}$")
@@ -242,9 +298,52 @@ def _number(value):
         return None
 
 
-def clean_draft(data: dict) -> dict:
-    """Drafts accept anything shaped like the form, so unknown sections are dropped."""
-    return {key: value for key, value in data.items() if key in _SECTION_KEYS}
+def _kept_choices(data: dict | None, section: str, key: str) -> set:
+    if not data:
+        return set()
+    if section == "family":
+        family = data.get("family")
+        people = family if isinstance(family, list) else []
+        found = [person.get(key) for person in people if isinstance(person, dict)]
+    else:
+        values = data.get(section)
+        found = [values.get(key)] if isinstance(values, dict) else []
+    return {value for value in found if isinstance(value, str) and value}
+
+
+def clean_draft(data: dict, *, saved: dict | None = None, choices=None) -> dict:
+    """
+    Drafts accept anything shaped like the form, so unknown sections are dropped. A
+    choice that is not in its list is cleared, unless the form already held it.
+    """
+    choices = choices or DEFAULT_CHOICES
+    cleaned = {key: value for key, value in data.items() if key in _SECTION_KEYS}
+    for section, key, option_list in CHOICE_FIELDS:
+        values = cleaned.get(section)
+        if isinstance(values, dict) and not _allowed(
+            values.get(key), option_list, choices, _kept_choices(saved, section, key)
+        ):
+            cleaned[section] = {**values, key: ""}
+    if isinstance(cleaned.get("family"), list):
+        cleaned["family"] = [
+            {
+                **person,
+                **{
+                    key: ""
+                    for key, option_list in FAMILY_CHOICES
+                    if not _allowed(
+                        person.get(key),
+                        option_list,
+                        choices,
+                        _kept_choices(saved, "family", key),
+                    )
+                },
+            }
+            if isinstance(person, dict)
+            else person
+            for person in cleaned["family"]
+        ]
+    return cleaned
 
 
 def computed_totals(data: dict) -> dict:
@@ -260,9 +359,22 @@ def computed_totals(data: dict) -> dict:
     }
 
 
-def validate_for_submit(data: dict, *, has_aadhaar: bool, has_account: bool, today: date) -> dict:
-    """Returns {"section.field": message}. Empty means the form may enter approval."""
+def validate_for_submit(
+    data: dict,
+    *,
+    has_aadhaar: bool,
+    has_account: bool,
+    today: date,
+    choices=None,
+    previous: dict | None = None,
+) -> dict:
+    """
+    Returns {"section.field": message}. Empty means the form may enter approval.
+    `choices` holds each list's active values; `previous` is the last submission,
+    whose choices stay acceptable after they are retired.
+    """
     errors = {}
+    choices = choices or DEFAULT_CHOICES
 
     for section in FORM_SCHEMA["sections"]:
         values = data.get(section["key"], {})
@@ -271,10 +383,11 @@ def validate_for_submit(data: dict, *, has_aadhaar: bool, has_account: bool, tod
             path = f"{section['key']}.{field['key']}"
             if field["required"] and value in (None, "", False):
                 errors[path] = "This is required."
-            elif (
-                value not in (None, "")
-                and "options" in field
-                and value not in [option["value"] for option in field["options"]]
+            elif "option_list" in field and not _allowed(
+                value,
+                field["option_list"],
+                choices,
+                _kept_choices(previous, section["key"], field["key"]),
             ):
                 errors[path] = "Choose one of the listed options."
 
@@ -329,19 +442,20 @@ def validate_for_submit(data: dict, *, has_aadhaar: bool, has_account: bool, tod
     if longitude is not None and not -180 <= longitude <= 180:
         errors["location.longitude"] = "Enter a valid longitude."
 
-    errors |= _family_errors(data.get("family", []))
+    errors |= _family_errors(data.get("family", []), choices, previous)
     return errors
 
 
-def _family_errors(family) -> dict:
+def _family_errors(family, choices=None, previous=None) -> dict:
     if not isinstance(family, list):
         return {"family": "Enter the family as a list."}
     if len(family) > MAX_FAMILY_MEMBERS:
         return {"family": f"The form has room for {MAX_FAMILY_MEMBERS} family members."}
 
     errors = {}
-    genders = {option["value"] for option in GENDERS}
-    relations = {option["value"] for option in FAMILY_RELATIONS}
+    choices = choices or DEFAULT_CHOICES
+    genders = choices["gender"] | _kept_choices(previous, "family", "gender")
+    relations = choices["family_relation"] | _kept_choices(previous, "family", "relation")
     for position, person in enumerate(family):
         age = _number(person.get("age")) if isinstance(person, dict) else None
         if not isinstance(person, dict) or not str(person.get("name", "")).strip():
