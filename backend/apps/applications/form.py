@@ -53,6 +53,10 @@ def _field(key, label, kind="text", required=True, **extra):
     return {"key": key, "label": label, "type": kind, "required": required, **extra}
 
 
+# Locked: the server copies these from the MPP whenever the MPP knows them.
+FROM_MPP = {"locked": True, "source": "mpp"}
+
+
 FORM_SCHEMA = {
     "version": FORM_VERSION,
     "sections": [
@@ -84,13 +88,17 @@ FORM_SCHEMA = {
             "title": "Address",
             "fields": [
                 _field("house_number", "House number", required=False),
-                _field("hamlet_name", "Hamlet", required=False),
-                _field("hamlet_code", "Hamlet code", required=False),
-                _field("post_office", "Post office"),
-                _field("tehsil", "Tehsil"),
-                _field("district", "District"),
-                _field("state", "State"),
-                _field("pincode", "PIN code"),
+                # Place fields: filled from the MPP, which the client cannot override.
+                _field("pooling_point_code", "Pooling point code", required=False, **FROM_MPP),
+                _field("village_name", "Revenue village", required=False, **FROM_MPP),
+                _field("village_code", "Revenue village code", required=False, **FROM_MPP),
+                _field("hamlet_name", "Hamlet", required=False, **FROM_MPP),
+                _field("hamlet_code", "Hamlet code", required=False, **FROM_MPP),
+                _field("post_office", "Post office", **FROM_MPP),
+                _field("tehsil", "Tehsil", **FROM_MPP),
+                _field("district", "District", **FROM_MPP),
+                _field("state", "State", **FROM_MPP),
+                _field("pincode", "PIN code", **FROM_MPP),
                 _field("mobile", "Mobile number"),
                 _field("landline", "Landline", required=False),
                 _field("email", "Email", required=False),

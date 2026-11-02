@@ -131,6 +131,14 @@ NAVIGATION = (
                 description="The collection network",
             ),
             NavItem(
+                "masters.locations",
+                "Locations",
+                "map-pin",
+                "/masters/locations",
+                "hierarchy.view",
+                description="States to hamlets, and where each MPP is",
+            ),
+            NavItem(
                 "masters.assignments",
                 "Assignments",
                 "route",

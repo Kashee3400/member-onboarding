@@ -3,18 +3,34 @@ import 'dart:io';
 import 'api_client.dart';
 
 class MppSummary {
-  const MppSummary({required this.id, required this.code, required this.name});
+  const MppSummary({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.place = const {},
+  });
 
   factory MppSummary.fromJson(Map<String, dynamic> json) => MppSummary(
     id: json['id'] as String,
     code: json['code'] as String,
     name: json['name'] as String,
+    place: placeFromJson(json['place']),
   );
 
   final String id;
   final String code;
   final String name;
+
+  /// Where the MPP is, keyed as the address fields. Only what the masters know.
+  final Map<String, String> place;
 }
+
+/// Keeps only the values the masters actually hold.
+Map<String, String> placeFromJson(Object? json) => {
+  for (final entry in ((json as Map?) ?? const {}).entries)
+    if (entry.value is String && (entry.value as String).isNotEmpty)
+      entry.key as String: entry.value as String,
+};
 
 class ApplicationSummary {
   const ApplicationSummary({

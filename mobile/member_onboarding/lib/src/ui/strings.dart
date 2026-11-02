@@ -39,6 +39,7 @@ class Strings {
   static const required = 'यह भरना ज़रूरी है';
   static const optional = 'वैकल्पिक';
   static const choose = 'चुनें';
+  static const fromMpp = 'एम.पी.पी. से';
 
   static const saved = 'सुरक्षित';
   static const saving = 'सहेजा जा रहा है';

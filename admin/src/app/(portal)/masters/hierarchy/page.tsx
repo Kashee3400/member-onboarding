@@ -11,7 +11,7 @@ import { FormError } from "@/components/admin/feedback";
 import { FileDrop } from "@/components/admin/file-drop";
 import { FormDialog } from "@/components/admin/form-dialog";
 import { DataTable, FilterSelect, type Column } from "@/components/common/data-table";
-import { Field } from "@/components/common/field";
+import { Field, FormSection } from "@/components/common/field";
 import { Listbox } from "@/components/common/listbox";
 import { MasterSelect } from "@/components/common/master-select";
 import { PageHeader } from "@/components/common/page-header";
@@ -51,6 +51,14 @@ const IMPORT_COLUMNS = [
   "route_code (optional)",
   "route_name (optional)",
   "village_name (optional)",
+  "state_name (optional)",
+  "district_code (optional)",
+  "district_name (optional)",
+  "tehsil_code (optional)",
+  "tehsil_name (optional)",
+  "hamlet_name (optional)",
+  "pincode (optional)",
+  "post_office (optional)",
 ];
 const MB = 1024 * 1024;
 
@@ -86,6 +94,8 @@ function MasterForm({
   const route = tab === "routes" ? (item as Route | null) : null;
   const [parent, setParent] = useState(mpp?.mcc ?? mcc?.plant ?? bmc?.mcc ?? route?.bmc ?? "");
   const [routeId, setRouteId] = useState(mpp?.route ?? "");
+  const [villageId, setVillageId] = useState(mpp?.village ?? "");
+  const [hamletId, setHamletId] = useState(mpp?.hamlet ?? "");
   const [active, setActive] = useState(item?.is_active ?? true);
 
   const save = useMutation({
@@ -109,7 +119,9 @@ function MasterForm({
       ...(tab === "mccs" ? { plant: parent } : {}),
       ...(tab === "bmcs" ? { mcc: parent } : {}),
       ...(tab === "routes" ? { bmc: parent } : {}),
-      ...(tab === "mpps" ? { mcc: parent, route: routeId || null } : {}),
+      ...(tab === "mpps"
+        ? { mcc: parent, route: routeId || null, village: villageId || null, hamlet: hamletId || null }
+        : {}),
     });
   };
 
@@ -188,45 +200,110 @@ function MasterForm({
       </div>
       {tab === "mpps" ? (
         <>
-          <Field label="Village code" htmlFor="village_code" help="8 digits, from the ERP.">
-            <Input
-              id="village_code"
-              name="village_code"
-              required
-              pattern="\d{8}"
-              inputMode="numeric"
-              maxLength={8}
-              defaultValue={mpp?.village_code}
-              className="font-mono"
-            />
-          </Field>
-          <Field label="Village name" htmlFor="village_name" optional>
-            <Input id="village_name" name="village_name" defaultValue={mpp?.village_name} />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="State code" htmlFor="state_code" optional help="2 digits, like 09 for Uttar Pradesh.">
+          <FormSection
+            title="Place"
+            description="Fills the address on this MPP's forms, and facilitators can't change it."
+          >
+            <Field label="Revenue village" optional help="Its code, and the state code, then come from the village.">
+              <MasterSelect
+                kind="villages"
+                placeholder="Choose a village"
+                value={villageId}
+                onChange={(value) => {
+                  setVillageId(value);
+                  setHamletId("");
+                }}
+              />
+            </Field>
+            <Field label="Hamlet" optional>
+              <MasterSelect
+                kind="hamlets"
+                disabled={!villageId}
+                placeholder={villageId ? "Choose a hamlet" : "Choose a village first"}
+                value={hamletId}
+                filters={{ village: villageId || undefined }}
+                onChange={setHamletId}
+              />
+            </Field>
+            {/* Disabled fields are left out of the form, so the server takes them from the village. */}
+            <Field
+              label="Village code"
+              htmlFor="village_code"
+              help={villageId ? "From the village." : "8 digits, from the ERP."}
+            >
               <Input
-                id="state_code"
-                name="state_code"
-                pattern="\d{2}"
+                id="village_code"
+                name="village_code"
+                required={!villageId}
+                disabled={!!villageId}
+                pattern="\d{8}"
                 inputMode="numeric"
-                maxLength={2}
-                defaultValue={mpp?.state_code}
+                maxLength={8}
+                defaultValue={mpp?.village_code}
                 className="font-mono"
               />
             </Field>
-            <Field label="Hamlet code" htmlFor="hamlet_code" optional help="2 digits, after the village code.">
-              <Input
-                id="hamlet_code"
-                name="hamlet_code"
-                pattern="\d{2}"
-                inputMode="numeric"
-                maxLength={2}
-                defaultValue={mpp?.hamlet_code}
-                className="font-mono"
-              />
-            </Field>
-          </div>
+            {villageId ? null : (
+              <Field label="Village name" htmlFor="village_name" optional>
+                <Input id="village_name" name="village_name" defaultValue={mpp?.village_name} />
+              </Field>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="State code"
+                htmlFor="state_code"
+                optional
+                help={villageId ? "From the village." : "2 digits, like 09 for Uttar Pradesh."}
+              >
+                <Input
+                  id="state_code"
+                  name="state_code"
+                  disabled={!!villageId}
+                  pattern="\d{2}"
+                  inputMode="numeric"
+                  maxLength={2}
+                  defaultValue={mpp?.state_code}
+                  className="font-mono"
+                />
+              </Field>
+              <Field
+                label="Hamlet code"
+                htmlFor="hamlet_code"
+                optional
+                help={hamletId ? "From the hamlet." : "2 digits, after the village code."}
+              >
+                <Input
+                  id="hamlet_code"
+                  name="hamlet_code"
+                  disabled={!!hamletId}
+                  pattern="\d{2}"
+                  inputMode="numeric"
+                  maxLength={2}
+                  defaultValue={mpp?.hamlet_code}
+                  className="font-mono"
+                />
+              </Field>
+              <Field label="Post office" htmlFor="post_office" optional>
+                <Input id="post_office" name="post_office" maxLength={100} defaultValue={mpp?.post_office} />
+              </Field>
+              <Field label="PIN code" htmlFor="pincode" optional>
+                <Input
+                  id="pincode"
+                  name="pincode"
+                  pattern="[1-9]\d{5}"
+                  inputMode="numeric"
+                  maxLength={6}
+                  defaultValue={mpp?.pincode}
+                  className="font-mono"
+                />
+              </Field>
+            </div>
+            {mpp && mpp.village === villageId && mpp.place.tehsil ? (
+              <p className="text-xs text-muted-foreground">
+                {[mpp.place.tehsil, mpp.place.district, mpp.place.state].filter(Boolean).join(", ")}
+              </p>
+            ) : null}
+          </FormSection>
           <Field
             label="ERP internal code"
             htmlFor="source_code"
@@ -264,7 +341,7 @@ function ImportMasters({ onClose }: { onClose: () => void }) {
   return (
     <FormDialog
       title="Import from Excel"
-      description="Existing MPPs are updated. One bad row stops the whole file, so nothing is half done."
+      description="Existing MPPs are updated. A row with a district or tehsil code needs state, district and tehsil codes, and loads the place chain too. One bad row stops the whole file, so nothing is half done."
       className="sm:max-w-2xl"
       onClose={onClose}
       footer={
@@ -423,6 +500,20 @@ export default function HierarchyPage() {
           {row.state_code || "default"} / {row.hamlet_code || "default"}
         </span>
       ),
+    },
+    {
+      id: "place",
+      header: "Place",
+      hideBelow: "lg",
+      csv: (row) => [row.place.village_name, row.place.tehsil, row.place.district].filter(Boolean).join(", "),
+      cell: (row) =>
+        row.village ? (
+          <span className="text-muted-foreground">
+            {[row.place.village_name, row.place.tehsil, row.place.district].filter(Boolean).join(", ")}
+          </span>
+        ) : (
+          <span className="text-xs text-amber-700 dark:text-amber-400">Not linked</span>
+        ),
     },
     {
       id: "mcc",

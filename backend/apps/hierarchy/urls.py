@@ -3,6 +3,8 @@ from rest_framework.routers import SimpleRouter
 
 from .views import (
     BmcViewSet,
+    DistrictViewSet,
+    HamletViewSet,
     MccAssignmentEndView,
     MccCoverViewSet,
     MccViewSet,
@@ -11,6 +13,9 @@ from .views import (
     MppViewSet,
     PlantViewSet,
     RouteViewSet,
+    StateViewSet,
+    TehsilViewSet,
+    VillageViewSet,
 )
 
 router = SimpleRouter()
@@ -20,6 +25,11 @@ router.register("mcc-covers", MccCoverViewSet, basename="mcc-cover")
 router.register("bmcs", BmcViewSet, basename="bmc")
 router.register("routes", RouteViewSet, basename="route")
 router.register("mpps", MppViewSet, basename="mpp")
+router.register("states", StateViewSet, basename="state")
+router.register("districts", DistrictViewSet, basename="district")
+router.register("tehsils", TehsilViewSet, basename="tehsil")
+router.register("villages", VillageViewSet, basename="village")
+router.register("hamlets", HamletViewSet, basename="hamlet")
 
 urlpatterns = [
     path("mpps/import/", MppImportView.as_view(), name="mpp-import"),

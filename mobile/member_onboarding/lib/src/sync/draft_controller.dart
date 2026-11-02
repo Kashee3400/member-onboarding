@@ -96,6 +96,8 @@ class DraftController extends ChangeNotifier {
       ..status = server['status'] as String
       ..aadhaarLast4 = server['aadhaar_last4'] as String
       ..accountLast4 = server['account_last4'] as String;
+    // The server knows the MPP's latest place, even for a form started before it was set.
+    if (server['mpp_place'] != null) draft.place = placeFromJson(server['mpp_place']);
   }
 
   Future<void> _sync() async {

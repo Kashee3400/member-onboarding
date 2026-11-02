@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -241,3 +241,66 @@ def _name(membership) -> str:
 
 def _day(value) -> str:
     return f"{value.day} {value:%b}"
+
+
+PLACE_RELATED = ("village__tehsil__district__state", "hamlet")
+
+# Which MPPs sit under each kind of location master.
+_MPPS_UNDER = {
+    "state": "village__tehsil__district__state",
+    "district": "village__tehsil__district",
+    "tehsil": "village__tehsil",
+    "village": "village",
+    "hamlet": "hamlet",
+}
+
+
+def mpp_place(mpp) -> dict:
+    """
+    Everything an MPP knows about where it is, keyed as the form's address fields.
+    An empty value is one the masters do not hold yet.
+    """
+    village, hamlet = mpp.village, mpp.hamlet
+    tehsil = village.tehsil if village else None
+    district = tehsil.district if tehsil else None
+    state = district.state if district else None
+    return {
+        "pooling_point_code": mpp.code,
+        "village_name": village.name if village else mpp.village_name,
+        "village_code": mpp.village_code,
+        "hamlet_name": hamlet.name if hamlet else "",
+        "hamlet_code": mpp.hamlet_code,
+        "post_office": mpp.post_office,
+        "tehsil": tehsil.name if tehsil else "",
+        "tehsil_code": tehsil.code if tehsil else "",
+        "district": district.name if district else "",
+        "district_code": district.code if district else "",
+        "state": state.name if state else "",
+        "state_code": state.code if state else mpp.state_code,
+        "pincode": mpp.pincode,
+    }
+
+
+class PlaceClash(Exception):
+    pass
+
+
+def follow_master(kind: str, place) -> int:
+    """
+    A renamed or recoded master carries its MPPs along, so their member codes and
+    forms never disagree with it. Returns how many MPPs changed.
+    """
+    mpps = Mpp.objects.filter(**{_MPPS_UNDER[kind]: place}).select_related(*PLACE_RELATED)
+    fields = ["village_code", "village_name", "state_code", "hamlet_code", "updated_at"]
+    changed = 0
+    try:
+        with transaction.atomic():
+            for mpp in mpps:
+                before = [getattr(mpp, name) for name in fields[:-1]]
+                mpp.follow_place()
+                if [getattr(mpp, name) for name in fields[:-1]] != before:
+                    mpp.save(update_fields=fields)
+                    changed += 1
+    except IntegrityError as exc:
+        raise PlaceClash("Another MPP already has this village and hamlet code.") from exc
+    return changed

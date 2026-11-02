@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../api/onboarding_api.dart';
+
 /// A form on this device. Every keystroke lands here first, so nothing is lost
 /// when the network or the phone drops out in the village.
 class Draft {
@@ -20,7 +22,9 @@ class Draft {
     this.rejectionReason = '',
     List<String>? rejectedFields,
     this.needsSync = false,
-  }) : data = data ?? {},
+    Map<String, String>? place,
+  }) : place = place ?? {},
+       data = data ?? {},
        pendingDocuments = pendingDocuments ?? {},
        uploadedDocuments = uploadedDocuments ?? {},
        rejectedFields = rejectedFields ?? [];
@@ -42,6 +46,7 @@ class Draft {
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
     needsSync: json['needs_sync'] as bool,
+    place: placeFromJson(json['place']),
   );
 
   /// Opens a form from the server, such as one sent back for correction.
@@ -57,6 +62,7 @@ class Draft {
     accountLast4: json['account_last4'] as String,
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
+    place: placeFromJson(json['mpp_place']),
   );
 
   factory Draft.decode(String source) =>
@@ -65,6 +71,9 @@ class Draft {
   final String clientId;
   final String mppId;
   final String mppLabel;
+
+  /// The address fields the MPP fills. They show read-only and the server enforces them.
+  Map<String, String> place;
 
   String? serverId;
   int? version;
@@ -121,6 +130,7 @@ class Draft {
     'rejection_reason': rejectionReason,
     'rejected_fields': rejectedFields,
     'needs_sync': needsSync,
+    'place': place,
   };
 
   String encode() => jsonEncode(toJson());

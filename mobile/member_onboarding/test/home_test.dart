@@ -35,6 +35,16 @@ Map<String, dynamic> formJson() => {
         'title': key,
         'title_hi': key,
         'fields': [
+          if (key == 'address')
+            {
+              'key': 'tehsil',
+              'label': 'Tehsil',
+              'label_hi': 'तहसील',
+              'type': 'text',
+              'required': true,
+              'locked': true,
+              'source': 'mpp',
+            },
           if (key == 'bank')
             {'key': 'ifsc', 'label': 'IFSC', 'label_hi': 'IFSC', 'type': 'text', 'required': true},
           if (key == 'bank')
@@ -75,7 +85,12 @@ class FakeApi extends OnboardingApi {
   Future<List<Map<String, dynamic>>> fetchMppsJson() async {
     _check();
     return [
-      {'id': 'm1', 'code': '1305', 'name': 'Dudwa'},
+      {
+        'id': 'm1',
+        'code': '1305',
+        'name': 'Dudwa',
+        'place': {'tehsil': 'Gyanpur', 'tehsil_code': '00951', 'post_office': ''},
+      },
     ];
   }
 
@@ -163,6 +178,25 @@ void main() {
 
     expect(find.textContaining('${Strings.step} 1 / 9'), findsOneWidget);
     expect((await store.all()).single.mppLabel, '1305 Dudwa');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('a new form starts with the place its MPP knows', (tester) async {
+    final store = MemoryDraftStore();
+    await tester.pumpWidget(app(FakeApi(), store));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(Strings.newForm));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1305 Dudwa'));
+    await tester.pumpAndSettle();
+
+    final draft = (await store.all()).single;
+    // Only fields the form locks, and only what the MPP actually knows.
+    expect(draft.place, {'tehsil': 'Gyanpur'});
+    expect(draft.section('address')['tehsil'], 'Gyanpur');
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 3));

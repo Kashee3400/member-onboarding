@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.hierarchy.models import Mpp
+from apps.hierarchy.services import mpp_place
 
-from . import form, review_settings, review_steps, services
+from . import form, place, review_settings, review_steps, services
 from .models import (
     Application,
     ApplicationDecision,
@@ -115,6 +117,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     tr_code = serializers.SerializerMethodField()
     fee = serializers.SerializerMethodField()
     place = serializers.SerializerMethodField()
+    mpp_place = serializers.SerializerMethodField()
     review_steps = serializers.SerializerMethodField()
     decisions = DecisionSerializer(many=True, read_only=True)
     revisions = RevisionSerializer(many=True, read_only=True)
@@ -138,6 +141,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "tr_code",
             "fee",
             "place",
+            "mpp_place",
             "review_steps",
             "decisions",
             "revisions",
@@ -150,9 +154,15 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
 
     @staticmethod
     def get_place(application) -> dict:
+        """The form's own copy of the place first: it is what was submitted and signed."""
         mpp = application.mpp
         address = application.data.get("address", {})
         route = mpp.route
+        known = mpp_place(mpp)
+
+        def value(key):
+            return address.get(key) or known[key]
+
         return {
             "mcc_code": mpp.mcc.code,
             "mcc_name": mpp.mcc.name,
@@ -160,12 +170,23 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "route_name": route.name if route else "",
             "mpp_code": mpp.code,
             "mpp_name": mpp.name,
-            "village_name": mpp.village_name or mpp.name,
+            "village_name": value("village_name") or mpp.name,
             "village_code": mpp.village_code,
             "as_on_date": application.submitted_at,
-            "tehsil": address.get("tehsil", ""),
-            "district": address.get("district", ""),
+            "hamlet_name": value("hamlet_name"),
+            "hamlet_code": value("hamlet_code"),
+            "post_office": value("post_office"),
+            "tehsil": value("tehsil"),
+            "district": value("district"),
+            "state": value("state"),
+            "pincode": value("pincode"),
         }
+
+    @staticmethod
+    @extend_schema_field(serializers.DictField(child=serializers.CharField()))
+    def get_mpp_place(application) -> dict:
+        """The address fields the MPP fills and locks, so the app shows them read-only."""
+        return place.locked_values(application.mpp)
 
     @staticmethod
     def get_fee(application) -> dict:

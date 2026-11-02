@@ -17,6 +17,7 @@ class FormFieldSpec {
     required this.type,
     required this.required,
     this.options = const [],
+    this.locked = false,
   });
 
   factory FormFieldSpec.fromJson(Map<String, dynamic> json) => FormFieldSpec(
@@ -28,6 +29,7 @@ class FormFieldSpec {
         .cast<Map<String, dynamic>>()
         .map(ChoiceOption.fromJson)
         .toList(),
+    locked: json['locked'] as bool? ?? false,
   );
 
   final String key;
@@ -35,6 +37,9 @@ class FormFieldSpec {
   final String type;
   final bool required;
   final List<ChoiceOption> options;
+
+  /// Filled from the MPP, whenever the MPP knows it, and never typed.
+  final bool locked;
 }
 
 class FormSectionSpec {

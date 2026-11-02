@@ -233,7 +233,10 @@ function FormSection({
     <Section id={section.key} title={section.title}>
       {section.key === "animals" ? <AnimalGrid application={application} /> : null}
       <Facts>
-        {section.key === "address" ? <Fact label="Village">{application.place.village_name}</Fact> : null}
+        {/* Older forms have no village of their own, so it comes from the MPP. */}
+        {section.key === "address" && values.village_name === undefined ? (
+          <Fact label="Village">{application.place.village_name}</Fact>
+        ) : null}
         {section.key === "animals" ? (
           <Fact label="Details as on">{application.place.as_on_date ? date(application.place.as_on_date) : null}</Fact>
         ) : null}
