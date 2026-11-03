@@ -354,6 +354,17 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
     return application
 
 
+def unverified_contacts(application) -> dict[str, str]:
+    """The mobile number, and the email when one is given, must be confirmed by OTP."""
+    address = application.data.get("address", {})
+    errors = {}
+    if str(address.get("mobile") or "").strip() and not application.mobile_verified_at:
+        errors["address.mobile"] = "Verify this mobile number with an OTP."
+    if str(address.get("email") or "").strip() and not application.email_verified_at:
+        errors["address.email"] = "Verify this email with an OTP."
+    return errors
+
+
 @transaction.atomic
 def submit(application, *, user, version=None):
     _ensure_editable(application)
@@ -373,6 +384,7 @@ def submit(application, *, user, version=None):
     )
     errors |= missing_documents(application)
     errors |= already_used(application)
+    errors |= unverified_contacts(application)
     applicant_gender = application.data.get("applicant", {}).get("gender")
     if organization_profile().members_female_only and applicant_gender != "female":
         errors["applicant.gender"] = "Membership is open to women only."

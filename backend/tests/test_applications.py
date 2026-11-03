@@ -5,6 +5,7 @@ from io import BytesIO
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
+from django.utils import timezone
 from PIL import Image, ImageDraw
 from rest_framework.test import APIClient
 
@@ -75,7 +76,7 @@ def complete_form():
             "district": "Sant Ravidas Nagar",
             "state": "Uttar Pradesh",
             "pincode": "221406",
-            "mobile": "9170800000",
+            "mobile": "9123412346",  # The one filled() gives AADHAAR.
         },
         "location": {"latitude": 25.41507, "longitude": 82.51469},
         "family": [{"name": "Test Husband", "gender": "male", "age": 44, "relation": "husband"}],
@@ -176,6 +177,8 @@ class World:
         return authenticated_client(self.org, user)
 
     def attach_documents(self, client, application_id):
+        # The OTP steps are tested on their own; here the contacts count as confirmed.
+        self.verify_contacts(application_id)
         for kind in ("photo", "member_signature", "aadhaar_front", "aadhaar_back", "passbook"):
             response = client.post(
                 f"{URL}{application_id}/documents/",
@@ -183,6 +186,12 @@ class World:
                 format="multipart",
             )
             assert response.status_code == 201, response.content
+
+    def verify_contacts(self, application_id):
+        with organization_context(self.org.id):
+            Application.objects.filter(pk=application_id).update(
+                mobile_verified_at=timezone.now(), email_verified_at=timezone.now()
+            )
 
     def draft(self, client=None, **extra):
         client = client or self.client(self.facilitator)

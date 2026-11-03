@@ -22,9 +22,9 @@ def verified_now(world, application):
 
 
 def test_a_new_form_shows_both_as_not_verified(world):
-    application = world.submitted()
+    application = world.draft()
 
-    data = world.client(world.manager).get(f"{URL}{application['id']}/").data
+    data = world.client(world.facilitator).get(f"{URL}{application['id']}/").data
 
     assert data["contact_verified"] == {"mobile": None, "email": None}
 
@@ -44,7 +44,7 @@ def test_changing_the_number_drops_its_proof_only(world):
 
 
 def test_the_form_cannot_mark_itself_verified(world):
-    application = world.filled()
+    application = world.draft()
     data = complete_form()
     data["address"]["mobile_verified_at"] = "2026-01-01T00:00:00Z"
 

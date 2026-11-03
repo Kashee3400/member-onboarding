@@ -605,6 +605,14 @@ class _FormWizardState extends State<FormWizard> {
     }
     if (!draft.hasAadhaar) missing.add((Strings.aadhaarNumber, 0));
     if (!draft.hasAccount) missing.add((Strings.accountNumber, 3));
+    // A mobile number, and an email when given, go in only once confirmed by OTP.
+    final address = draft.section('address');
+    if ('${address['mobile'] ?? ''}'.trim().isNotEmpty && !draft.mobileVerified) {
+      missing.add((Strings.mobileNotVerified, 1));
+    }
+    if ('${address['email'] ?? ''}'.trim().isNotEmpty && !draft.emailVerified) {
+      missing.add((Strings.emailNotVerified, 1));
+    }
     for (final (type, label) in const [
       ('photo', Strings.photo),
       ('aadhaar_front', Strings.aadhaarFront),
@@ -746,7 +754,6 @@ class _FormWizardState extends State<FormWizard> {
     final problems = _problems();
     final errors = _form.serverErrors;
     final doubtful = _doubtful.keys.where(_form.draft.hasDocument).toList();
-    final mobileGiven = '${_form.draft.section('address')['mobile'] ?? ''}'.trim().isNotEmpty;
     return _spaced([
       if (errors.isNotEmpty) ...[
         const Text(Strings.fixFirst, style: TextStyle(fontWeight: FontWeight.w600)),
@@ -779,16 +786,6 @@ class _FormWizardState extends State<FormWizard> {
           ),
         ),
       _checklist([...missing, for (final (path, _, step) in problems) (path, step)]),
-      if (mobileGiven && !_form.draft.mobileVerified)
-        ListTile(
-          key: const ValueKey('review.mobile_unverified'),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error),
-          title: const Text(Strings.mobileNotVerified),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => setState(() => _index = 1),
-        ),
       for (final type in doubtful)
         ListTile(
           dense: true,

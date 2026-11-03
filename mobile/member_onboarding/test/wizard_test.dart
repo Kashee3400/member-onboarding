@@ -298,6 +298,28 @@ void main() {
     expect(submit.onPressed, isNull);
   });
 
+  wizardTest('an unconfirmed mobile and email are still needed', (tester) async {
+    final controller = newController();
+    controller.draft.data['address'] = {'mobile': '9876543210', 'email': 'a@b.in'};
+    await pump(tester, controller);
+    await goToStep(tester, 9);
+
+    expect(find.text(Strings.mobileNotVerified), findsOneWidget);
+    expect(find.text(Strings.emailNotVerified), findsOneWidget);
+
+    final confirmed = newController();
+    confirmed.draft
+      ..data['address'] = {'mobile': '9876543210', 'email': 'a@b.in'}
+      ..mobileVerified = true
+      ..emailVerified = true;
+    await tester.pumpWidget(const SizedBox());
+    await pump(tester, confirmed);
+    await goToStep(tester, 9);
+
+    expect(find.text(Strings.mobileNotVerified), findsNothing);
+    expect(find.text(Strings.emailNotVerified), findsNothing);
+  });
+
   wizardTest('tapping a missing item jumps to its step', (tester) async {
     await pump(tester, newController());
     await goToStep(tester, 9);

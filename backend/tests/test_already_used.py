@@ -45,6 +45,7 @@ def submit_with(world, aadhaar, **address):
     data = complete_form()
     data["address"].update({"mobile": f"9{aadhaar[-9:]}", **address})
     client.patch(f"{URL}{application['id']}/", {"data": data})
+    world.verify_contacts(application["id"])
     return client.post(f"{URL}{application['id']}/submit/")
 
 

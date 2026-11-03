@@ -133,6 +133,7 @@ class Strings {
   static const enterMobileFirst = 'पहले मोबाइल नंबर भरें';
   static const enterEmailFirst = 'पहले ईमेल भरें';
   static const mobileNotVerified = 'मोबाइल नंबर सत्यापित नहीं है';
+  static const emailNotVerified = 'ईमेल सत्यापित नहीं है';
 
   static const review = 'जाँच करें';
   static const checklist = 'हर चरण की स्थिति';
