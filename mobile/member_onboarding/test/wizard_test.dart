@@ -8,6 +8,7 @@ import 'package:member_onboarding/src/api/onboarding_api.dart';
 import 'package:member_onboarding/src/config.dart';
 import 'package:member_onboarding/src/models/draft.dart';
 import 'package:member_onboarding/src/models/form_schema.dart';
+import 'package:member_onboarding/src/storage/document_vault.dart';
 import 'package:member_onboarding/src/storage/draft_store.dart';
 import 'package:member_onboarding/src/sync/draft_controller.dart';
 import 'package:member_onboarding/src/ui/device_services.dart';
@@ -66,6 +67,7 @@ DraftController newController({Draft? draft}) {
       ),
     ),
     store: MemoryDraftStore(),
+    vault: MemoryDocumentVault(),
     debounce: const Duration(hours: 1),
   );
   _live.add(controller);

@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
 import '../api/onboarding_api.dart';
 import '../models/draft.dart';
+import '../storage/document_vault.dart';
 import '../storage/draft_store.dart';
 import '../ui/strings.dart' show OtpWords, Taken;
 
@@ -17,14 +17,17 @@ class DraftController extends ChangeNotifier {
     required this.draft,
     required OnboardingApi api,
     required DraftStore store,
+    DocumentVault? vault,
     this.debounce = const Duration(seconds: 2),
     this.offlineRetry = const Duration(minutes: 1),
   }) : _api = api,
-       _store = store;
+       _store = store,
+       _vault = vault ?? SecureDocumentVault();
 
   final Draft draft;
   final OnboardingApi _api;
   final DraftStore _store;
+  final DocumentVault _vault;
   final Duration debounce;
 
   /// How often a form on screen tries again while there is no network.
@@ -73,11 +76,22 @@ class DraftController extends ChangeNotifier {
     _changed();
   }
 
-  void attachDocument(String type, String path) {
-    draft.pendingDocuments[type] = path;
+  /// Takes a new photo into the vault, in place of any earlier one of the same kind.
+  Future<void> attachDocument(String type, String path) async {
+    final kept = await _vault.keep(draft.clientId, type, path);
+    final earlier = draft.pendingDocuments[type];
+    draft.pendingDocuments[type] = kept;
     draft.uploadedDocuments.remove(type);
     _shown.remove(type);
+    if (earlier != null) await _vault.remove(earlier);
     _changed();
+  }
+
+  /// A photo to show: from the vault until it is sent, then from the server.
+  Future<Uint8List?> imageOf(String type) async {
+    final kept = draft.pendingDocuments[type];
+    if (kept != null) return _vault.read(kept);
+    return uploadedImage(type);
   }
 
   /// Photos already uploaded, fetched to show again. Kept in memory only: the phone
@@ -214,12 +228,18 @@ class DraftController extends ChangeNotifier {
       _refuseTaken(saved['duplicate_fields']);
 
       for (final entry in Map.of(draft.pendingDocuments).entries) {
-        final file = File(entry.value);
-        await _api.uploadDocument(draft.serverId!, entry.key, file);
+        final bytes = await _vault.read(entry.value);
+        if (bytes == null) {
+          // Gone from the phone: the form shows it as still to take, and cannot be sent.
+          draft.pendingDocuments.remove(entry.key);
+          continue;
+        }
+        final extension = entry.value.contains('.png') ? 'png' : 'jpg';
+        await _api.uploadDocument(draft.serverId!, entry.key, bytes, '${entry.key}.$extension');
         draft.pendingDocuments.remove(entry.key);
         draft.uploadedDocuments.add(entry.key);
         // The picture is on the server, so this copy of an ID card should go.
-        if (await file.exists()) await file.delete();
+        await _vault.remove(entry.value);
       }
 
       draft.needsSync = false;
@@ -257,6 +277,8 @@ class DraftController extends ChangeNotifier {
       _apply(submitted);
       serverErrors = const {};
       await _store.delete(draft.clientId);
+      // Nothing of a submitted form stays on the phone.
+      await _vault.removeAll(draft.clientId);
       notifyListeners();
       return true;
     } on OfflineException {

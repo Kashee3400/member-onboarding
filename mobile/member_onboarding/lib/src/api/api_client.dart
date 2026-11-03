@@ -164,12 +164,18 @@ class ApiClient {
     return _decode(response);
   }
 
-  Future<Object?> upload(String path, Map<String, String> fields, File file) async {
+  /// Sends a file from memory, so a decrypted photo never touches the disk.
+  Future<Object?> upload(
+    String path,
+    Map<String, String> fields,
+    List<int> bytes,
+    String filename,
+  ) async {
     final response = await _authorized((headers) async {
       final request = http.MultipartRequest('POST', _uri(path))
         ..headers.addAll(headers)
         ..fields.addAll(fields)
-        ..files.add(await http.MultipartFile.fromPath('file', file.path));
+        ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
       return http.Response.fromStream(await _client.send(request));
     });
     return _decode(response);

@@ -313,10 +313,16 @@ class _FormWizardState extends State<FormWizard> {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 14, color: shade),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 14, color: shade),
+          ),
           const SizedBox(width: 4),
-          Text(text, style: TextStyle(fontSize: 12.5, color: shade)),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 12.5, color: shade)),
+          ),
         ],
       ),
     );
@@ -343,9 +349,9 @@ class _FormWizardState extends State<FormWizard> {
 
   // Documents ---------------------------------------------------------------------------
 
-  void _attach(String type, String path) {
+  Future<void> _attach(String type, String path) async {
     _changed.add('documents.$type');
-    _form.attachDocument(type, path);
+    await _form.attachDocument(type, path);
   }
 
   /// A dark or blurred photo is caught now, not days later by the reviewer.
@@ -357,7 +363,7 @@ class _FormWizardState extends State<FormWizard> {
       if (!mounted) return;
       if (problem == null) {
         _doubtful.remove(type);
-        _attach(type, path);
+        await _attach(type, path);
         return;
       }
       final again = await showDialog<bool>(
@@ -380,18 +386,17 @@ class _FormWizardState extends State<FormWizard> {
       );
       if (again != true) {
         _doubtful[type] = problem;
-        _attach(type, path);
+        await _attach(type, path);
         return;
       }
     }
   }
 
   Widget _image(String type, {BoxFit fit = BoxFit.cover}) => DocumentImage(
-    key: ValueKey('image.$type.${_form.draft.pendingDocuments[type]}'),
+    // A new photo is a new key, so the old picture is not shown in its place.
+    key: ValueKey('image.$type.${_form.draft.pendingDocuments[type]}.${_form.draft.hasDocument(type)}'),
     type: type,
-    localPath: _form.draft.pendingDocuments[type],
-    uploaded: _form.draft.uploadedDocuments.contains(type),
-    load: _form.uploadedImage,
+    load: _form.imageOf,
     fit: fit,
   );
 
@@ -1130,7 +1135,7 @@ class _FormWizardState extends State<FormWizard> {
           for (final spec in _schema.section('nominee').fields)
             if (spec.key == 'date_of_birth') ...[
               _field('nominee', spec, onSaved: _syncFamilyFromNominee),
-              _note(Icons.info_outline, Strings.yearOnlyHint),
+              _note(Icons.info_outline, Strings.yearOnlyHint, Colors.amber.shade900),
             ] else if (spec.key == 'address') ...[
               _field('nominee', spec),
               if (memberAddress.isNotEmpty)
@@ -1167,7 +1172,7 @@ class _FormWizardState extends State<FormWizard> {
     final path = await Navigator.of(
       context,
     ).push<String>(MaterialPageRoute(builder: (_) => const SignaturePadScreen()));
-    if (path != null) _attach('member_signature', path);
+    if (path != null) await _attach('member_signature', path);
   }
 
   Widget _signatureCard() {

@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:member_onboarding/src/api/api_client.dart';
 import 'package:member_onboarding/src/api/onboarding_api.dart';
 import 'package:member_onboarding/src/config.dart';
 import 'package:member_onboarding/src/models/draft.dart';
+import 'package:member_onboarding/src/storage/document_vault.dart';
 import 'package:member_onboarding/src/storage/draft_store.dart';
 import 'package:member_onboarding/src/sync/draft_controller.dart';
 import 'package:member_onboarding/src/ui/strings.dart';
@@ -66,10 +68,18 @@ class FakeApi extends OnboardingApi {
   }
 
   @override
-  Future<void> uploadDocument(String id, String documentType, File file) async {
+  Future<void> uploadDocument(
+    String id,
+    String documentType,
+    List<int> bytes,
+    String filename,
+  ) async {
     _maybeFail();
     uploads.add(documentType);
+    uploadedBytes[documentType] = bytes;
   }
+
+  final Map<String, List<int>> uploadedBytes = {};
 
   @override
   Future<Map<String, dynamic>> submitApplication(String id, int version) async {
@@ -84,15 +94,18 @@ class FakeApi extends OnboardingApi {
 void main() {
   late FakeApi api;
   late MemoryDraftStore store;
+  late MemoryDocumentVault vault;
   late DraftController controller;
 
   setUp(() {
     api = FakeApi();
     store = MemoryDraftStore();
+    vault = MemoryDocumentVault();
     controller = DraftController(
       draft: Draft(clientId: 'c1', mppId: 'm1', mppLabel: '1305 Test'),
       api: api,
       store: store,
+      vault: vault,
       debounce: const Duration(hours: 1),
     );
   });
@@ -181,16 +194,63 @@ void main() {
     expect(controller.draft.pendingAadhaar, '234123412346');
   });
 
+  test('a photo goes into the vault, not left where the camera put it', () async {
+    final folder = await Directory.systemTemp.createTemp();
+    final file = File('${folder.path}/card.jpg')..writeAsBytesSync([1, 2, 3]);
+
+    await controller.attachDocument('aadhaar_front', file.path);
+
+    expect(file.existsSync(), isFalse);
+    expect(await controller.imageOf('aadhaar_front'), [1, 2, 3]);
+  });
+
   test('uploaded pictures are removed from the phone', () async {
     final folder = await Directory.systemTemp.createTemp();
     final file = File('${folder.path}/card.jpg')..writeAsBytesSync([1, 2, 3]);
 
-    controller.attachDocument('aadhaar_front', file.path);
+    await controller.attachDocument('aadhaar_front', file.path);
     await controller.sync();
 
     expect(api.uploads, ['aadhaar_front']);
+    expect(api.uploadedBytes['aadhaar_front'], [1, 2, 3]);
     expect(controller.draft.uploadedDocuments, contains('aadhaar_front'));
-    expect(file.existsSync(), isFalse);
+    expect(vault.files, isEmpty);
+  });
+
+  test('a retaken photo replaces the earlier one in the vault', () async {
+    final folder = await Directory.systemTemp.createTemp();
+    for (final bytes in [
+      [1],
+      [2],
+    ]) {
+      final file = File('${folder.path}/p${bytes.first}.jpg')..writeAsBytesSync(bytes);
+      await controller.attachDocument('photo', file.path);
+    }
+
+    expect(vault.files, hasLength(1));
+    expect(await controller.imageOf('photo'), [2]);
+  });
+
+  test('a photo lost from the phone is not sent, and shows as still to take', () async {
+    controller.draft
+      ..pendingDocuments['passbook'] = 'vault://c1/gone'
+      ..needsSync = true;
+
+    await controller.sync();
+
+    expect(api.uploads, isEmpty);
+    expect(controller.draft.hasDocument('passbook'), isFalse);
+  });
+
+  test('a submitted form leaves nothing in the vault', () async {
+    final folder = await Directory.systemTemp.createTemp();
+    final file = File('${folder.path}/sign.png')..writeAsBytesSync([9]);
+    await controller.attachDocument('member_signature', file.path);
+    vault.files['vault://c1/left-over'] = Uint8List(1);
+
+    expect(await controller.submit(), isTrue);
+
+    expect(vault.files, isEmpty);
   });
 
   test('a stale edit becomes a conflict, not an overwrite', () async {

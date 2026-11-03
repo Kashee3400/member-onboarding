@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -123,35 +121,31 @@ class ChipChoice extends StatelessWidget {
 /// Where a document photo comes from: the phone until it is sent, then the server.
 typedef UploadedImage = Future<Uint8List?> Function(String type);
 
-/// A taken photo, from the phone's file or, once uploaded, fetched again.
-class DocumentImage extends StatelessWidget {
-  const DocumentImage({
-    required this.type,
-    required this.localPath,
-    required this.uploaded,
-    required this.load,
-    this.fit = BoxFit.cover,
-    super.key,
-  });
+/// A taken photo: decrypted from the vault until it is sent, then fetched again.
+class DocumentImage extends StatefulWidget {
+  const DocumentImage({required this.type, required this.load, this.fit = BoxFit.cover, super.key});
 
   final String type;
-  final String? localPath;
-  final bool uploaded;
   final UploadedImage load;
   final BoxFit fit;
 
   @override
+  State<DocumentImage> createState() => _DocumentImageState();
+}
+
+class _DocumentImageState extends State<DocumentImage> {
+  late final Future<Uint8List?> _bytes = widget.load(widget.type);
+
+  @override
   Widget build(BuildContext context) {
-    final path = localPath;
-    if (path != null) {
-      return Image.file(File(path), fit: fit, errorBuilder: (_, _, _) => const _NoImage());
-    }
-    if (!uploaded) return const _NoImage();
+    final fit = widget.fit;
     return FutureBuilder<Uint8List?>(
-      future: load(type),
+      future: _bytes,
       builder: (context, snapshot) {
         final bytes = snapshot.data;
-        if (bytes != null) return Image.memory(bytes, fit: fit);
+        if (bytes != null && bytes.isNotEmpty) {
+          return Image.memory(bytes, fit: fit, errorBuilder: (_, _, _) => const _NoImage());
+        }
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)));
         }

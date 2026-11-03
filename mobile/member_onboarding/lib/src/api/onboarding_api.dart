@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'api_client.dart';
 
@@ -206,8 +205,18 @@ class OnboardingApi {
           })
           as Map<String, dynamic>;
 
-  Future<void> uploadDocument(String id, String documentType, File file) async {
-    await _client.upload('applications/$id/documents/', {'document_type': documentType}, file);
+  Future<void> uploadDocument(
+    String id,
+    String documentType,
+    List<int> bytes,
+    String filename,
+  ) async {
+    await _client.upload(
+      'applications/$id/documents/',
+      {'document_type': documentType},
+      bytes,
+      filename,
+    );
   }
 
   /// Document type to id, for the photos already uploaded to a form.
