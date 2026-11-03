@@ -42,7 +42,42 @@ Migrations and role updates run before the new backend starts.
 
 ## Backups
 
-Schedule `backup.sh` nightly. Test a restore on a spare machine before relying on it.
+A restore needs three things, kept in three places:
+
+| What | Where it is backed up |
+|---|---|
+| Database | The DB server's nightly `pg_backup.ps1` (erp_master), which dumps every database as `postgres` |
+| Uploaded files | `backup.sh` on the app server, nightly from cron |
+| `FIELD_ENCRYPTION_KEYS` | The password manager, never beside the backups |
+
+Every table is row-level secured with FORCE, so `pg_dump` as the owner fails. Dump
+as a superuser, or as a role with `BYPASSRLS` (set `BACKUP_DATABASE_URL` for
+`backup.sh` to take the dump itself).
+
+On the app server, as root:
+
+```bash
+mkdir -p /var/backups/member-onboarding
+echo '15 2 * * * root BACKUP_DIR=/var/backups/member-onboarding /opt/member-onboarding/app/deploy/backup.sh' > /etc/cron.d/member-onboarding-backup
+```
+
+Set `COPY_TO` (any rsync target) once the NAS is ready, so a copy leaves the machine.
+
+`windows/restore_check.ps1` is the weekly restore drill on the DB server: it restores
+the newest dump into a scratch database, logs each organization's counts and drops it.
+
+### One organization
+
+```bash
+python manage.py export_organization kashee --out /var/backups/member-onboarding/orgs
+```
+
+writes that organization's rows and sealed files to one archive with a manifest of
+counts, for handing an organization its records or answering a legal request. To get
+one organization back as it was on a given night, restore that night's dump into a
+scratch database and export it from there. Loading an archive back into a live
+database is not built yet: it needs an import command that writes inside the
+organization's context.
 
 ## Scheduled jobs
 
