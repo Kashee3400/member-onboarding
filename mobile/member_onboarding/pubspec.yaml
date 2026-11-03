@@ -29,6 +29,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # What each document photo should look like, shown until it is taken.
+  assets:
+    - assets/placeholders/
 
   # To add assets to your package, add an assets section, like this:
   # assets:

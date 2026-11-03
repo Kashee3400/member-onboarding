@@ -176,6 +176,7 @@ class DocumentTile extends StatelessWidget {
     required this.image,
     required this.onTake,
     required this.onOpen,
+    this.placeholder,
     this.uploaded = false,
     this.doubtful = false,
     this.error,
@@ -184,6 +185,9 @@ class DocumentTile extends StatelessWidget {
 
   final String label;
   final String hint;
+
+  /// A sample of what to photograph, from this package's assets, shown until it is taken.
+  final String? placeholder;
   final IconData icon;
   final bool taken;
   final bool uploaded;
@@ -222,8 +226,8 @@ class DocumentTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AspectRatio(
-                aspectRatio: 4 / 3,
+              SizedBox(
+                height: 200,
                 child: taken
                     ? Stack(
                         fit: StackFit.expand,
@@ -246,41 +250,79 @@ class DocumentTile extends StatelessWidget {
                           ),
                         ],
                       )
-                    : Container(
-                        color: scheme.surfaceContainerHigh,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(icon, size: 34, color: scheme.primary),
-                            const SizedBox(height: 6),
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(color: scheme.surfaceContainerHigh),
+                          if (placeholder != null)
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text(
-                                hint,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                              padding: const EdgeInsets.all(14),
+                              child: Opacity(
+                                opacity: 0.55,
+                                child: Image.asset(
+                                  placeholder!,
+                                  package: 'member_onboarding',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                                ),
+                              ),
+                            )
+                          else
+                            Center(child: Icon(icon, size: 40, color: scheme.primary)),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 12,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.photo_camera_outlined, size: 18, color: scheme.onPrimary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      Strings.takePhoto,
+                                      style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+                padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            taken ? Strings.tapToZoom : hint,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     ),
                     Icon(
                       taken ? Icons.check_circle : Icons.photo_camera_outlined,
-                      size: 20,
+                      size: 24,
                       color: taken ? Colors.green.shade600 : scheme.primary,
                     ),
                   ],

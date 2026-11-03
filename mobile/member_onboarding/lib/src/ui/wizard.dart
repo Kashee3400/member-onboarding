@@ -440,15 +440,11 @@ class _FormWizardState extends State<FormWizard> {
         trailing: '$taken / ${_photos.length}',
         done: taken == _photos.length,
       ),
-      GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.98,
+      // One under another: each card shows the sample of what to photograph.
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final (type, label, hint, icon) in _photos)
+          for (final (type, label, hint, icon) in _photos) ...[
             DocumentTile(
               key: ValueKey('document.$type'),
               label: label,
@@ -461,9 +457,12 @@ class _FormWizardState extends State<FormWizard> {
                   _errorFor('documents.$type') ??
                   (_tried.contains(0) && !draft.hasDocument(type) ? Strings.required : null),
               image: _image(type),
+              placeholder: 'assets/placeholders/$type.webp',
               onTake: () => _capture(type),
               onOpen: () => _view(type),
             ),
+            const SizedBox(height: 12),
+          ],
         ],
       ),
     ]);
