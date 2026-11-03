@@ -376,9 +376,44 @@ class _FormWizardState extends State<FormWizard> {
   }
 
   /// A dark or blurred photo is caught now, not days later by the reviewer.
+  /// Camera or gallery: a document may already be on the phone.
+  Future<bool?> _askSource(String type) => showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              _documentLabels[type] ?? type,
+              style: Theme.of(sheet).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          ListTile(
+            key: const ValueKey('source.camera'),
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text(Strings.useCamera),
+            onTap: () => Navigator.pop(sheet, true),
+          ),
+          ListTile(
+            key: const ValueKey('source.gallery'),
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text(Strings.fromGallery),
+            onTap: () => Navigator.pop(sheet, false),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+
   Future<void> _capture(String type) async {
+    final camera = await _askSource(type);
+    if (camera == null || !mounted) return;
     while (true) {
-      final path = await widget.device.takePhoto();
+      final path = await (camera ? widget.device.takePhoto() : widget.device.choosePhoto());
       if (path == null) return;
       final problem = await widget.device.checkPhoto(path);
       if (!mounted) return;

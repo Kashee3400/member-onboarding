@@ -460,6 +460,8 @@ void main() {
 
     await tester.tap(find.text(Strings.aadhaarFront));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source.camera')));
+    await tester.pumpAndSettle();
     expect(find.text(Strings.photoBlurry), findsOneWidget);
     expect(controller.draft.hasDocument('aadhaar_front'), isFalse);
 
@@ -476,8 +478,23 @@ void main() {
 
     await tester.tap(find.text(Strings.passbook));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source.camera')));
+    await tester.pumpAndSettle();
 
     expect(find.text(Strings.photoBlurry), findsNothing);
+    expect(controller.draft.hasDocument('passbook'), isTrue);
+  });
+
+  wizardTest('a document can come from the gallery too', (tester) async {
+    final controller = newController();
+    await pumpWith(tester, controller, const _FakeDevice());
+
+    await tester.tap(find.text(Strings.passbook));
+    await tester.pumpAndSettle();
+    expect(find.text(Strings.fromGallery), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('source.gallery')));
+    await tester.pumpAndSettle();
+
     expect(controller.draft.hasDocument('passbook'), isTrue);
   });
 
@@ -916,6 +933,9 @@ class _FakeDevice extends DeviceServices {
 
   @override
   Future<String?> takePhoto() async => '/tmp/photo.jpg';
+
+  @override
+  Future<String?> choosePhoto() async => '/tmp/gallery.jpg';
 
   @override
   Future<PhotoProblem?> checkPhoto(String path) async => problem;

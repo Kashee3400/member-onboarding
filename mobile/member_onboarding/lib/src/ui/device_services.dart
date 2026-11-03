@@ -19,6 +19,17 @@ class DeviceServices {
   static const _maxImageWidth = 1600.0;
   static const _imageQuality = 75;
 
+  /// A photo already on the phone, such as one the member sent on WhatsApp. The picker
+  /// hands over a copy, so the gallery's own picture is never touched.
+  Future<String?> choosePhoto() async {
+    final photo = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: _maxImageWidth,
+      imageQuality: _imageQuality,
+    );
+    return photo?.path;
+  }
+
   Future<String?> takePhoto() async {
     final photo = await ImagePicker().pickImage(
       source: ImageSource.camera,
