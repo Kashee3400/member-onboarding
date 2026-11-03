@@ -1,0 +1,8 @@
+# For a server whose own nginx already holds ports 80 and 443 (10.10.11.4).
+# Start only the API side; the portal is hosted elsewhere:
+#   docker compose -p member_onboarding -f ../docker-compose.yml -f docker-compose.host.yml \
+#     up -d --build backend worker beat
+services:
+  backend:
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8002}:8000"
