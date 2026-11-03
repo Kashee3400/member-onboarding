@@ -4,7 +4,11 @@ import { History } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FormDialog } from "@/components/admin/form-dialog";
-import { DataTable, type Column } from "@/components/common/data-table";
+import {
+  DataTable,
+  FilterSelect,
+  type Column,
+} from "@/components/common/data-table";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
@@ -14,11 +18,22 @@ import type { AuditEvent } from "@/lib/types";
 
 const shortId = (id: string | null | undefined) => (id ? id.slice(-8) : "—");
 
-function EventDetail({ event, actor, onClose }: { event: AuditEvent; actor: string; onClose: () => void }) {
+function EventDetail({
+  event,
+  actor,
+  onClose,
+}: {
+  event: AuditEvent;
+  actor: string;
+  onClose: () => void;
+}) {
   const rows: [string, string][] = [
     ["When", dateTime(event.occurred_at)],
     ["Who", actor],
-    ["Target", event.target_type ? `${event.target_type} ${event.target_id}` : "—"],
+    [
+      "Target",
+      event.target_type ? `${event.target_type} ${event.target_id}` : "—",
+    ],
     ["IP address", event.ip_address ?? "—"],
   ];
   return (
@@ -48,13 +63,26 @@ function EventDetail({ event, actor, onClose }: { event: AuditEvent; actor: stri
   );
 }
 
+// Every way someone sees a member's personal data, for a data protection review.
+const PERSONAL_DATA = [
+  "document.viewed",
+  "application.numbers_viewed",
+  "application.pdf_downloaded",
+  "application.pdf_previewed",
+  "application.data_exported",
+  "report.exported",
+  "report.pdf_batch_downloaded",
+].join(",");
+
 export default function AuditPage() {
   const me = useMe();
   const [open, setOpen] = useState<AuditEvent | null>(null);
 
   const actorOf = (event: AuditEvent) => {
     if (!event.actor_id) return "System";
-    return event.actor_id === me.id ? "You" : event.actor_name || `Staff …${shortId(event.actor_id)}`;
+    return event.actor_id === me.id
+      ? "You"
+      : event.actor_name || `Staff …${shortId(event.actor_id)}`;
   };
 
   const columns = useMemo<Column<AuditEvent>[]>(
@@ -65,7 +93,11 @@ export default function AuditPage() {
         required: true,
         sortKey: "occurred_at",
         csv: (row) => dateTime(row.occurred_at),
-        cell: (row) => <span className="whitespace-nowrap tabular-nums">{dateTime(row.occurred_at)}</span>,
+        cell: (row) => (
+          <span className="whitespace-nowrap tabular-nums">
+            {dateTime(row.occurred_at)}
+          </span>
+        ),
       },
       {
         id: "action",
@@ -78,7 +110,9 @@ export default function AuditPage() {
         id: "actor",
         header: "Who",
         csv: (row) => row.actor_name || row.actor_id || "System",
-        cell: (row) => <span className="text-muted-foreground">{actorOf(row)}</span>,
+        cell: (row) => (
+          <span className="text-muted-foreground">{actorOf(row)}</span>
+        ),
       },
       {
         id: "target",
@@ -88,7 +122,11 @@ export default function AuditPage() {
         cell: (row) => (
           <span className="text-muted-foreground">
             {row.target_type || "—"}
-            {row.target_id ? <span className="ml-1 font-mono text-xs">…{shortId(row.target_id)}</span> : null}
+            {row.target_id ? (
+              <span className="ml-1 font-mono text-xs">
+                …{shortId(row.target_id)}
+              </span>
+            ) : null}
           </span>
         ),
       },
@@ -97,7 +135,11 @@ export default function AuditPage() {
         header: "IP address",
         hideBelow: "lg",
         csv: (row) => row.ip_address ?? "",
-        cell: (row) => <span className="font-mono text-xs text-muted-foreground">{row.ip_address ?? "—"}</span>,
+        cell: (row) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.ip_address ?? "—"}
+          </span>
+        ),
       },
       {
         id: "details",
@@ -106,7 +148,9 @@ export default function AuditPage() {
         csv: (row) => JSON.stringify(row.metadata),
         cell: (row) => (
           <code className="line-clamp-1 max-w-64 text-xs text-muted-foreground">
-            {Object.keys(row.metadata).length ? JSON.stringify(row.metadata) : "—"}
+            {Object.keys(row.metadata).length
+              ? JSON.stringify(row.metadata)
+              : "—"}
           </code>
         ),
       },
@@ -117,19 +161,43 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader title="Audit Log" description="A permanent record of who did what. Press a row for its details." />
+      <PageHeader
+        title="Audit Log"
+        description="A permanent record of who did what. Press a row for its details."
+      />
       <DataTable<AuditEvent>
         id="audit"
         endpoint="audit/events"
         columns={columns}
         rowKey={(row) => row.id}
         searchPlaceholder="Search action or target"
+        filters={({ filters, setFilter }) => (
+          <FilterSelect
+            label="Show"
+            allLabel="Everything"
+            value={filters.action__in}
+            onChange={(value) => setFilter("action__in", value)}
+            options={{ [PERSONAL_DATA]: "Personal data looked at" }}
+          />
+        )}
         defaultOrdering="-occurred_at"
         exportName="audit-log"
         onRowClick={setOpen}
-        empty={<EmptyState icon={History} title="No events found" description="Try another search." />}
+        empty={
+          <EmptyState
+            icon={History}
+            title="No events found"
+            description="Try another search."
+          />
+        }
       />
-      {open ? <EventDetail event={open} actor={actorOf(open)} onClose={() => setOpen(null)} /> : null}
+      {open ? (
+        <EventDetail
+          event={open}
+          actor={actorOf(open)}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
     </>
   );
 }

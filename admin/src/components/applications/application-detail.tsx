@@ -3,47 +3,48 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Archive,
   ArrowLeft,
   BadgeCheck,
+  Building2,
+  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
   CircleX,
-  Building2,
-  CalendarDays,
   CreditCard,
+  Eye,
+  FileDown,
+  FileSearch,
+  FileText,
   GraduationCap,
   Hash,
+  HeartHandshake,
+  History as HistoryIcon,
+  House,
   IdCard,
+  IndianRupee,
+  Landmark,
   LocateFixed,
   Lock,
   Mail,
   Mailbox,
   Map as MapIcon,
+  MapPin,
+  Milk,
   Phone,
+  RotateCcw,
+  ScrollText,
   Smartphone,
   Tag,
   TextCursor,
-  UsersRound,
-  Wallet,
-  Eye,
-  FileDown,
-  FileSearch,
-  FileText,
-  HeartHandshake,
-  History as HistoryIcon,
-  House,
-  IndianRupee,
-  Landmark,
-  MapPin,
-  Milk,
-  RotateCcw,
-  ScrollText,
+  type LucideIcon,
   UserRound,
   Users,
+  UsersRound,
+  Wallet,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -60,20 +61,43 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useCan } from "@/hooks/use-session";
 import { api } from "@/lib/api/client";
 import { date, dateTime, humanize, initials } from "@/lib/format";
 import { choiceLabel } from "@/lib/form-options";
-import type { ApplicationDetail as Application, ApplicationDocument, FormSchema } from "@/lib/types";
+import type {
+  ApplicationDetail as Application,
+  ApplicationDocument,
+  FormSchema,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import { changesOf, type Change, type Changes } from "./changes";
-import { APPROVE_ALL, STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./constants";
+import {
+  APPROVE_ALL,
+  STAGE_LABEL,
+  STAGE_PERMISSION,
+  STAGE_QUEUE,
+} from "./constants";
 import { CopyButton } from "./copy-button";
 import { DecisionBar } from "./decision-bar";
 import { CheckedList, StepChecklist } from "./step-checklist";
-import { EXTRA_LABELS, FieldMarksProvider, MarkButton, MarkNotes, useFieldMarks, useMarksOn } from "./field-marks";
+import {
+  EXTRA_LABELS,
+  FieldMarksProvider,
+  MarkButton,
+  MarkNotes,
+  useFieldMarks,
+  useMarksOn,
+} from "./field-marks";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
@@ -93,7 +117,11 @@ const ANIMAL_COLUMNS = [
   ["dry", "Dry"],
   ["in_milk", "In milk"],
 ] as const;
-const ANIMAL_KEYS = new Set(ANIMAL_ROWS.flatMap(([kind]) => ANIMAL_COLUMNS.map(([state]) => `${kind}_${state}`)));
+const ANIMAL_KEYS = new Set(
+  ANIMAL_ROWS.flatMap(([kind]) =>
+    ANIMAL_COLUMNS.map(([state]) => `${kind}_${state}`),
+  ),
+);
 
 function shown(field: SchemaField, value: unknown) {
   if (value === true) return "Yes";
@@ -104,8 +132,18 @@ function shown(field: SchemaField, value: unknown) {
 }
 
 /** Two columns of read-only fields, laid out as the old portal had them. */
-function Facts({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <dl className={cn("grid gap-x-6 gap-y-4 sm:grid-cols-2", className)}>{children}</dl>;
+function Facts({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <dl className={cn("grid gap-x-6 gap-y-4 sm:grid-cols-2", className)}>
+      {children}
+    </dl>
+  );
 }
 
 /** Read in order: the first match wins, so the specific comes before the general. */
@@ -138,7 +176,8 @@ const FIELD_ICONS: [RegExp, LucideIcon][] = [
 ];
 
 /** Where in FIELD_ICONS a label's icon is, or -1 for none. */
-const iconIndex = (label: string) => FIELD_ICONS.findIndex(([pattern]) => pattern.test(label));
+const iconIndex = (label: string) =>
+  FIELD_ICONS.findIndex(([pattern]) => pattern.test(label));
 
 function Fact({
   label,
@@ -170,13 +209,22 @@ function Fact({
   const marks = useMarksOn(path);
   const red = flagged || marks.length > 0;
   const found = iconIndex(label);
-  const Icon = red ? AlertTriangle : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
+  const Icon = red
+    ? AlertTriangle
+    : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
   return (
     <div className="min-w-0 space-y-1.5">
-      <dt className={cn("text-xs font-medium", red ? "text-destructive" : "text-foreground/80")}>
+      <dt
+        className={cn(
+          "text-xs font-medium",
+          red ? "text-destructive" : "text-foreground/80",
+        )}
+      >
         {label}
         {change ? (
-          <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-300">Changed</span>
+          <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-300">
+            Changed
+          </span>
         ) : null}
       </dt>
       {/* A read-only field: looks like the box it was typed into, and cannot be edited. */}
@@ -184,20 +232,33 @@ function Fact({
         aria-readonly="true"
         className={cn(
           "flex min-h-10 items-center gap-2.5 border bg-muted/40 px-3 py-1.5 text-sm",
-          red && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
+          red &&
+            "border-destructive/60 bg-destructive/5 font-medium text-destructive",
           change && !red && "border-amber-500/60 bg-amber-500/10",
-          warning && !red && "border-amber-500/70 border-l-4 border-l-amber-500",
+          warning &&
+            !red &&
+            "border-amber-500/70 border-l-4 border-l-amber-500",
         )}
       >
-        <Icon className={cn("size-4 shrink-0", red ? "text-destructive" : "text-muted-foreground/80")} />
-        <span className="min-w-0 flex-1 wrap-break-word">{children ?? <span className="text-muted-foreground">—</span>}</span>
+        <Icon
+          className={cn(
+            "size-4 shrink-0",
+            red ? "text-destructive" : "text-muted-foreground/80",
+          )}
+        />
+        <span className="min-w-0 flex-1 wrap-break-word">
+          {children ?? <span className="text-muted-foreground">—</span>}
+        </span>
         {trailing}
         {path ? <MarkButton path={path} label={label} /> : null}
       </dd>
       <MarkNotes marks={marks} note={note} />
       {change ? (
         <p className="text-xs text-muted-foreground">
-          Was: <span className="line-through decoration-muted-foreground/50">{change.before || "empty"}</span>
+          Was:{" "}
+          <span className="line-through decoration-muted-foreground/50">
+            {change.before || "empty"}
+          </span>
         </p>
       ) : null}
       {warning ? (
@@ -224,15 +285,20 @@ function ChangesSummary({
   onOpen: (section: string) => void;
 }) {
   const rejection = application.decisions
-    .filter((item) => item.decision === "rejected" && item.revision === changes.since)
+    .filter(
+      (item) => item.decision === "rejected" && item.revision === changes.since,
+    )
     .at(-1);
   const nothing = !changes.fields.length && !changes.documents.size;
   return (
     <div className="space-y-2 border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
       <p className="flex items-center gap-2 font-medium">
         <RotateCcw className="size-4 text-amber-600 dark:text-amber-400" />
-        Sent again. {nothing ? "Nothing changed" : `${changes.fields.length + changes.documents.size} changes`} since
-        submission {changes.since}.
+        Sent again.{" "}
+        {nothing
+          ? "Nothing changed"
+          : `${changes.fields.length + changes.documents.size} changes`}{" "}
+        since submission {changes.since}.
       </p>
       {rejection?.reason ? (
         <p className="text-muted-foreground">
@@ -282,7 +348,11 @@ function Section({
 }) {
   const Icon = SECTION_ICONS[id] ?? FileText;
   return (
-    <Card id={`section-${id}`} data-section={id} className={cn("scroll-mt-28 gap-4 p-5", className)}>
+    <Card
+      id={`section-${id}`}
+      data-section={id}
+      className={cn("scroll-mt-28 gap-4 p-5", className)}
+    >
       <h2 className="flex items-center gap-2.5 text-sm font-semibold">
         <span className="flex size-7 items-center justify-center bg-primary/10 text-primary">
           <Icon className="size-4" />
@@ -318,18 +388,26 @@ function FormSection({
   changes: Changes;
 }) {
   const values = application.data[section.key] ?? {};
-  const fields = section.fields.filter((field) => !(section.key === "animals" && ANIMAL_KEYS.has(field.key)));
+  const fields = section.fields.filter(
+    (field) => !(section.key === "animals" && ANIMAL_KEYS.has(field.key)),
+  );
   const verified = application.contact_verified;
   return (
     <Section id={section.key} title={section.title}>
-      {section.key === "animals" ? <AnimalGrid application={application} /> : null}
+      {section.key === "animals" ? (
+        <AnimalGrid application={application} />
+      ) : null}
       <Facts>
         {/* Older forms have no village of their own, so it comes from the MPP. */}
         {section.key === "address" && values.village_name === undefined ? (
           <Fact label="Village">{application.place.village_name}</Fact>
         ) : null}
         {section.key === "animals" ? (
-          <Fact label="Details as on">{application.place.as_on_date ? date(application.place.as_on_date) : null}</Fact>
+          <Fact label="Details as on">
+            {application.place.as_on_date
+              ? date(application.place.as_on_date)
+              : null}
+          </Fact>
         ) : null}
         {fields.map((field) => {
           const path = `${section.key}.${field.key}`;
@@ -344,9 +422,19 @@ function FormSection({
               warning={application.field_warnings?.[path]}
               trailing={
                 path === "address.mobile" || path === "address.email" ? (
-                  <Verified at={path === "address.mobile" ? verified.mobile : verified.email} given={!!values[field.key]} />
+                  <Verified
+                    at={
+                      path === "address.mobile"
+                        ? verified.mobile
+                        : verified.email
+                    }
+                    given={!!values[field.key]}
+                  />
                 ) : field.locked && application.mpp_place?.[field.key] ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground" title="Filled from the MPP">
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+                    title="Filled from the MPP"
+                  >
                     <Lock className="size-3.5" /> MPP
                   </span>
                 ) : null
@@ -358,7 +446,9 @@ function FormSection({
         })}
         {section.key === "animals" ? (
           <Fact label="Surplus">
-            <span className="font-medium">{application.computed.surplus_lpd} litres a day</span>
+            <span className="font-medium">
+              {application.computed.surplus_lpd} litres a day
+            </span>
           </Fact>
         ) : null}
       </Facts>
@@ -423,7 +513,11 @@ function StageTrack({ application }: { application: Application }) {
   const stages = ["pending_am", "pending_cs", "pending_finance"];
   const stopped =
     application.status === "rejected"
-      ? application.decisions.find((item) => item.decision === "rejected" && item.revision === application.revision)?.stage
+      ? application.decisions.find(
+          (item) =>
+            item.decision === "rejected" &&
+            item.revision === application.revision,
+        )?.stage
       : undefined;
   const reached =
     application.status === "approved"
@@ -435,16 +529,35 @@ function StageTrack({ application }: { application: Application }) {
     { label: "Facilitator", state: application.revision ? "done" : "current" },
     ...stages.map((stage, index) => ({
       label: STAGE_LABEL[stage],
-      state: stage === stopped ? "stopped" : index < reached ? "done" : index === reached ? "current" : "todo",
+      state:
+        stage === stopped
+          ? "stopped"
+          : index < reached
+            ? "done"
+            : index === reached
+              ? "current"
+              : "todo",
     })),
-    { label: "Member", state: application.status === "approved" ? "done" : "todo" },
+    {
+      label: "Member",
+      state: application.status === "approved" ? "done" : "todo",
+    },
   ];
   return (
-    <ol aria-label="Progress" className="flex items-center gap-1 overflow-x-auto py-0.5">
+    <ol
+      aria-label="Progress"
+      className="flex items-center gap-1 overflow-x-auto py-0.5"
+    >
       {steps.map((step, index) => (
         <li key={step.label} className="flex shrink-0 items-center gap-1">
           {index ? (
-            <span aria-hidden className={cn("h-px w-4 sm:w-7", step.state === "todo" ? "bg-border" : "bg-primary/50")} />
+            <span
+              aria-hidden
+              className={cn(
+                "h-px w-4 sm:w-7",
+                step.state === "todo" ? "bg-border" : "bg-primary/50",
+              )}
+            />
           ) : null}
           <span
             aria-current={step.state === "current" ? "step" : undefined}
@@ -452,8 +565,10 @@ function StageTrack({ application }: { application: Application }) {
               "flex items-center gap-1.5 px-2 py-1 text-xs",
               step.state === "done" && "text-foreground",
               step.state === "todo" && "text-muted-foreground",
-              step.state === "current" && "bg-primary/10 font-medium text-primary",
-              step.state === "stopped" && "bg-destructive/10 font-medium text-destructive",
+              step.state === "current" &&
+                "bg-primary/10 font-medium text-primary",
+              step.state === "stopped" &&
+                "bg-destructive/10 font-medium text-destructive",
             )}
           >
             {step.state === "done" ? (
@@ -461,7 +576,12 @@ function StageTrack({ application }: { application: Application }) {
             ) : step.state === "stopped" ? (
               <X className="size-3.5" />
             ) : (
-              <span className={cn("size-1.5 rounded-full", step.state === "current" ? "bg-primary" : "bg-border")} />
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  step.state === "current" ? "bg-primary" : "bg-border",
+                )}
+              />
             )}
             {step.label}
           </span>
@@ -505,7 +625,9 @@ function StepTabs({
             onClick={() => onPick(step.key)}
             className={cn(
               "flex min-w-36 shrink-0 items-center gap-2.5 border px-3 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-              current ? "border-primary bg-primary/8 shadow-(--lift)" : "bg-card hover:border-foreground/25",
+              current
+                ? "border-primary bg-primary/8 shadow-(--lift)"
+                : "bg-card hover:border-foreground/25",
             )}
           >
             <span
@@ -523,7 +645,14 @@ function StepTabs({
               {done ? <Check className="size-4" /> : step.number}
             </span>
             <span className="min-w-0">
-              <span className={cn("block truncate text-sm", current && "font-medium")}>{step.title}</span>
+              <span
+                className={cn(
+                  "block truncate text-sm",
+                  current && "font-medium",
+                )}
+              >
+                {step.title}
+              </span>
               <span
                 className={cn(
                   "block text-[11px]",
@@ -547,7 +676,9 @@ function StepTabs({
           onClick={() => onPick(extra.key)}
           className={cn(
             "flex shrink-0 items-center gap-2 border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            active === extra.key ? "border-primary bg-primary/8 font-medium" : "bg-card hover:border-foreground/25",
+            active === extra.key
+              ? "border-primary bg-primary/8 font-medium"
+              : "bg-card hover:border-foreground/25",
           )}
         >
           <HistoryIcon className="size-4 text-muted-foreground" /> {extra.label}
@@ -595,13 +726,22 @@ function FamilySection({
 }) {
   const marks = useMarksOn("family");
   return (
-    <Section id="family" title={change ? "Household members (changed)" : "Household members"}>
+    <Section
+      id="family"
+      title={change ? "Household members (changed)" : "Household members"}
+    >
       {change ? (
         <p className="text-xs text-muted-foreground">
-          Before: <span className="line-through">{change.before || "none"}</span>
+          Before:{" "}
+          <span className="line-through">{change.before || "none"}</span>
         </p>
       ) : null}
-      <div className={cn("overflow-x-auto border", (marks.length || note) && "border-destructive/60")}>
+      <div
+        className={cn(
+          "overflow-x-auto border",
+          (marks.length || note) && "border-destructive/60",
+        )}
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -616,12 +756,22 @@ function FamilySection({
               <TableRow key={`${person.name}-${person.relation}`}>
                 <TableCell>{person.name}</TableCell>
                 <TableCell className="capitalize">
-                  {choiceLabel(person.relation, lists?.relations, lists?.retired_relations)}
+                  {choiceLabel(
+                    person.relation,
+                    lists?.relations,
+                    lists?.retired_relations,
+                  )}
                 </TableCell>
                 <TableCell className="capitalize">
-                  {choiceLabel(person.gender, lists?.genders, lists?.retired_genders)}
+                  {choiceLabel(
+                    person.gender,
+                    lists?.genders,
+                    lists?.retired_genders,
+                  )}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{person.age}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {person.age}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -656,7 +806,9 @@ function History({ application }: { application: Application }) {
   return (
     <Section id="history" title="History">
       {events.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing yet. This form hasn&apos;t been submitted.</p>
+        <p className="text-sm text-muted-foreground">
+          Nothing yet. This form hasn&apos;t been submitted.
+        </p>
       ) : (
         <ol className="space-y-3">
           {events.map((event) => (
@@ -664,13 +816,23 @@ function History({ application }: { application: Application }) {
               <span
                 className={cn(
                   "mt-1.5 size-2 shrink-0 rounded-full",
-                  event.tone === "approved" ? "bg-emerald-500" : event.tone === "rejected" ? "bg-red-500" : "bg-primary",
+                  event.tone === "approved"
+                    ? "bg-emerald-500"
+                    : event.tone === "rejected"
+                      ? "bg-red-500"
+                      : "bg-primary",
                 )}
               />
               <span className="min-w-0">
                 <span className="block">{event.title}</span>
-                <span className="block text-xs text-muted-foreground">{dateTime(event.when)}</span>
-                {event.note ? <span className="mt-0.5 block text-muted-foreground">{event.note}</span> : null}
+                <span className="block text-xs text-muted-foreground">
+                  {dateTime(event.when)}
+                </span>
+                {event.note ? (
+                  <span className="mt-0.5 block text-muted-foreground">
+                    {event.note}
+                  </span>
+                ) : null}
               </span>
             </li>
           ))}
@@ -721,22 +883,33 @@ export function ApplicationDetail({ id }: { id: string }) {
 
   const data = application.data;
   const actsOnAll = useCan(APPROVE_ALL);
-  const canDecide = useCan(STAGE_PERMISSION[data?.status ?? ""] ?? "") || actsOnAll;
+  const canDecide =
+    useCan(STAGE_PERMISSION[data?.status ?? ""] ?? "") || actsOnAll;
   const canPrintFull = useCan("applications.download_full_pdf");
+  const canExportData = useCan("members.export_data");
   const canPayAtFinance =
-    (useCan("applications.approve_finance") || actsOnAll) && data?.status === "pending_finance";
+    (useCan("applications.approve_finance") || actsOnAll) &&
+    data?.status === "pending_finance";
   const canPayAtAm = useCan("applications.approve_am") || actsOnAll;
   // Any approver can check the printed form before it is final.
-  const canPreview = [canPayAtAm, useCan("applications.approve_cs"), useCan("applications.approve_finance")].some(Boolean);
+  const canPreview = [
+    canPayAtAm,
+    useCan("applications.approve_cs"),
+    useCan("applications.approve_finance"),
+  ].some(Boolean);
 
   const [picked, setPicked] = useState<string | null>(null);
   // Every step, to read, in a dialog: the page itself shows only this person's steps.
   const [viewing, setViewing] = useState<string | null>(null);
-  const hasPayment = !!data?.payment.amount || canPayAtFinance || (canPayAtAm && data?.status === "pending_am");
+  const hasPayment =
+    !!data?.payment.amount ||
+    canPayAtFinance ||
+    (canPayAtAm && data?.status === "pending_am");
   const atStage = !!STAGE_LABEL[data?.status ?? ""];
   const fieldMarks = useFieldMarks(data, {
     visible: canPreview && atStage,
-    reviewing: canDecide && atStage && !!data?.review_steps.some((step) => step.mine),
+    reviewing:
+      canDecide && atStage && !!data?.review_steps.some((step) => step.mine),
   });
 
   if (application.error || schema.error) {
@@ -754,9 +927,13 @@ export function ApplicationDetail({ id }: { id: string }) {
 
   const stage = STAGE_LABEL[data.status];
   const canAct = !!stage && canDecide;
-  const hasProof = documents.data?.some((item) => item.document_type === "payment_proof") ?? false;
+  const hasProof =
+    documents.data?.some((item) => item.document_type === "payment_proof") ??
+    false;
   // Only the Member Fee step waits for these, so the other steps can still go ahead.
-  const feeOpen = data.review_steps.some((step) => step.key === "fee" && step.can_approve);
+  const feeOpen = data.review_steps.some(
+    (step) => step.key === "fee" && step.can_approve,
+  );
   const blocked = !feeOpen
     ? null
     : !data.payment.amount
@@ -767,7 +944,12 @@ export function ApplicationDetail({ id }: { id: string }) {
   const back = canAct ? STAGE_QUEUE[data.status] : "/applications";
   const changes = changesOf(data, schema.data, documents.data ?? []);
   const labels: Record<string, string> = Object.fromEntries(
-    schema.data.sections.flatMap((section) => section.fields.map((field) => [`${section.key}.${field.key}`, field.label])),
+    schema.data.sections.flatMap((section) =>
+      section.fields.map((field) => [
+        `${section.key}.${field.key}`,
+        field.label,
+      ]),
+    ),
   );
 
   const mySteps = data.review_steps.filter((step) => step.mine);
@@ -776,7 +958,9 @@ export function ApplicationDetail({ id }: { id: string }) {
   const tabs = reviewing ? mySteps : data.review_steps;
   const firstOpen = tabs.find((step) => step.can_approve) ?? tabs[0];
   const activeKey =
-    picked && (tabs.some((step) => step.key === picked) || (!reviewing && picked === "history"))
+    picked &&
+    (tabs.some((step) => step.key === picked) ||
+      (!reviewing && picked === "history"))
       ? picked
       : (firstOpen?.key ?? "history");
   const active = tabs.find((step) => step.key === activeKey) ?? null;
@@ -784,21 +968,28 @@ export function ApplicationDetail({ id }: { id: string }) {
 
   /** After a step is approved, on to the next one this person still has open. */
   const afterApproval = (approved: string) => {
-    const open = mySteps.filter((step) => step.can_approve && step.key !== approved);
-    const after = open.find((step) => step.number > (active?.number ?? 0)) ?? open[0];
+    const open = mySteps.filter(
+      (step) => step.can_approve && step.key !== approved,
+    );
+    const after =
+      open.find((step) => step.number > (active?.number ?? 0)) ?? open[0];
     setPicked(after?.key ?? approved);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   /** A change chip opens its step: here when it is this person's, otherwise in View mode. */
   const openSection = (section: string) => {
-    const step = data.review_steps.find((item) => item.sections.includes(section));
+    const step = data.review_steps.find((item) =>
+      item.sections.includes(section),
+    );
     if (!step) return;
     if (tabs.includes(step)) setPicked(step.key);
     else setViewing(step.key);
   };
   const myFields = {
     ...schema.data,
-    sections: schema.data.sections.filter((section) => mySteps.some((step) => step.sections.includes(section.key))),
+    sections: schema.data.sections.filter((section) =>
+      mySteps.some((step) => step.sections.includes(section.key)),
+    ),
   };
 
   const page = (
@@ -808,7 +999,8 @@ export function ApplicationDetail({ id }: { id: string }) {
           href={back}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground"
         >
-          <ArrowLeft className="size-4" /> {canAct ? "Back to the queue" : "All applications"}
+          <ArrowLeft className="size-4" />{" "}
+          {canAct ? "Back to the queue" : "All applications"}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -817,21 +1009,32 @@ export function ApplicationDetail({ id }: { id: string }) {
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight">{data.applicant_name || "No name yet"}</h1>
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {data.applicant_name || "No name yet"}
+                </h1>
                 <StatusBadge status={data.status} label={data.status_label} />
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                <span className="font-mono tabular-nums">{data.form_number || "No form number yet"}</span>
+                <span className="font-mono tabular-nums">
+                  {data.form_number || "No form number yet"}
+                </span>
                 {" · "}MPP {data.mpp_code} {data.mpp_name}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <FormNav id={data.id} status={data.status} steps={tabs} onStep={setPicked} />
+            <FormNav
+              id={data.id}
+              status={data.status}
+              steps={tabs}
+              onStep={setPicked}
+            />
             {reviewing ? (
               <Button
                 variant="outline"
-                onClick={() => setViewing(active?.key ?? data.review_steps[0].key)}
+                onClick={() =>
+                  setViewing(active?.key ?? data.review_steps[0].key)
+                }
                 title="Read all eight steps of the form"
               >
                 <Eye /> View mode
@@ -843,7 +1046,11 @@ export function ApplicationDetail({ id }: { id: string }) {
                   variant="outline"
                   nativeButton={false}
                   render={
-                    <a href={`/api/backend/applications/${id}/pdf?variant=single`} target="_blank" rel="noreferrer" />
+                    <a
+                      href={`/api/backend/applications/${id}/pdf?variant=single`}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
                   }
                 >
                   <FileDown /> Single page PDF
@@ -852,14 +1059,33 @@ export function ApplicationDetail({ id }: { id: string }) {
                   <Button
                     nativeButton={false}
                     render={
-                      <a href={`/api/backend/applications/${id}/pdf?variant=full`} target="_blank" rel="noreferrer" />
+                      <a
+                        href={`/api/backend/applications/${id}/pdf?variant=full`}
+                        target="_blank"
+                        rel="noreferrer"
+                      />
                     }
                   >
                     <FileDown /> Full form PDF
                   </Button>
                 ) : null}
               </>
-            ) : stage && canPreview ? (
+            ) : null}
+            {canExportData && data.status !== "draft" ? (
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={
+                  <a
+                    href={`/api/backend/applications/${id}/data-export`}
+                    title="Everything held about this member, decrypted, for a data request. The export is recorded."
+                  />
+                }
+              >
+                <Archive /> Member data
+              </Button>
+            ) : null}
+            {data.status === "approved" ? null : stage && canPreview ? (
               <Button
                 variant="outline"
                 nativeButton={false}
@@ -885,7 +1111,9 @@ export function ApplicationDetail({ id }: { id: string }) {
           <BadgeCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
           <span className="text-sm text-muted-foreground">Member code</span>
           <span className="inline-flex items-center gap-1">
-            <span className="font-mono font-semibold tabular-nums">{data.tr_code}</span>
+            <span className="font-mono font-semibold tabular-nums">
+              {data.tr_code}
+            </span>
             <CopyButton value={data.tr_code} label="Copy member code" />
           </span>
         </div>
@@ -898,21 +1126,31 @@ export function ApplicationDetail({ id }: { id: string }) {
             <ul className="mt-1 space-y-0.5">
               {Object.entries(data.rejected_field_notes).map(([path, note]) => (
                 <li key={path}>
-                  <span className="font-medium">{labels[path] ?? EXTRA_LABELS[path] ?? path}:</span> {note}
+                  <span className="font-medium">
+                    {labels[path] ?? EXTRA_LABELS[path] ?? path}:
+                  </span>{" "}
+                  {note}
                 </li>
               ))}
             </ul>
           ) : null}
           {data.rejected_fields.length ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              {data.rejected_fields.length === 1 ? "1 field is" : `${data.rejected_fields.length} fields are`} marked in
-              red below.
+              {data.rejected_fields.length === 1
+                ? "1 field is"
+                : `${data.rejected_fields.length} fields are`}{" "}
+              marked in red below.
             </p>
           ) : null}
         </div>
       ) : null}
       {changes.since && data.status.startsWith("pending") ? (
-        <ChangesSummary application={data} changes={changes} labels={labels} onOpen={openSection} />
+        <ChangesSummary
+          application={data}
+          changes={changes}
+          labels={labels}
+          onOpen={openSection}
+        />
       ) : null}
       {data.warnings.map((warning) => (
         <p
@@ -934,7 +1172,10 @@ export function ApplicationDetail({ id }: { id: string }) {
           />
 
           {active ? (
-            <div key={active.key} className="space-y-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+            <div
+              key={active.key}
+              className="space-y-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
+            >
               <StepContent
                 step={active}
                 application={data}
@@ -966,14 +1207,18 @@ export function ApplicationDetail({ id }: { id: string }) {
                   disabled={position <= 0}
                   onClick={() => setPicked(tabs[position - 1]?.key ?? null)}
                 >
-                  <ChevronLeft /> {position > 0 ? tabs[position - 1].title : "Previous"}
+                  <ChevronLeft />{" "}
+                  {position > 0 ? tabs[position - 1].title : "Previous"}
                 </Button>
                 <Button
                   variant="ghost"
                   disabled={position >= tabs.length - 1}
                   onClick={() => setPicked(tabs[position + 1]?.key ?? null)}
                 >
-                  {position < tabs.length - 1 ? tabs[position + 1].title : "Next"} <ChevronRight />
+                  {position < tabs.length - 1
+                    ? tabs[position + 1].title
+                    : "Next"}{" "}
+                  <ChevronRight />
                 </Button>
               </div>
             </div>
@@ -1008,7 +1253,9 @@ export function ApplicationDetail({ id }: { id: string }) {
     </div>
   );
   return (
-    <FieldMarksProvider value={{ ...fieldMarks, open: (path) => openSection(path.split(".")[0]) }}>
+    <FieldMarksProvider
+      value={{ ...fieldMarks, open: (path) => openSection(path.split(".")[0]) }}
+    >
       {page}
     </FieldMarksProvider>
   );
@@ -1044,15 +1291,26 @@ function StepContent({
       <Card className="gap-4 p-5">
         <Facts>
           <Fact label="Form No.">
-            <span className="font-mono tabular-nums">{application.form_number || "—"}</span>
+            <span className="font-mono tabular-nums">
+              {application.form_number || "—"}
+            </span>
           </Fact>
           <Fact
             label="Aadhaar card No."
             path="applicant.aadhaar_number"
             change={changes.byPath.get("applicant.aadhaar_number")}
-            trailing={numbers.full ? <CopyButton value={numbers.aadhaar.replaceAll(" ", "")} label="Copy Aadhaar" /> : null}
+            trailing={
+              numbers.full ? (
+                <CopyButton
+                  value={numbers.aadhaar.replaceAll(" ", "")}
+                  label="Copy Aadhaar"
+                />
+              ) : null
+            }
           >
-            <span className="font-mono tabular-nums">{numbers.aadhaar || null}</span>
+            <span className="font-mono tabular-nums">
+              {numbers.aadhaar || null}
+            </span>
           </Fact>
         </Facts>
       </Card>
@@ -1064,9 +1322,18 @@ function StepContent({
             path="bank.account_number"
             change={changes.byPath.get("bank.account_number")}
             warning={application.field_warnings?.["bank.account_number"]}
-            trailing={numbers.full ? <CopyButton value={numbers.account} label="Copy account number" /> : null}
+            trailing={
+              numbers.full ? (
+                <CopyButton
+                  value={numbers.account}
+                  label="Copy account number"
+                />
+              ) : null
+            }
           >
-            <span className="font-mono tabular-nums">{numbers.account || null}</span>
+            <span className="font-mono tabular-nums">
+              {numbers.account || null}
+            </span>
           </Fact>
         </Facts>
       </Card>
@@ -1074,8 +1341,17 @@ function StepContent({
   const parts = step.sections
     .map((key) => {
       const section = schema.sections.find((item) => item.key === key);
-      if (section) return <FormSection key={key} section={section} application={application} changes={changes} />;
-      if (key === "place") return <PlaceSection key={key} application={application} />;
+      if (section)
+        return (
+          <FormSection
+            key={key}
+            section={section}
+            application={application}
+            changes={changes}
+          />
+        );
+      if (key === "place")
+        return <PlaceSection key={key} application={application} />;
       if (key === "family" && family.length) {
         return (
           <FamilySection
@@ -1095,18 +1371,28 @@ function StepContent({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">
-          <span className="text-muted-foreground">Step {step.number} of 8 · </span>
+          <span className="text-muted-foreground">
+            Step {step.number} of 8 ·{" "}
+          </span>
           {step.title}
         </h2>
         {status === "approved" ? (
           <span className="flex flex-wrap items-center gap-2">
-            <StatusBadge status="approved" label={`Approved by ${step.approved_by_name}`} />
-            {step.can_withdraw && !inDialog ? <WithdrawApproval application={application} step={step} /> : null}
+            <StatusBadge
+              status="approved"
+              label={`Approved by ${step.approved_by_name}`}
+            />
+            {step.can_withdraw && !inDialog ? (
+              <WithdrawApproval application={application} step={step} />
+            ) : null}
           </span>
         ) : status === "yours" ? (
           <StatusBadge status="pending" label="Waiting for your check" />
         ) : (
-          <StatusBadge status="draft" label={step.approved_at ? "Approved" : "Not approved yet"} />
+          <StatusBadge
+            status="draft"
+            label={step.approved_at ? "Approved" : "Not approved yet"}
+          />
         )}
       </div>
       {step.approved_at ? (
@@ -1115,7 +1401,13 @@ function StepContent({
         <StepChecklist application={application} step={step} />
       ) : null}
       {extra}
-      {parts.length ? parts : <Card className="p-5 text-sm text-muted-foreground">Nothing was filled in for this step.</Card>}
+      {parts.length ? (
+        parts
+      ) : (
+        <Card className="p-5 text-sm text-muted-foreground">
+          Nothing was filled in for this step.
+        </Card>
+      )}
       {step.documents.length ? (
         <StepDocuments
           types={step.documents}
@@ -1133,13 +1425,19 @@ function StepContent({
 function PaymentFacts({ application }: { application: Application }) {
   const paid = application.payment;
   if (!paid.amount) {
-    return <Card className="p-5 text-sm text-muted-foreground">No payment recorded yet.</Card>;
+    return (
+      <Card className="p-5 text-sm text-muted-foreground">
+        No payment recorded yet.
+      </Card>
+    );
   }
   return (
     <Section id="payment" title="Member fee">
       <Facts>
         <Fact label="Amount">{`₹ ${paid.amount}`}</Fact>
-        <Fact label="Deposited on">{paid.deposited_on ? date(paid.deposited_on) : null}</Fact>
+        <Fact label="Deposited on">
+          {paid.deposited_on ? date(paid.deposited_on) : null}
+        </Fact>
         <Fact label="Mode">{paid.mode ? humanize(paid.mode) : null}</Fact>
         <Fact label="Bank">{paid.bank_name || null}</Fact>
         <Fact label="Reference">{paid.reference || null}</Fact>
@@ -1171,7 +1469,8 @@ function AllStepsDialog({
   documents: ApplicationDocument[];
   numbers: ReturnType<typeof useSensitiveNumbers>;
 }) {
-  const step = application.review_steps.find((item) => item.key === active) ?? null;
+  const step =
+    application.review_steps.find((item) => item.key === active) ?? null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[88svh] flex-col gap-3 p-0 sm:max-w-6xl">
@@ -1179,7 +1478,9 @@ function AllStepsDialog({
           <DialogTitle className="flex items-center gap-2">
             <Eye className="size-4" /> {application.applicant_name}: all steps
           </DialogTitle>
-          <DialogDescription>For reading only. Approving is done on the form page, step by step.</DialogDescription>
+          <DialogDescription>
+            For reading only. Approving is done on the form page, step by step.
+          </DialogDescription>
         </DialogHeader>
         <div className="shrink-0 px-5">
           <StepTabs

@@ -532,6 +532,7 @@ export type OrganizationProfile = {
   board_resolution_no: string;
   board_resolution_date: string | null;
   members_female_only: boolean;
+  draft_retention_days: number;
 };
 
 export type MemberCodeSettings = {

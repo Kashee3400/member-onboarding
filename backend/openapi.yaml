@@ -264,6 +264,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContactVerified'
           description: ''
+  /api/v1/applications/{id}/data-export/:
+    get:
+      operationId: applications_data_export_retrieve
+      description: Everything held about this form's member, decrypted. Always audited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/applications/{id}/decide/:
     post:
       operationId: applications_decide_create
@@ -1058,6 +1082,15 @@ paths:
         name: action
         schema:
           type: string
+      - in: query
+        name: action__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
       - in: query
         name: actor_id
         schema:
@@ -7103,6 +7136,12 @@ components:
           nullable: true
         members_female_only:
           type: boolean
+        draft_retention_days:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: Drafts never submitted are discarded, photos and all, after
+            this many days without a change. 0 keeps them.
     OrganizationProfileRequest:
       type: object
       properties:
@@ -7152,6 +7191,12 @@ components:
           nullable: true
         members_female_only:
           type: boolean
+        draft_retention_days:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: Drafts never submitted are discarded, photos and all, after
+            this many days without a change. 0 keeps them.
     OrganizationSetup:
       type: object
       properties:
@@ -8208,6 +8253,7 @@ components:
       - hierarchy.manage
       - hierarchy.view
       - locations.view
+      - members.export_data
       - members.view
       - mpp.assign
       - mpp.view_all
@@ -8244,6 +8290,7 @@ components:
         * `hierarchy.manage` - hierarchy.manage
         * `hierarchy.view` - hierarchy.view
         * `locations.view` - locations.view
+        * `members.export_data` - members.export_data
         * `members.view` - members.view
         * `mpp.assign` - mpp.assign
         * `mpp.view_all` - mpp.view_all

@@ -203,6 +203,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.notifications.tasks.send_morning_summary",
         "schedule": crontab(hour=9, minute=0),
     },
+    "discard-stale-drafts": {
+        "task": "apps.applications.tasks.discard_stale_drafts",
+        "schedule": crontab(hour=1, minute=30),
+    },
 }
 
 # Make and store the printed forms as soon as a form is approved.

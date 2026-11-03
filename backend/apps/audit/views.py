@@ -18,7 +18,12 @@ class AuditEventListView(generics.ListAPIView):
     serializer_class = AuditEventSerializer
     permission_classes = [IsAuthenticated, require_permission("audit.view")]
     pagination_class = AuditPagination
-    filterset_fields = ["action", "actor_id", "target_type", "target_id"]
+    filterset_fields = {
+        "action": ["exact", "in"],
+        "actor_id": ["exact"],
+        "target_type": ["exact"],
+        "target_id": ["exact"],
+    }
     search_fields = ["action", "target_type", "target_id"]
     ordering_fields = ["occurred_at", "action"]
     actor_names: dict = {}

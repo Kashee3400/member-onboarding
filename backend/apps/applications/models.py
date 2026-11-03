@@ -476,6 +476,12 @@ class OrganizationProfile(OrganizationOwnedModel):
     board_resolution_no = models.CharField(max_length=100, blank=True)
     board_resolution_date = models.DateField(null=True, blank=True)
     members_female_only = models.BooleanField(default=True)
+    DEFAULT_DRAFT_RETENTION = 90
+    draft_retention_days = models.PositiveSmallIntegerField(
+        default=DEFAULT_DRAFT_RETENTION,
+        help_text="Drafts never submitted are discarded, photos and all, after this many "
+        "days without a change. 0 keeps them.",
+    )
 
     class Meta:
         db_table = "organization_profile"

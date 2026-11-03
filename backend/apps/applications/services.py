@@ -254,6 +254,11 @@ def set_account(application, number: str) -> None:
 def sensitive_numbers(application, *, user) -> dict:
     """The full numbers, for checking against the card and passbook photos."""
     record_event("application.numbers_viewed", actor=user, target=application)
+    return numbers_of(application)
+
+
+def numbers_of(application) -> dict:
+    """Decrypted, unaudited: every caller records why it read them."""
     return {
         name: (crypto.decrypt(sealed, _context(application, label)).decode() if sealed else "")
         for name, label, sealed in (

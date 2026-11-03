@@ -37,6 +37,7 @@ from . import (
     services,
 )
 from . import marks as field_marks
+from .data_export import member_data_archive
 from .models import (
     Application,
     BankBranch,
@@ -164,6 +165,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             "partial_update": "applications.edit",
             "discard": "applications.edit",
             "submit": "applications.submit",
+            "data_export": "members.export_data",
         }.get(self.action, "applications.view")
         if self.action in (
             "decide",
@@ -506,6 +508,22 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             metadata={"variant": variant, "status": application.status},
         )
         return _pdf_response(content, f"{application.form_number}-draft.pdf")
+
+    @extend_schema(responses={(200, "application/zip"): OpenApiTypes.BINARY})
+    @action(detail=True, methods=["get"], url_path="data-export")
+    def data_export(self, request, pk=None):
+        """Everything held about this form's member, decrypted. Always audited."""
+        application = self.get_object()
+        content = member_data_archive(application, user=request.user)
+        name = application.form_number or str(application.pk)
+        return _zip_response(content, f"member-data-{name}.zip")
+
+
+def _zip_response(content: bytes, filename: str) -> HttpResponse:
+    response = HttpResponse(content, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 def _pdf_variant(request) -> str:
