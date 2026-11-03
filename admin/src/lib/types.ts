@@ -242,6 +242,8 @@ export type ApplicationDetail = ApplicationSummary & {
   /** When the mobile number and email were confirmed by OTP, or null. */
   contact_verified: { mobile: string | null; email: string | null };
   warnings: string[];
+  /** The same warnings by the field they concern, as "section.field". */
+  field_warnings: Record<string, string>;
   tr_code: string | null;
   decisions: {
     id: string;

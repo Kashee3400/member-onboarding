@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../aadhaar/aadhaar_qr.dart';
 import '../models/form_schema.dart';
 import '../sync/draft_controller.dart';
+import '../validation/form_checks.dart';
 import 'device_services.dart';
 import 'contact_verify.dart';
 import 'fields.dart';
@@ -43,6 +44,14 @@ class _FormWizardState extends State<FormWizard> {
 
   DraftController get _form => widget.controller;
   FormSchema get _schema => widget.schema;
+  late final FormChecks _checks = FormChecks(widget.schema);
+
+  /// Typed numbers the phone would not pass on, kept so the review step can list them.
+  String? _aadhaarProblem;
+  String? _accountProblem;
+
+  /// Text boxes that are checked as soon as the value has all its characters.
+  static const _fullLength = {'address.mobile': 10, 'address.pincode': 6, 'bank.ifsc': 11};
 
   late final List<_Step> _steps = [
     _Step(_schema.section('applicant').title, _applicantStep),
@@ -115,6 +124,12 @@ class _FormWizardState extends State<FormWizard> {
     return _form.draft.rejectedFields.contains(path) ? Strings.rejectedBecause : null;
   }
 
+  /// The phone's own check of a typed answer, judged with the rest of the form.
+  String? Function(String) _checkOf(String section, String key) => (text) {
+    final values = {..._form.draft.section(section), key: text};
+    return _checks.field(section, key, {..._form.draft.data, section: values});
+  };
+
   /// What the MPP fills for this field, which nobody types or changes here.
   String? _fromMpp(String section, FormFieldSpec spec) =>
       section == 'address' && spec.locked ? _form.draft.place[spec.key] : null;
@@ -147,7 +162,8 @@ class _FormWizardState extends State<FormWizard> {
         label: spec.label,
         value: value as String?,
         optional: !spec.required,
-        error: error,
+        // A picked date is complete at once, so it is checked at once.
+        error: error ?? _checks.field(section, spec.key, _form.draft.data),
         onChanged: save,
       ),
       'boolean' => YesBox(
@@ -163,6 +179,7 @@ class _FormWizardState extends State<FormWizard> {
         value: value?.toString() ?? '',
         optional: !spec.required,
         error: error,
+        check: _checkOf(section, spec.key),
         keyboard: TextInputType.numberWithOptions(decimal: spec.type == 'decimal'),
         onChanged: save,
       ),
@@ -172,6 +189,13 @@ class _FormWizardState extends State<FormWizard> {
         value: value?.toString() ?? '',
         optional: !spec.required,
         error: error,
+        check: _checkOf(section, spec.key),
+        completeLength: _fullLength['$section.${spec.key}'],
+        keyboard: switch ('$section.${spec.key}') {
+          'address.mobile' => TextInputType.phone,
+          'address.email' => TextInputType.emailAddress,
+          _ => TextInputType.text,
+        },
         onChanged: save,
       ),
     };
@@ -254,9 +278,13 @@ class _FormWizardState extends State<FormWizard> {
         keyboard: TextInputType.number,
         formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
         error: _form.aadhaarError ?? _form.serverErrors['applicant.aadhaar_number'],
+        check: checkAadhaar,
+        completeLength: 12,
         onChanged: (value) {
           _changed.add('applicant.aadhaar_number');
-          if (value.length == 12) _form.setAadhaar(value);
+          _aadhaarProblem = value.length == 12 ? checkAadhaar(value) : null;
+          // The server refuses a number that fails the check, so it is not sent.
+          if (value.length == 12 && _aadhaarProblem == null) _form.setAadhaar(value);
         },
       ),
       _section('applicant'),
@@ -341,10 +369,16 @@ class _FormWizardState extends State<FormWizard> {
         obscure: true,
         formatters: [FilteringTextInputFormatter.digitsOnly],
         error: _form.serverErrors['bank.account_number'],
+        check: checkAccount,
         onChanged: (value) {
           _changed.add('bank.account_number');
-          setState(() => _accountFirst = value);
-          if (value.isNotEmpty && value == _accountAgain) _form.setAccount(value);
+          setState(() {
+            _accountFirst = value;
+            _accountProblem = checkAccount(value);
+          });
+          if (_accountProblem == null && value.isNotEmpty && value == _accountAgain) {
+            _form.setAccount(value);
+          }
         },
       ),
       // Typed twice: one wrong digit sends milk money to the wrong person.
@@ -357,7 +391,9 @@ class _FormWizardState extends State<FormWizard> {
         error: _accountAgain.isNotEmpty && !matches ? Strings.accountMismatch : null,
         onChanged: (value) {
           setState(() => _accountAgain = value);
-          if (value.isNotEmpty && value == _accountFirst) _form.setAccount(value);
+          if (_accountProblem == null && value.isNotEmpty && value == _accountFirst) {
+            _form.setAccount(value);
+          }
         },
       ),
       for (final spec in _schema.section('bank').fields)
@@ -367,6 +403,8 @@ class _FormWizardState extends State<FormWizard> {
             label: spec.label,
             value: '${draft.section('bank')['ifsc'] ?? ''}',
             error: _errorFor('bank.ifsc'),
+            check: _checkOf('bank', 'ifsc'),
+            completeLength: _fullLength['bank.ifsc'],
             onChanged: _ifscChanged,
           )
         else
@@ -411,6 +449,7 @@ class _FormWizardState extends State<FormWizard> {
               value: '${person['age'] ?? ''}',
               keyboard: TextInputType.number,
               error: _form.serverErrors['family.$index.age'],
+              check: _checks.familyAge,
               onChanged: (value) => update(index, 'age', value),
             ),
             ChoiceBox(
@@ -602,6 +641,28 @@ class _FormWizardState extends State<FormWizard> {
     return path;
   }
 
+  /// What the server would refuse, found on the phone, with the step it is on.
+  List<(String, String, int)> _problems() {
+    final problems = [
+      if (_aadhaarProblem != null) ('applicant.aadhaar_number', _aadhaarProblem!, 0),
+      for (final MapEntry(key: path, value: message) in _checks.all(_form.draft.data).entries)
+        if (!_form.serverErrors.containsKey(path)) (path, message, _stepOf(path)),
+      if (_accountProblem != null) ('bank.account_number', _accountProblem!, 3),
+    ];
+    problems.sort((a, b) => a.$3.compareTo(b.$3));
+    return problems;
+  }
+
+  String _problemLabel(String path) {
+    final parts = path.split('.');
+    if (parts.length == 3 && parts.first == 'family') {
+      return '${Strings.family} ${int.parse(parts[1]) + 1}: ${Strings.age}';
+    }
+    // The animal count rule is about the whole table, not its first box.
+    if (path == 'animals.indigenous_heifer') return _schema.section('animals').title;
+    return _labelOf(path);
+  }
+
   /// Every step at a glance: done, or how much is left, one tap from fixing it.
   Widget _checklist(List<(String, int)> missing) {
     final left = <int, int>{};
@@ -664,6 +725,7 @@ class _FormWizardState extends State<FormWizard> {
 
   Widget _reviewStep() {
     final missing = _missing();
+    final problems = _problems();
     final errors = _form.serverErrors;
     final doubtful = _doubtful.keys.where(_form.draft.hasDocument).toList();
     final mobileGiven = '${_form.draft.section('address')['mobile'] ?? ''}'.trim().isNotEmpty;
@@ -673,7 +735,32 @@ class _FormWizardState extends State<FormWizard> {
         for (final message in errors.values) Text('• $message'),
       ],
       if (_form.draft.rejectedFields.isNotEmpty) _corrections(),
-      _checklist(missing),
+      if (problems.isNotEmpty)
+        Material(
+          key: const ValueKey('review.problems'),
+          color: Colors.orange.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(Strings.pleaseCheck, style: TextStyle(fontWeight: FontWeight.w600)),
+                for (final (path, message, step) in problems)
+                  ListTile(
+                    key: ValueKey('problem.$path'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.error_outline, color: Colors.orange.shade800),
+                    title: Text(_problemLabel(path)),
+                    subtitle: Text(message),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => setState(() => _index = step),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      _checklist([...missing, for (final (path, _, step) in problems) (path, step)]),
       if (mobileGiven && !_form.draft.mobileVerified)
         ListTile(
           key: const ValueKey('review.mobile_unverified'),

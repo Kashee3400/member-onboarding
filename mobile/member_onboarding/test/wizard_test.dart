@@ -252,11 +252,11 @@ void main() {
 
     await tester.enterText(
       find.descendant(of: boxFor('account_number'), matching: find.byType(TextField)),
-      '12345',
+      '656302010000644',
     );
     await tester.enterText(
       find.descendant(of: boxFor('account_number_again'), matching: find.byType(TextField)),
-      '12346',
+      '656302010000645',
     );
     await tester.pump();
 
@@ -265,11 +265,11 @@ void main() {
 
     await tester.enterText(
       find.descendant(of: boxFor('account_number_again'), matching: find.byType(TextField)),
-      '12345',
+      '656302010000644',
     );
     await tester.pump();
 
-    expect(controller.draft.pendingAccount, '12345');
+    expect(controller.draft.pendingAccount, '656302010000644');
   });
 
   wizardTest('family stops at the limit of the printed form', (tester) async {

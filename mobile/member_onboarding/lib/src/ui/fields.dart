@@ -95,6 +95,8 @@ class TextBox extends StatefulWidget {
     this.obscure = false,
     this.formatters = const [],
     this.hint,
+    this.check,
+    this.completeLength,
     super.key,
   });
 
@@ -107,6 +109,11 @@ class TextBox extends StatefulWidget {
   final bool obscure;
   final List<TextInputFormatter> formatters;
   final String? hint;
+
+  /// The problem with the text, if any. Shown once the box is left, or as soon as the
+  /// text reaches [completeLength], never while a value is still being typed.
+  final String? Function(String text)? check;
+  final int? completeLength;
 
   @override
   State<TextBox> createState() => _TextBoxState();
@@ -138,22 +145,35 @@ class _TextBoxState extends State<TextBox> {
     super.dispose();
   }
 
+  String? get _problem {
+    final check = widget.check;
+    if (check == null) return null;
+    final text = _controller.text;
+    final complete = widget.completeLength != null && text.length >= widget.completeLength!;
+    return !_focus.hasFocus || complete ? check(text) : null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final error = widget.error ?? _problem;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FieldLabel(widget.label, optional: widget.optional),
         LiftBox(
           active: _focus.hasFocus,
-          hasError: widget.error != null,
+          hasError: error != null,
           child: TextField(
             controller: _controller,
             focusNode: _focus,
             keyboardType: widget.keyboard,
             obscureText: widget.obscure,
             inputFormatters: widget.formatters,
-            onChanged: widget.onChanged,
+            onChanged: (text) {
+              widget.onChanged(text);
+              // The parent may not rebuild for text it does not keep, such as a bad Aadhaar.
+              if (widget.check != null) setState(() {});
+            },
             style: const TextStyle(fontSize: 16),
             decoration: InputDecoration(
               isDense: true,
@@ -163,7 +183,7 @@ class _TextBoxState extends State<TextBox> {
             ),
           ),
         ),
-        if (widget.error != null) _ErrorLine(widget.error!),
+        if (error != null) _ErrorLine(error),
       ],
     );
   }

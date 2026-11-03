@@ -4654,6 +4654,12 @@ components:
           type: array
           items:
             type: string
+          description: Worth an approver's attention, but not grounds to block a submission.
+          readOnly: true
+        field_warnings:
+          type: object
+          additionalProperties:
+            type: string
           readOnly: true
         fee:
           type: object
@@ -4702,6 +4708,7 @@ components:
       - created_by_name
       - decisions
       - fee
+      - field_warnings
       - id
       - is_overdue
       - last_edited_by_name
