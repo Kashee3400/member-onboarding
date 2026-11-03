@@ -318,12 +318,16 @@ function RejectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" initialFocus={box}>
+      {/* Header and buttons stay put; a long list of reasons and fields scrolls between them. */}
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg"
+        initialFocus={box}
+      >
         <DialogHeader>
           <DialogTitle>Reject this form</DialogTitle>
           <DialogDescription>It goes straight back to the facilitator, and starts again from the Area Manager.</DialogDescription>
         </DialogHeader>
-        <div className="min-w-0 space-y-4">
+        <div className="-mx-4 min-w-0 space-y-4 overflow-y-auto px-4">
           {noted.length ? (
             <div className="space-y-2">
               <p className="text-sm font-medium">
@@ -395,6 +399,7 @@ function RejectDialog({
               ref={box}
               id="reject-reason"
               rows={reasons.length ? 2 : 3}
+              className="h-20 resize-none overflow-y-auto [field-sizing:fixed]"
               value={note}
               placeholder="What needs correcting? The facilitator sees this."
               onChange={(event) => setNote(event.target.value)}
