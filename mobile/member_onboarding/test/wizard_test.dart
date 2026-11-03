@@ -604,8 +604,10 @@ void main() {
     await goToStep(tester, 9);
 
     expect(find.byKey(const ValueKey('checklist.0')), findsNothing);
-    expect(find.text('₹550'), findsOneWidget);
-    expect(find.text('₹50'), findsOneWidget);
+    // Only the admission fee is paid now; the shares come out of the milk money.
+    expect(find.text('₹550'), findsNothing);
+    expect(find.text('₹50'), findsNWidgets(2));
+    expect(find.textContaining(Strings.sharesFromMilk), findsOneWidget);
     expect(
       tester.getTopLeft(find.byKey(const ValueKey('review.fee'))).dy,
       lessThan(tester.getTopLeft(find.byKey(const ValueKey('review.signature'))).dy),

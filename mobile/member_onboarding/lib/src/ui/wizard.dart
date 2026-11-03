@@ -1201,7 +1201,7 @@ class _FormWizardState extends State<FormWizard> {
   /// What the member pays, said before she signs.
   Widget? _feeCard() {
     final fee = _schema.fee;
-    if (fee == null || fee.total == 0) return null;
+    if (fee == null || fee.admissionFee == 0) return null;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     Widget line(String label, String amount, {bool strong = false}) => Padding(
@@ -1234,11 +1234,16 @@ class _FormWizardState extends State<FormWizard> {
         Column(
           children: [
             line(Strings.admissionFee, '₹${fee.admissionFee}'),
-            line('${Strings.shares} (${fee.shareCount} × ₹${fee.sharePrice})', '₹${fee.shareCount * fee.sharePrice}'),
             const Divider(),
-            line(Strings.totalToPay, '₹${fee.total}', strong: true),
+            line(Strings.totalToPay, '₹${fee.admissionFee}', strong: true),
           ],
         ),
+        if (fee.shareCount > 0)
+          Text(
+            '${Strings.shares}: ${fee.shareCount} × ₹${fee.sharePrice} = ₹${fee.shareCount * fee.sharePrice}, '
+            '${Strings.sharesFromMilk}',
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
         Text(Strings.feeHint, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
       ],
     );

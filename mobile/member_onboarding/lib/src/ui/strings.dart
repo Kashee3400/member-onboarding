@@ -84,6 +84,10 @@ class Strings {
   static const shares = 'Shares';
   static const totalToPay = 'Total to pay';
   static const feeHint = 'Tell the member this amount before she signs.';
+  static const sharesFromMilk = 'taken from her milk payments, not paid now.';
+  static const sentBackAlertTitle = 'Forms sent back for correction';
+  static const sentBackAlertBody = 'These forms were sent back. Open one to correct it and submit again.';
+  static const later = 'Later';
   static const savedOn = 'Saved';
 
   static const back = 'Back';

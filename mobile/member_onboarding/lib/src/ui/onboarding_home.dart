@@ -104,6 +104,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
         _rejected = rejected;
         _offline = false;
       });
+      _announceSentBack();
       await _sendPending();
       await _loadMonth();
     } on OfflineException {
@@ -157,6 +158,56 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
       [if (aadhaar.isNotEmpty) 'Aadhaar XXXX $aadhaar', if (mobile.isNotEmpty) mobile].join(' · '),
       if (draft.updatedAt != null) '${Strings.savedOn} ${formatDate(draft.updatedAt!)}',
     ];
+  }
+
+  bool _announced = false;
+
+  /// Once per visit: a form sent back waits on the facilitator, so it is said out loud.
+  void _announceSentBack() {
+    if (_announced || _rejected.isEmpty || !mounted) return;
+    _announced = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final open = await showDialog<ApplicationSummary>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          key: const ValueKey('sent_back.alert'),
+          icon: Icon(Icons.assignment_return_rounded, color: Colors.red.shade600, size: 36),
+          title: Text('${_rejected.length} ${Strings.sentBackAlertTitle}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(Strings.sentBackAlertBody),
+                ),
+                for (final item in _rejected)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: MemberPhoto(
+                      name: item.applicantName,
+                      photo: item.photoId == null ? null : _serverPhoto(item.photoId!),
+                      size: 40,
+                    ),
+                    title: Text(item.applicantName.isEmpty ? Strings.untitled : item.applicantName),
+                    subtitle: Text(
+                      [if (item.formNumber.isNotEmpty) item.formNumber, item.mppCode].join(' · '),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.pop(dialog, item),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog), child: const Text(Strings.later)),
+          ],
+        ),
+      );
+      if (open != null && mounted) await _openRejected(open);
+    });
   }
 
   /// This month's counts, loaded on their own so a failure never hides the forms.

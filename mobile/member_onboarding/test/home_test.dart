@@ -70,6 +70,7 @@ class FakeApi extends OnboardingApi {
 
   bool online = true;
   int saves = 0;
+  List<ApplicationSummary> sentBack = const [];
 
   void _check() {
     if (!online) throw const OfflineException();
@@ -97,7 +98,7 @@ class FakeApi extends OnboardingApi {
   @override
   Future<List<ApplicationSummary>> fetchApplications({String? status}) async {
     _check();
-    return const [];
+    return status == 'rejected' ? sentBack : const [];
   }
 
   @override
@@ -234,5 +235,36 @@ void main() {
     );
 
     await expectLater(client.get('a/'), throwsA(isA<OfflineException>()));
+  });
+
+  testWidgets('forms sent back are announced when the home opens', (tester) async {
+    final api = FakeApi()
+      ..sentBack = const [
+        ApplicationSummary(
+          id: 'r1',
+          status: 'rejected',
+          statusLabel: 'Rejected',
+          applicantName: 'Sita Devi',
+          mppCode: '1305',
+          formNumber: 'A00012',
+        ),
+      ];
+
+    await tester.pumpWidget(app(api, MemoryDraftStore()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sent_back.alert')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('sent_back.alert')), matching: find.text('Sita Devi')), findsOneWidget);
+
+    await tester.tap(find.text(Strings.later));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sent_back.alert')), findsNothing);
+  });
+
+  testWidgets('no alert when nothing was sent back', (tester) async {
+    await tester.pumpWidget(app(FakeApi(), MemoryDraftStore()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sent_back.alert')), findsNothing);
   });
 }
