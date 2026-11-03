@@ -29,6 +29,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "1000/min",
         "user": "1000/min",
+        # The isolation sweep alone sends thousands of requests from one organization.
+        "organization": "100000/min",
         "login": "5/min",
         "mfa": "1000/min",
         "exchange": "1000/min",

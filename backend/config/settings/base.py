@@ -77,6 +77,9 @@ DATABASES["default"].update(
         "ATOMIC_REQUESTS": True,
         "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=60),
         "CONN_HEALTH_CHECKS": True,
+        # PgBouncer in transaction mode cannot keep a cursor open across transactions.
+        # Row-level security needs nothing more: it is set per transaction.
+        "DISABLE_SERVER_SIDE_CURSORS": env.bool("DB_BEHIND_PGBOUNCER", default=False),
     }
 )
 
@@ -128,10 +131,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "apps.console.throttling.OrganizationRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("THROTTLE_ANON", default="60/min"),
         "user": env("THROTTLE_USER", default="600/min"),
+        "organization": env("THROTTLE_ORGANIZATION", default="6000/min"),
         "login": env("THROTTLE_LOGIN", default="10/min"),
         "mfa": env("THROTTLE_MFA", default="30/min"),
         # Field staff can share one mobile network address.

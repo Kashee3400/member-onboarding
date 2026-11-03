@@ -115,7 +115,7 @@ def printed_form(application, variant: str) -> bytes:
 
     content = render_pdf(application, organization_profile(), code_settings(), variant)
     path = storage.application_file_path(application, f"form-{variant}")
-    storage.write(path, content)
+    storage.write(path, content, upload=False)
     try:
         with transaction.atomic():
             GeneratedPdf.objects.create(

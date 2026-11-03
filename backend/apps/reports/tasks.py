@@ -149,7 +149,7 @@ def _merge_part(batch_id, organization_id) -> bool:
             output = BytesIO()
             writer.write(output)
             path = _export_path(organization_id)
-            storage.write(path, output.getvalue())
+            storage.write(path, output.getvalue(), upload=False)
             name = first if first == last else f"{first}-{last}"
             batch.merged_parts = [
                 *batch.merged_parts,

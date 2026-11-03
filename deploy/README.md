@@ -53,6 +53,20 @@ docker exec member_onboarding-backend-1 python manage.py make_platform_operator 
 
 `--remove` takes it away again.
 
+## Sharing the platform fairly
+
+- **Storage:** the operator sets each organization's limit on the Platform page.
+  Uploads stop with a clear message once it is reached; generated form PDFs never
+  do, so an approved member always gets their paperwork.
+- **Requests:** every organization shares a ceiling of `THROTTLE_ORGANIZATION`
+  (default `6000/min`) on top of each person's own limit, so one organization's
+  runaway app or script cannot slow the others down.
+- **PDF jobs:** one running job per organization, one live job per person.
+- **Database connections:** with more organizations, put PgBouncer in
+  *transaction* mode in front of Postgres and set `DB_BEHIND_PGBOUNCER=true`.
+  Row-level security is set per transaction, so it works through the pooler
+  unchanged.
+
 ## Backups
 
 A restore needs three things, kept in three places:

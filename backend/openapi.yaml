@@ -7036,6 +7036,9 @@ components:
           $ref: '#/components/schemas/DeliveryFailures'
         storage_bytes:
           type: integer
+        storage_limit_mb:
+          type: integer
+          nullable: true
         setup:
           $ref: '#/components/schemas/OrganizationSetup'
       required:
@@ -7050,6 +7053,7 @@ components:
       - setup
       - staff
       - storage_bytes
+      - storage_limit_mb
     OrganizationProfile:
       type: object
       properties:
@@ -7877,6 +7881,11 @@ components:
       properties:
         is_active:
           type: boolean
+        storage_limit_mb:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Blank for no limit.
     PatchedPlantRequest:
       type: object
       description: The unique constraint includes the organization, which clients

@@ -16,7 +16,7 @@ from .serializers import (
     OrganizationCreateSerializer,
     OrganizationUpdateSerializer,
 )
-from .services import create_organization, set_active
+from .services import create_organization, set_active, set_storage_limit
 
 
 def _described(organization) -> dict:
@@ -66,10 +66,14 @@ class ConsoleOrganizationView(APIView):
         organization = get_object_or_404(Organization, pk=pk)
         serializer = OrganizationUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        set_active(
-            organization,
-            serializer.validated_data["is_active"],
-            actor=request.user,
-            own_organization_id=request.user.active_membership.organization_id,
-        )
+        data = serializer.validated_data
+        if "is_active" in data:
+            set_active(
+                organization,
+                data["is_active"],
+                actor=request.user,
+                own_organization_id=request.user.active_membership.organization_id,
+            )
+        if "storage_limit_mb" in data:
+            set_storage_limit(organization, data["storage_limit_mb"], actor=request.user)
         return Response(_described(organization))

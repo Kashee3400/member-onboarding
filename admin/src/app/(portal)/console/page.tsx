@@ -83,6 +83,35 @@ function OrganizationCard({
   const { setup } = health;
   const failures = health.failures_this_week;
   const failed = failures.mail + failures.sms + failures.push;
+  const limit = useMutation({
+    mutationFn: (storage_limit_mb: number | null) =>
+      api(`${ENDPOINT}/${organization.id}`, {
+        method: "PATCH",
+        body: { storage_limit_mb },
+      }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: KEY });
+      toast.success("Storage limit saved.");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not save it.",
+      ),
+  });
+  const askLimit = () => {
+    const answer = window.prompt(
+      `Storage limit for ${organization.name}, in MB. Leave empty for no limit.`,
+      health.storage_limit_mb ? String(health.storage_limit_mb) : "",
+    );
+    if (answer === null) return;
+    const value = answer.trim() ? Number.parseInt(answer, 10) : null;
+    if (value !== null && !(value > 0))
+      return toast.error("Enter a whole number of MB, or leave it empty.");
+    limit.mutate(value);
+  };
+  const full =
+    !!health.storage_limit_mb &&
+    health.storage_bytes >= health.storage_limit_mb * 1024 * 1024;
   const toggle = useMutation({
     mutationFn: () =>
       api(`${ENDPOINT}/${organization.id}`, {
@@ -155,7 +184,22 @@ function OrganizationCard({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Files stored</p>
-          <p className="tabular-nums">{bytes(health.storage_bytes)}</p>
+          <p
+            className={`tabular-nums ${full ? "font-medium text-destructive" : ""}`}
+          >
+            {bytes(health.storage_bytes)}
+            {health.storage_limit_mb
+              ? ` of ${bytes(health.storage_limit_mb * 1024 * 1024)}`
+              : ""}{" "}
+            <button
+              type="button"
+              className="text-xs text-primary underline-offset-2 hover:underline"
+              disabled={limit.isPending}
+              onClick={askLimit}
+            >
+              {health.storage_limit_mb ? "Change limit" : "Set limit"}
+            </button>
+          </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">

@@ -4,10 +4,7 @@ what is stuck, what is failing and what is still to set up.
 """
 
 from datetime import timedelta
-from pathlib import Path
 
-from django.conf import settings
-from django.core.cache import cache
 from django.db.models import Count, Max
 from django.utils import timezone
 
@@ -22,21 +19,9 @@ from apps.hierarchy.models import Mpp
 from apps.notifications.models import DeliveryFailure
 from apps.organizations.models import Membership
 
+from .quotas import storage_bytes
+
 PENDING = (Status.PENDING_AM, Status.PENDING_CS, Status.PENDING_FINANCE)
-STORAGE_CACHE_SECONDS = 600
-
-
-def _storage_bytes(organization_id) -> int:
-    """Walking the files is slow, so the total is kept for a few minutes."""
-    key = f"console:storage:{organization_id}"
-    found = cache.get(key)
-    if found is None:
-        root = Path(settings.MEDIA_ROOT) / str(organization_id)
-        found = (
-            sum(p.stat().st_size for p in root.rglob("*") if p.is_file()) if root.is_dir() else 0
-        )
-        cache.set(key, found, STORAGE_CACHE_SECONDS)
-    return found
 
 
 def _setup(organization) -> dict:
@@ -85,7 +70,8 @@ def organization_health(organization) -> dict:
             "failures_this_week": {
                 channel: failures.get(channel, 0) for channel in DeliveryFailure.Channel.values
             },
-            "storage_bytes": _storage_bytes(organization.id),
+            "storage_bytes": storage_bytes(organization.id),
+            "storage_limit_mb": organization.storage_limit_mb,
             "setup": _setup(organization),
         }
     return health

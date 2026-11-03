@@ -597,6 +597,7 @@ export type ConsoleOrganization = {
     last_activity: string | null;
     failures_this_week: { mail: number; sms: number; push: number };
     storage_bytes: number;
+    storage_limit_mb: number | null;
     setup: {
       branding: boolean;
       email_domain: boolean;

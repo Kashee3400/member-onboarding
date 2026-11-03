@@ -61,3 +61,16 @@ def set_active(organization, active: bool, *, actor, own_organization_id) -> Org
             target=organization,
         )
     return organization
+
+
+def set_storage_limit(organization, limit_mb, *, actor) -> Organization:
+    organization.storage_limit_mb = limit_mb
+    organization.save(update_fields=["storage_limit_mb", "updated_at"])
+    with organization_context(organization.id):
+        record_event(
+            "organization.storage_limit_set",
+            actor=actor,
+            target=organization,
+            metadata={"limit_mb": limit_mb},
+        )
+    return organization

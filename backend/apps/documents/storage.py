@@ -73,15 +73,22 @@ def _absolute(relative_path: str) -> Path:
     return path
 
 
-def write(relative_path: str, content: bytes) -> None:
-    _write_bytes(relative_path, crypto.seal_file(content, relative_path))
+def write(relative_path: str, content: bytes, *, upload: bool = True) -> None:
+    """`upload=False` for files the system makes itself, which no limit may refuse."""
+    _write_bytes(relative_path, crypto.seal_file(content, relative_path), upload=upload)
 
 
 def write_public(relative_path: str, content: bytes) -> None:
-    _write_bytes(relative_path, content)
+    _write_bytes(relative_path, content, upload=True)
 
 
-def _write_bytes(relative_path: str, content: bytes) -> None:
+def _write_bytes(relative_path: str, content: bytes, *, upload: bool) -> None:
+    from apps.console import quotas
+
+    # Every path starts with the organization's id (see the layout above).
+    organization_id = relative_path.split("/", 1)[0]
+    if upload:
+        quotas.ensure_room(organization_id, len(content))
     path = _absolute(relative_path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=DIRECTORY_MODE)
 
@@ -97,6 +104,7 @@ def _write_bytes(relative_path: str, content: bytes) -> None:
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
         raise
+    quotas.stored(organization_id, len(content))
 
 
 def read(relative_path: str) -> bytes:

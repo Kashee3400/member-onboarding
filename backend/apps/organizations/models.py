@@ -12,6 +12,9 @@ class Organization(UUIDModel, TimeStampedModel):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=60, unique=True)
     is_active = models.BooleanField(default=True)
+    storage_limit_mb = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Uploads stop once files reach this. Blank: no limit."
+    )
 
     class Meta:
         db_table = "organization"

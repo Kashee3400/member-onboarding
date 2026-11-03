@@ -32,6 +32,7 @@ class OrganizationHealthSerializer(serializers.Serializer):
     last_activity = serializers.DateTimeField(allow_null=True)
     failures_this_week = DeliveryFailuresSerializer()
     storage_bytes = serializers.IntegerField()
+    storage_limit_mb = serializers.IntegerField(allow_null=True)
     setup = OrganizationSetupSerializer()
 
 
@@ -70,4 +71,7 @@ class OrganizationCreatedSerializer(serializers.Serializer):
 
 
 class OrganizationUpdateSerializer(serializers.Serializer):
-    is_active = serializers.BooleanField()
+    is_active = serializers.BooleanField(required=False)
+    storage_limit_mb = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1, help_text="Blank for no limit."
+    )

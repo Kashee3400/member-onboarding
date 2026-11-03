@@ -1,12 +1,18 @@
 from datetime import timedelta
 
 import pytest
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework.throttling import SimpleRateThrottle
 
 from apps.accounts.mfa import issue_tokens
 from apps.applications.models import Application, Status
+from apps.applications.services import printed_form
+from apps.console import quotas
+from apps.console.throttling import OrganizationRateThrottle
 from apps.core.tenancy import organization_context
 from apps.notifications.failures import record_failure
 from apps.notifications.models import DeliveryFailure
@@ -15,11 +21,12 @@ from apps.rbac.models import MembershipRole
 from apps.rbac.navigation import locked_paths, navigation_for
 
 from .conftest import make_member
-from .test_applications import OTHER_AADHAAR, World
+from .test_applications import OTHER_AADHAAR, URL, World, jpeg_bytes
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
 ORGANIZATIONS = "/api/v1/console/organizations/"
+ME = "/api/v1/auth/me/"
 
 
 def operator_client(organization, user, *, mfa=True):
@@ -163,3 +170,60 @@ def test_a_pending_form_waiting_too_long_is_late(world):
     rows = operator_client(world.org, world.admin).get(ORGANIZATIONS).data
 
     assert rows[0]["health"]["late"] == 1
+
+
+# Fair shares ---------------------------------------------------------------------------
+
+
+def over_the_limit(organization, limit_mb=1):
+    """However much the test photos weighed, the organization is now past its limit."""
+    Organization.objects.filter(pk=organization.id).update(storage_limit_mb=limit_mb)
+    cache.set(f"console:storage:{organization.id}", (limit_mb + 1) * quotas.MB, 600)
+
+
+def test_uploads_stop_at_the_storage_limit_but_printed_forms_do_not(world):
+    done = world.fully_approved()
+    over_the_limit(world.org)
+    draft = world.draft()
+
+    refused = world.client(world.facilitator).post(
+        f"{URL}{draft['id']}/documents/",
+        {"document_type": "photo", "file": SimpleUploadedFile("x.jpg", jpeg_bytes())},
+        format="multipart",
+    )
+
+    assert refused.status_code == 409
+    assert refused.data["error"]["code"] == "storage_full"
+    with organization_context(world.org.id):
+        assert printed_form(Application.objects.get(pk=done["id"]), "single")
+
+
+def test_an_operator_sets_and_lifts_the_storage_limit(world):
+    operator = operator_client(world.org, world.admin)
+    url = f"{ORGANIZATIONS}{world.org.id}/"
+
+    assert (
+        operator.patch(url, {"storage_limit_mb": 5}, format="json").data["health"][
+            "storage_limit_mb"
+        ]
+        == 5
+    )
+    lifted = operator.patch(url, {"storage_limit_mb": None}, format="json")
+    assert lifted.data["health"]["storage_limit_mb"] is None
+
+
+@pytest.fixture
+def ceiling_of_three():
+    rates = {**SimpleRateThrottle.THROTTLE_RATES, "organization": "3/min"}
+    OrganizationRateThrottle.THROTTLE_RATES = rates
+    yield
+    OrganizationRateThrottle.THROTTLE_RATES = SimpleRateThrottle.THROTTLE_RATES
+
+
+def test_one_organization_has_a_ceiling_on_its_requests(world, ceiling_of_three):
+    manager, legal = world.client(world.manager), world.client(world.legal)
+
+    codes = [client.get(ME).status_code for client in (manager, legal, manager, legal)]
+
+    # Two people, one organization: the fourth request is over their shared ceiling.
+    assert codes == [200, 200, 200, 429]
