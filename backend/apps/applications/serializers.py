@@ -7,7 +7,7 @@ from rest_framework import serializers
 from apps.hierarchy.models import Mpp
 from apps.hierarchy.services import mpp_place
 
-from . import banks, form, place, review_settings, review_steps, services
+from . import banks, form, place, review_settings, review_steps, services, warnings
 from .models import (
     Application,
     ApplicationDecision,
@@ -116,6 +116,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
 
     computed = serializers.SerializerMethodField()
     warnings = serializers.SerializerMethodField()
+    field_warnings = serializers.SerializerMethodField()
     tr_code = serializers.SerializerMethodField()
     fee = serializers.SerializerMethodField()
     place = serializers.SerializerMethodField()
@@ -141,6 +142,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "payment",
             "computed",
             "warnings",
+            "field_warnings",
             "tr_code",
             "fee",
             "place",
@@ -219,9 +221,27 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     def get_computed(application) -> dict:
         return form.computed_totals(application.data)
 
-    @staticmethod
-    def get_warnings(application) -> list[str]:
-        return form.name_warnings(application.data)
+    def _field_warnings(self, application) -> dict[str, str]:
+        """Worked out once per form, for both the list and the per-field view."""
+        cache = self.context.setdefault("field_warnings", {})
+        if application.pk not in cache:
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            cache[application.pk] = warnings.field_warnings(
+                application,
+                getattr(user, "active_membership", None),
+                getattr(user, "active_permissions", ()),
+            )
+        return cache[application.pk]
+
+    def get_warnings(self, application) -> list[str]:
+        """Worth an approver's attention, but not grounds to block a submission."""
+        return list(self._field_warnings(application).values())
+
+    @extend_schema_field(serializers.DictField(child=serializers.CharField()))
+    def get_field_warnings(self, application) -> dict:
+        """The same warnings, keyed by the field they concern, as "section.field"."""
+        return self._field_warnings(application)
 
     @staticmethod
     def get_tr_code(application) -> str | None:

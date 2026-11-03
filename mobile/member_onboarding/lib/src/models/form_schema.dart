@@ -32,6 +32,10 @@ class FormFieldSpec {
     this.options = const [],
     this.locked = false,
     this.retired = const [],
+    this.pattern,
+    this.minAge,
+    this.maxAge,
+    this.adultAge,
   });
 
   factory FormFieldSpec.fromJson(Map<String, dynamic> json) => FormFieldSpec(
@@ -42,6 +46,10 @@ class FormFieldSpec {
     options: _choices(json['options']),
     retired: _choices(json['retired_options']),
     locked: json['locked'] as bool? ?? false,
+    pattern: json['pattern'] as String?,
+    minAge: json['min_age'] as int?,
+    maxAge: json['max_age'] as int?,
+    adultAge: json['adult_age'] as int?,
   );
 
   final String key;
@@ -57,6 +65,16 @@ class FormFieldSpec {
 
   /// No longer offered, but shown when an older form holds one.
   final List<ChoiceOption> retired;
+
+  /// The shape the server accepts, so the phone can check it while typing.
+  final String? pattern;
+
+  /// The applicant's age limits, for a date of birth.
+  final int? minAge;
+  final int? maxAge;
+
+  /// Below this age a nominee needs a guardian.
+  final int? adultAge;
 }
 
 class FormSectionSpec {

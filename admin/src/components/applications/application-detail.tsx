@@ -144,6 +144,7 @@ function Fact({
   change,
   icon,
   trailing,
+  warning,
 }: {
   label: string;
   children: React.ReactNode;
@@ -154,6 +155,8 @@ function Fact({
   icon?: LucideIcon;
   /** At the end of the box: verified, locked, copy. */
   trailing?: React.ReactNode;
+  /** A risk the server sees in this answer, shown under the box. */
+  warning?: string;
 }) {
   const found = iconIndex(label);
   const Icon = flagged ? AlertTriangle : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
@@ -172,6 +175,7 @@ function Fact({
           "flex min-h-10 items-center gap-2.5 border bg-muted/40 px-3 py-1.5 text-sm",
           flagged && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
           change && !flagged && "border-amber-500/60 bg-amber-500/10",
+          warning && !flagged && "border-amber-500/70 border-l-4 border-l-amber-500",
         )}
       >
         <Icon className={cn("size-4 shrink-0", flagged ? "text-destructive" : "text-muted-foreground/80")} />
@@ -181,6 +185,12 @@ function Fact({
       {change ? (
         <p className="text-xs text-muted-foreground">
           Was: <span className="line-through decoration-muted-foreground/50">{change.before || "empty"}</span>
+        </p>
+      ) : null}
+      {warning ? (
+        <p className="flex items-start gap-1.5 text-xs text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          {warning}
         </p>
       ) : null}
     </div>
@@ -316,6 +326,7 @@ function FormSection({
               label={field.label}
               flagged={application.rejected_fields.includes(path)}
               change={changes.byPath.get(path)}
+              warning={application.field_warnings?.[path]}
               trailing={
                 path === "address.mobile" || path === "address.email" ? (
                   <Verified at={path === "address.mobile" ? verified.mobile : verified.email} given={!!values[field.key]} />
@@ -1008,6 +1019,7 @@ function StepContent({
           <Fact
             label="Account number"
             change={changes.byPath.get("bank.account_number")}
+            warning={application.field_warnings?.["bank.account_number"]}
             trailing={numbers.full ? <CopyButton value={numbers.account} label="Copy account number" /> : null}
           >
             <span className="font-mono tabular-nums">{numbers.account || null}</span>

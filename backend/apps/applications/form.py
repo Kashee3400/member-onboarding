@@ -14,6 +14,8 @@ from .form_hindi import FIELD_LABELS, OPTION_LABELS, SECTION_TITLES
 
 FORM_VERSION = 1
 MINIMUM_MEMBER_AGE = 18
+# Older than this is almost surely a mistyped year, so the form is stopped to check it.
+MAXIMUM_MEMBER_AGE = 100
 ANIMAL_TYPES = ("indigenous", "crossbred", "buffalo")
 ANIMAL_COUNTS = ("heifer", "dry", "in_milk")
 
@@ -72,6 +74,12 @@ def _field(key, label, kind="text", required=True, **extra):
 # Locked: the server copies these from the MPP whenever the MPP knows them.
 FROM_MPP = {"locked": True, "source": "mpp"}
 
+# Served with the fields that use them, so the app checks while typing by the same rules.
+MOBILE_PATTERN = r"^[6-9]\d{9}$"
+PINCODE_PATTERN = r"^[1-9]\d{5}$"
+IFSC_PATTERN = r"^[A-Z]{4}0[A-Z0-9]{6}$"
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
 
 def _choice(key, label, option_list, required=True):
     options = OPTION_LISTS[option_list]
@@ -91,7 +99,13 @@ FORM_SCHEMA = {
                 _field("relation_name", "Father / husband name"),
                 _field("relation_name_hi", "Father / husband name in Hindi", required=False),
                 _choice("gender", "Gender", "gender"),
-                _field("date_of_birth", "Date of birth", "date"),
+                _field(
+                    "date_of_birth",
+                    "Date of birth",
+                    "date",
+                    min_age=MINIMUM_MEMBER_AGE,
+                    max_age=MAXIMUM_MEMBER_AGE,
+                ),
                 _choice("education", "Education", "education"),
                 _choice("category", "Category", "category"),
                 _choice("family_status", "Family status", "family_status", required=False),
@@ -113,10 +127,10 @@ FORM_SCHEMA = {
                 _field("tehsil", "Tehsil", **FROM_MPP),
                 _field("district", "District", **FROM_MPP),
                 _field("state", "State", **FROM_MPP),
-                _field("pincode", "PIN code", **FROM_MPP),
-                _field("mobile", "Mobile number"),
+                _field("pincode", "PIN code", pattern=PINCODE_PATTERN, **FROM_MPP),
+                _field("mobile", "Mobile number", pattern=MOBILE_PATTERN),
                 _field("landline", "Landline", required=False),
-                _field("email", "Email", required=False),
+                _field("email", "Email", required=False, pattern=EMAIL_PATTERN),
             ],
         },
         {
@@ -145,7 +159,7 @@ FORM_SCHEMA = {
             "title": "Bank account",
             "fields": [
                 _field("holder_name", "Name as per passbook"),
-                _field("ifsc", "IFSC"),
+                _field("ifsc", "IFSC", pattern=IFSC_PATTERN),
                 _field("bank_name", "Bank"),
                 _field("branch_name", "Branch"),
             ],
@@ -156,7 +170,9 @@ FORM_SCHEMA = {
             "fields": [
                 _field("name", "Nominee name"),
                 _choice("relation", "Relation with applicant", "nominee_relation"),
-                _field("date_of_birth", "Nominee date of birth", "date"),
+                _field(
+                    "date_of_birth", "Nominee date of birth", "date", adult_age=MINIMUM_MEMBER_AGE
+                ),
                 _field("address", "Nominee address"),
                 _field("guardian_name", "Guardian name", required=False),
             ],
@@ -237,9 +253,10 @@ def _allowed(value, option_list, choices, kept) -> bool:
 
 
 _AADHAAR = re.compile(r"^[2-9]\d{11}$")
-_MOBILE = re.compile(r"^[6-9]\d{9}$")
-_PINCODE = re.compile(r"^[1-9]\d{5}$")
-_IFSC = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+_MOBILE = re.compile(MOBILE_PATTERN)
+_PINCODE = re.compile(PINCODE_PATTERN)
+_IFSC = re.compile(IFSC_PATTERN)
+_EMAIL = re.compile(EMAIL_PATTERN)
 _ACCOUNT = re.compile(r"^\d{9,18}$")
 
 # Verhoeff tables, the checksum printed into every Aadhaar number.
@@ -407,6 +424,10 @@ def validate_for_submit(
         errors["applicant.date_of_birth"] = "Enter a valid date."
     elif born and age_on(born, today) < MINIMUM_MEMBER_AGE:
         errors["applicant.date_of_birth"] = f"The applicant must be {MINIMUM_MEMBER_AGE} or older."
+    elif born and age_on(born, today) > MAXIMUM_MEMBER_AGE:
+        errors["applicant.date_of_birth"] = (
+            f"Check the date of birth: that is over {MAXIMUM_MEMBER_AGE} years old."
+        )
 
     if address.get("mobile") and not _MOBILE.match(str(address["mobile"])):
         errors["address.mobile"] = "Enter a 10-digit mobile number."
@@ -414,6 +435,8 @@ def validate_for_submit(
         errors["address.pincode"] = "Enter a 6-digit PIN code."
     if bank.get("ifsc") and not _IFSC.match(str(bank["ifsc"])):
         errors["bank.ifsc"] = "Enter a valid IFSC."
+    if address.get("email") and not _EMAIL.match(str(address["email"]).strip()):
+        errors["address.email"] = "Enter a valid email."
 
     totals = computed_totals(data)
     if totals["total_animals"] == 0:
@@ -422,6 +445,11 @@ def validate_for_submit(
     consumption = _number(animals.get("consumption_lpd"))
     if production is not None and production <= 0:
         errors["animals.production_lpd"] = "Enter the daily production."
+    for key, amount in (("production_lpd", production), ("consumption_lpd", consumption)):
+        if amount is None and animals.get(key) not in (None, ""):
+            errors[f"animals.{key}"] = "Enter a number."
+    if consumption is not None and consumption < 0:
+        errors["animals.consumption_lpd"] = "Enter the daily consumption."
     if production is not None and consumption is not None and consumption > production:
         errors["animals.consumption_lpd"] = "Consumption cannot exceed production."
 
@@ -468,12 +496,3 @@ def _family_errors(family, choices=None, previous=None) -> dict:
         if person.get("relation") not in relations:
             errors[f"family.{position}.relation"] = "Choose a relation."
     return errors
-
-
-def name_warnings(data: dict) -> list[str]:
-    """Worth an approver's attention, but not grounds to block a submission."""
-    applicant = str(data.get("applicant", {}).get("full_name", "")).strip().lower()
-    holder = str(data.get("bank", {}).get("holder_name", "")).strip().lower()
-    if applicant and holder and applicant != holder:
-        return ["The applicant's name differs from the name on the bank account."]
-    return []

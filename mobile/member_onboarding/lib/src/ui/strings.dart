@@ -130,4 +130,23 @@ class Strings {
   static const done = 'ठीक है';
   static const rejectedBecause = 'लौटाने का कारण';
   static const fixFirst = 'जमा नहीं हुआ। कृपया ये ठीक करें:';
+  static const pleaseCheck = 'इन्हें ठीक करें, वरना फॉर्म जमा नहीं होगा';
+
+  // Checked while typing, by the same rules the server applies on submit.
+  static const aadhaarChecksum = 'यह आधार नंबर सही नहीं है। हर अंक कार्ड से मिलाकर देखें';
+  static const accountInvalid = 'खाता संख्या 9 से 18 अंकों की होती है';
+  static const mobileInvalid = 'मोबाइल नंबर 10 अंकों का हो और 6, 7, 8 या 9 से शुरू हो';
+  static const pincodeInvalid = 'पिन कोड 6 अंकों का हो और 0 से शुरू न हो';
+  static const emailInvalid = 'ईमेल सही नहीं है, जैसे name@gmail.com';
+  static const ifscInvalid = 'IFSC 11 अक्षरों का होता है, जैसे SBIN0001234 (5वाँ अक्षर शून्य)';
+  static const dateInvalid = 'तारीख सही नहीं है';
+  static const applicantTooYoung = 'सदस्या की उम्र कम से कम 18 साल होनी चाहिए';
+  static const applicantTooOld = 'उम्र 100 साल से ज़्यादा आ रही है। जन्म तिथि जाँचें';
+  static const notANumber = 'सिर्फ़ अंक भरें, जैसे 5 या 5.5';
+  static const productionNeeded = 'रोज़ का दूध उत्पादन 0 से ज़्यादा भरें';
+  static const consumptionTooHigh = 'घर की खपत दूध उत्पादन से ज़्यादा नहीं हो सकती';
+  static const noAnimals = 'कम से कम एक पशु की संख्या भरें';
+  static const guardianNeeded = 'नामित 18 साल से छोटा है, संरक्षक का नाम भरें';
+  static const guardianNotNeeded = 'नामित बालिग है, संरक्षक का नाम खाली छोड़ें';
+  static const familyAgeInvalid = 'उम्र 0 से 120 साल के बीच भरें';
 }
