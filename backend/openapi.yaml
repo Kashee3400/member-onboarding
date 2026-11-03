@@ -1349,6 +1349,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/auth/mobile/start/:
+    post:
+      operationId: auth_mobile_start_create
+      description: Sends a sign-in code to a staff member's mobile. Unknown numbers
+        get the same reply.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileStartRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileStartResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/auth/mobile/verify/:
+    post:
+      operationId: auth_mobile_verify_create
+      description: |-
+        Swaps the code for tokens. A number in several organizations first gets the list
+        to choose from, then sends the same challenge and code again with one of them.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileVerifyRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileVerifyResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/auth/password/change/:
     post:
       operationId: auth_password_change_create
@@ -6638,6 +6691,59 @@ components:
           maxLength: 20
       required:
       - mfa_token
+    MobileStartRequest:
+      type: object
+      properties:
+        mobile:
+          type: string
+          minLength: 1
+          maxLength: 20
+      required:
+      - mobile
+    MobileStartResponse:
+      type: object
+      properties:
+        challenge:
+          type: string
+        expires_in:
+          type: integer
+      required:
+      - challenge
+      - expires_in
+    MobileVerifyRequest:
+      type: object
+      properties:
+        challenge:
+          type: string
+          minLength: 1
+          maxLength: 64
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+        organization:
+          description: Only when asked to choose one.
+          oneOf:
+          - type: string
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+      required:
+      - challenge
+      - code
+    MobileVerifyResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        organization:
+          $ref: '#/components/schemas/OrganizationChoice'
+        choose:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationChoice'
     ModeEnum:
       enum:
       - cash
@@ -7004,6 +7110,16 @@ components:
       - created_at
       - id
       - title
+    OrganizationChoice:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+      required:
+      - name
+      - slug
     OrganizationCreateRequest:
       type: object
       properties:
@@ -7998,6 +8114,12 @@ components:
           type: string
           format: email
           minLength: 1
+        mobile:
+          oneOf:
+          - type: string
+            pattern: ^[6-9]\d{9}$
+          - type: string
+            maxLength: 0
         is_active:
           type: boolean
         role_ids:
@@ -8752,7 +8874,9 @@ components:
           readOnly: true
         email:
           type: string
-          format: email
+          readOnly: true
+        mobile:
+          type: string
           readOnly: true
         full_name:
           type: string
@@ -8792,6 +8916,7 @@ components:
       - has_signature
       - id
       - is_active
+      - mobile
       - needs_signature
       - photo_url
       - roles
@@ -8803,6 +8928,11 @@ components:
           type: string
           format: email
           minLength: 1
+        mobile:
+          type: string
+          minLength: 1
+          description: Signs in to the app with a code by SMS.
+          pattern: ^[6-9]\d{9}$
         full_name:
           type: string
           minLength: 1
@@ -8817,7 +8947,6 @@ components:
             type: string
             format: uuid
       required:
-      - email
       - full_name
       - role_ids
     State:

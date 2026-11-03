@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db.models import Exists, OuterRef, ProtectedError
 from django.shortcuts import get_object_or_404
@@ -26,6 +28,7 @@ from .models import Role
 from .navigation import locked_paths, navigation_for
 from .permissions import require_permission
 from .serializers import (
+    NO_EMAIL_DOMAIN,
     AcceptInvitationSerializer,
     InvitationLinkSerializer,
     InvitationSerializer,
@@ -173,9 +176,15 @@ class StaffListView(generics.ListAPIView):
         ensure_can_assign(request.user, roles)
 
         User = get_user_model()
-        email = data["email"].strip().lower()
-        if problem := staff_email_problem(email):
+        mobile = data.get("mobile", "")
+        if mobile and Membership.objects.filter(mobile=mobile).exists():
+            raise Conflict("Someone in this organization already has this mobile number.")
+        email = data.get("email", "").strip().lower()
+        if email and (problem := staff_email_problem(email)):
             raise exceptions.ValidationError({"email": [problem]})
+        sms_only = not email
+        if sms_only:
+            email = f"m-{uuid.uuid4().hex}{NO_EMAIL_DOMAIN}"
         user = User.objects.filter(email=email).first()
         if user is None:
             user = User.objects.create_user(
@@ -188,7 +197,7 @@ class StaffListView(generics.ListAPIView):
             raise Conflict("This person is already staff in this organization.")
 
         membership = Membership.objects.create(
-            organization=request.user.active_membership.organization, user=user
+            organization=request.user.active_membership.organization, user=user, mobile=mobile
         )
         set_membership_roles(membership, roles)
         record_event(
@@ -198,7 +207,7 @@ class StaffListView(generics.ListAPIView):
             metadata={"roles": [role.code for role in roles]},
         )
         body = StaffSerializer(_staff_queryset().get(pk=membership.pk)).data
-        if invitations.is_pending(membership):
+        if not sms_only and invitations.is_pending(membership):
             # Shown to whoever invited them too, for when mail is down or not set up.
             body["invite_link"] = invitations.invite(membership, actor=request.user)
         return Response(body, status=status.HTTP_201_CREATED)
@@ -231,6 +240,17 @@ class StaffDetailView(APIView):
             change_email(
                 membership.user, data["email"], request.user.active_membership.organization
             )
+
+        if "mobile" in data and data["mobile"] != membership.mobile:
+            if (
+                data["mobile"]
+                and Membership.objects.filter(mobile=data["mobile"])
+                .exclude(pk=membership.pk)
+                .exists()
+            ):
+                raise Conflict("Someone in this organization already has this mobile number.")
+            membership.mobile = data["mobile"]
+            membership.save(update_fields=["mobile", "updated_at"])
 
         if "role_ids" in data:
             ensure_can_assign(request.user, data["role_ids"], membership=membership)

@@ -33,6 +33,7 @@ REST_FRAMEWORK = {
         "organization": "100000/min",
         "login": "5/min",
         "mfa": "1000/min",
+        "mobile_login": "1000/min",
         "exchange": "1000/min",
     },
 }

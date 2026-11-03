@@ -41,7 +41,9 @@ export type Permission = { code: string; description: string };
 
 export type Staff = {
   id: string;
+  /** Blank for field staff who sign in to the app only by SMS. */
   email: string;
+  mobile: string;
   full_name: string;
   is_active: boolean;
   /** Invited people have not chosen a password yet. */

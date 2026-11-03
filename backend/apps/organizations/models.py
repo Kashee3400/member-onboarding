@@ -51,12 +51,19 @@ class Membership(OrganizationOwnedModel):
     )
     is_active = models.BooleanField(default=True)
     photo_path = models.CharField(max_length=300, blank=True)
+    # For signing in to the standalone app with a code by SMS.
+    mobile = models.CharField(max_length=10, blank=True)
 
     class Meta:
         db_table = "organization_membership"
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "user"], name="unique_membership_per_organization"
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "mobile"],
+                condition=~models.Q(mobile=""),
+                name="unique_staff_mobile_per_organization",
             ),
         ]
 

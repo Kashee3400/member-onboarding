@@ -1,7 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, MailCheck, Power, Send, ShieldOff, UserPlus, Users } from "lucide-react";
+import {
+  KeyRound,
+  MailCheck,
+  Power,
+  Send,
+  ShieldOff,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -12,7 +20,11 @@ import { FormDialog } from "@/components/admin/form-dialog";
 import { PhotoField } from "@/components/admin/photo-field";
 import { SignatureSetup } from "@/components/admin/signature-setup";
 import { CopyButton } from "@/components/applications/copy-button";
-import { DataTable, FilterSelect, type Column } from "@/components/common/data-table";
+import {
+  DataTable,
+  FilterSelect,
+  type Column,
+} from "@/components/common/data-table";
 import { Field } from "@/components/common/field";
 import { SecretInput } from "@/components/common/form-input";
 import { PageHeader } from "@/components/common/page-header";
@@ -47,7 +59,13 @@ function RolePicker({
             label={role.name}
             hint={role.requires_mfa ? "Needs two-step sign-in" : undefined}
             checked={selected.includes(role.id)}
-            onChange={(on) => onChange(on ? [...selected, role.id] : selected.filter((id) => id !== role.id))}
+            onChange={(on) =>
+              onChange(
+                on
+                  ? [...selected, role.id]
+                  : selected.filter((id) => id !== role.id),
+              )
+            }
           />
         ))}
       </div>
@@ -66,12 +84,14 @@ function InviteLink({ link, email }: { link: string; email: string }) {
         <MailCheck className="size-4 text-primary" /> Invitation sent to {email}
       </p>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate font-mono text-xs">{link}</code>
+        <code className="min-w-0 flex-1 truncate font-mono text-xs">
+          {link}
+        </code>
         <CopyButton value={link} />
       </div>
       <p className="text-xs text-muted-foreground">
-        It works once, for 7 days. If the email does not arrive, send this link to them directly. Sending a new
-        invitation ends this one.
+        It works once, for 7 days. If the email does not arrive, send this link
+        to them directly. Sending a new invitation ends this one.
       </p>
     </div>
   );
@@ -82,12 +102,17 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [withPassword, setWithPassword] = useState(false);
   const create = useMutation({
-    mutationFn: (body: object) => api<Staff & { invite_link?: string }>("staff", { method: "POST", body }),
+    mutationFn: (body: object) =>
+      api<Staff & { invite_link?: string }>("staff", { method: "POST", body }),
     onSuccess: (person) => {
       client.invalidateQueries({ queryKey: ["queue"] });
       client.invalidateQueries({ queryKey: ["staff"] });
       if (!person.invite_link) {
-        toast.success("Staff added. They must change the password when they first sign in.");
+        toast.success(
+          person.email
+            ? "Staff added. They must change the password when they first sign in."
+            : "Staff added. They sign in to the app with a code sent to their mobile.",
+        );
         onClose();
       }
     },
@@ -97,8 +122,11 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const mobile = String(form.get("mobile") ?? "").trim();
     create.mutate({
-      email: form.get("email"),
+      ...(email ? { email } : {}),
+      ...(mobile ? { mobile } : {}),
       full_name: form.get("full_name"),
       ...(withPassword ? { password: form.get("password") } : {}),
       role_ids: roleIds,
@@ -108,7 +136,7 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
   return (
     <FormDialog
       title="Add staff"
-      description="They get an email to choose their own password, and confirm their name."
+      description="With an email they get a link to choose a password. With only a mobile they sign in to the app with a code by SMS."
       onClose={onClose}
       onSubmit={submit}
       error={create.error}
@@ -122,8 +150,15 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || roleIds.length === 0}>
-              {create.isPending ? "Adding…" : withPassword ? "Add staff" : "Send invitation"}
+            <Button
+              type="submit"
+              disabled={create.isPending || roleIds.length === 0}
+            >
+              {create.isPending
+                ? "Adding…"
+                : withPassword
+                  ? "Add staff"
+                  : "Send invitation"}
             </Button>
           </>
         )
@@ -133,12 +168,38 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
         <InviteLink link={invited.invite_link!} email={invited.email} />
       ) : (
         <>
-          <Field label="Full name" htmlFor="full_name" help="They can correct it to their official name.">
+          <Field
+            label="Full name"
+            htmlFor="full_name"
+            help="They can correct it to their official name."
+          >
             <Input id="full_name" name="full_name" required autoFocus />
           </Field>
-          <Field label="Email" htmlFor="email">
-            <Input id="email" name="email" type="email" required />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Email"
+              htmlFor="email"
+              optional
+              help="For the staff portal."
+            >
+              <Input id="email" name="email" type="email" />
+            </Field>
+            <Field
+              label="Mobile"
+              htmlFor="mobile"
+              optional
+              help="For the app, by SMS code."
+            >
+              <Input
+                id="mobile"
+                name="mobile"
+                inputMode="numeric"
+                pattern="[6-9][0-9]{9}"
+                maxLength={10}
+                className="tabular-nums"
+              />
+            </Field>
+          </div>
           <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} />
           <CheckRow
             label="Set a temporary password instead"
@@ -147,8 +208,18 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
             onChange={setWithPassword}
           />
           {withPassword ? (
-            <Field label="Temporary password" htmlFor="password" help="At least 12 characters.">
-              <SecretInput id="password" name="password" required minLength={12} autoComplete="new-password" />
+            <Field
+              label="Temporary password"
+              htmlFor="password"
+              help="At least 12 characters."
+            >
+              <SecretInput
+                id="password"
+                name="password"
+                required
+                minLength={12}
+                autoComplete="new-password"
+              />
             </Field>
           ) : null}
         </>
@@ -157,19 +228,29 @@ function AddStaff({ roles, onClose }: { roles: Role[]; onClose: () => void }) {
   );
 }
 
-function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[]; onClose: () => void }) {
+function ManageStaff({
+  person,
+  roles,
+  onClose,
+}: {
+  person: Staff;
+  roles: Role[];
+  onClose: () => void;
+}) {
   const client = useQueryClient();
   const me = useMe();
   const [roleIds, setRoleIds] = useState(person.roles.map((role) => role.id));
   const [name, setName] = useState(person.full_name);
   const [email, setEmail] = useState(person.email);
+  const [mobile, setMobile] = useState(person.mobile);
   const refresh = () => {
     client.invalidateQueries({ queryKey: ["queue"] });
     client.invalidateQueries({ queryKey: ["staff"] });
   };
 
   const update = useMutation({
-    mutationFn: (body: object) => api(`staff/${person.id}`, { method: "PATCH", body }),
+    mutationFn: (body: object) =>
+      api(`staff/${person.id}`, { method: "PATCH", body }),
     onSuccess: (_, body) => {
       refresh();
       toast.success(
@@ -181,29 +262,44 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
             ? "Name saved."
             : "email" in body
               ? "Email saved. They sign in with the new one from now on."
-              : "Roles saved.",
+              : "mobile" in body
+                ? "Mobile saved."
+                : "Roles saved.",
       );
       onClose();
     },
   });
   const invite = useMutation({
-    mutationFn: () => api<{ invite_link: string }>(`staff/${person.id}/invite`, { method: "POST" }),
+    mutationFn: () =>
+      api<{ invite_link: string }>(`staff/${person.id}/invite`, {
+        method: "POST",
+      }),
     onError: (error) => toast.error(messageOf(error)),
   });
   const resetMfa = useMutation({
     mutationFn: () => api(`staff/${person.id}/mfa-reset`, { method: "POST" }),
-    onSuccess: () => toast.success("Two-step sign-in reset. They set it up again at next sign-in."),
+    onSuccess: () =>
+      toast.success(
+        "Two-step sign-in reset. They set it up again at next sign-in.",
+      ),
     onError: (error) => toast.error(messageOf(error)),
   });
 
   const resetPassword = useMutation({
-    mutationFn: () => api<{ temporary_password: string }>(`staff/${person.id}/password-reset`, { method: "POST" }),
+    mutationFn: () =>
+      api<{ temporary_password: string }>(`staff/${person.id}/password-reset`, {
+        method: "POST",
+      }),
     onError: (error) => toast.error(messageOf(error)),
   });
 
   const self = person.email === me.email;
   const rolesChanged =
-    [...roleIds].sort().join() !== person.roles.map((role) => role.id).sort().join();
+    [...roleIds].sort().join() !==
+    person.roles
+      .map((role) => role.id)
+      .sort()
+      .join();
 
   return (
     <FormDialog
@@ -227,14 +323,30 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
       }
     >
       <div className="flex items-end gap-4">
-        <PhotoField name={person.full_name || person.email} photo={person.photo_url} membership={person.id} />
-        <Field label="Full name" htmlFor="staff-name" className="min-w-0 flex-1">
+        <PhotoField
+          name={person.full_name || person.email}
+          photo={person.photo_url}
+          membership={person.id}
+        />
+        <Field
+          label="Full name"
+          htmlFor="staff-name"
+          className="min-w-0 flex-1"
+        >
           <div className="flex gap-2">
-            <Input id="staff-name" value={name} onChange={(event) => setName(event.target.value)} />
+            <Input
+              id="staff-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
             <Button
               type="button"
               variant="outline"
-              disabled={update.isPending || !name.trim() || name.trim() === person.full_name}
+              disabled={
+                update.isPending ||
+                !name.trim() ||
+                name.trim() === person.full_name
+              }
               onClick={() => update.mutate({ full_name: name.trim() })}
             >
               Save name
@@ -274,23 +386,62 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
         </div>
       </Field>
 
+      <Field
+        label="Mobile"
+        htmlFor="staff-mobile"
+        help="They sign in to the app with a code sent here. Roles that need MFA cannot."
+      >
+        <div className="flex gap-2">
+          <Input
+            id="staff-mobile"
+            inputMode="numeric"
+            maxLength={10}
+            className="tabular-nums"
+            value={mobile}
+            onChange={(event) =>
+              setMobile(event.target.value.replace(/\D/g, ""))
+            }
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              update.isPending ||
+              mobile === person.mobile ||
+              !(mobile === "" || /^[6-9]\d{9}$/.test(mobile))
+            }
+            onClick={() => update.mutate({ mobile })}
+          >
+            Save mobile
+          </Button>
+        </div>
+      </Field>
+
       <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} />
       {self ? (
         <p className="text-xs text-muted-foreground">
-          This is your own account. Nobody can raise their own access, so another admin must do that.
+          This is your own account. Nobody can raise their own access, so
+          another admin must do that.
         </p>
       ) : null}
 
       {person.status === "invited" ? (
         <div className="space-y-2 border-t pt-4">
           <p className="text-sm">
-            <StatusBadge status="invited" /> They have not accepted the invitation yet.
+            <StatusBadge status="invited" /> They have not accepted the
+            invitation yet.
           </p>
           {invite.data ? (
             <InviteLink link={invite.data.invite_link} email={person.email} />
           ) : (
-            <Button type="button" variant="outline" disabled={invite.isPending} onClick={() => invite.mutate()}>
-              <Send /> {invite.isPending ? "Sending…" : "Send the invitation again"}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={invite.isPending}
+              onClick={() => invite.mutate()}
+            >
+              <Send />{" "}
+              {invite.isPending ? "Sending…" : "Send the invitation again"}
             </Button>
           )}
         </div>
@@ -299,10 +450,14 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
       <div className="space-y-2 border-t pt-4">
         <p className="text-sm font-medium">Signature</p>
         {person.needs_signature ? (
-          <SignatureSetup membership={person.id} hasSignature={person.has_signature} />
+          <SignatureSetup
+            membership={person.id}
+            hasSignature={person.has_signature}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
-            Not needed. Forms approved by this team carry the signature of its head.
+            Not needed. Forms approved by this team carry the signature of its
+            head.
           </p>
         )}
       </div>
@@ -313,7 +468,9 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
             ref={(panel) => panel?.scrollIntoView({ block: "nearest" })}
             className="space-y-1.5 border border-primary/30 bg-primary/5 p-3"
           >
-            <p className="text-sm font-medium">One-time password. It is shown only now.</p>
+            <p className="text-sm font-medium">
+              One-time password. It is shown only now.
+            </p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 font-mono text-sm break-all">
                 {resetPassword.data.temporary_password}
@@ -321,7 +478,8 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
               <CopyButton value={resetPassword.data.temporary_password} />
             </div>
             <p className="text-xs text-muted-foreground">
-              Give it to them directly. They choose a new password at their next sign-in, and are signed out everywhere now.
+              Give it to them directly. They choose a new password at their next
+              sign-in, and are signed out everywhere now.
             </p>
           </div>
         ) : null}
@@ -333,7 +491,11 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
               action="Reset password"
               onConfirm={() => resetPassword.mutate()}
               trigger={
-                <Button type="button" variant="outline" disabled={resetPassword.isPending}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={resetPassword.isPending}
+                >
                   <KeyRound /> Reset password
                 </Button>
               }
@@ -345,13 +507,21 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
             action="Reset"
             onConfirm={() => resetMfa.mutate()}
             trigger={
-              <Button type="button" variant="outline" disabled={resetMfa.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={resetMfa.isPending}
+              >
                 <ShieldOff /> Reset two-step sign-in
               </Button>
             }
           />
           <Confirm
-            title={person.is_active ? "Deactivate this person?" : "Reactivate this person?"}
+            title={
+              person.is_active
+                ? "Deactivate this person?"
+                : "Reactivate this person?"
+            }
             description={
               person.is_active
                 ? "They can no longer sign in, and their MPP assignments end straight away."
@@ -360,7 +530,11 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
             action={person.is_active ? "Deactivate" : "Reactivate"}
             onConfirm={() => update.mutate({ is_active: !person.is_active })}
             trigger={
-              <Button type="button" variant="destructive" disabled={update.isPending}>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={update.isPending}
+              >
                 <Power /> {person.is_active ? "Deactivate" : "Reactivate"}
               </Button>
             }
@@ -392,12 +566,16 @@ export default function StaffPage() {
         cell: (row) => (
           <span className="flex items-center gap-2.5">
             <Avatar className="size-7">
-              {row.photo_url ? <AvatarImage src={apiImage(row.photo_url)} alt="" /> : null}
+              {row.photo_url ? (
+                <AvatarImage src={apiImage(row.photo_url)} alt="" />
+              ) : null}
               <AvatarFallback className="bg-primary/12 text-[11px] font-semibold text-primary">
                 {initials(row.full_name || row.email)}
               </AvatarFallback>
             </Avatar>
-            <span className="font-medium">{row.full_name || row.email.split("@")[0]}</span>
+            <span className="font-medium">
+              {row.full_name || row.email.split("@")[0]}
+            </span>
           </span>
         ),
       },
@@ -406,7 +584,11 @@ export default function StaffPage() {
         header: "Email",
         sortKey: "email",
         csv: (row) => row.email,
-        cell: (row) => <span className="text-muted-foreground">{row.email}</span>,
+        cell: (row) => (
+          <span className="text-muted-foreground">
+            {row.email || (row.mobile ? `SMS · ${row.mobile}` : "—")}
+          </span>
+        ),
       },
       {
         id: "roles",
@@ -436,10 +618,18 @@ export default function StaffPage() {
         id: "signature",
         header: "Signature",
         hideBelow: "lg",
-        csv: (row) => (row.needs_signature ? (row.has_signature ? "On file" : "Missing") : "Not needed"),
+        csv: (row) =>
+          row.needs_signature
+            ? row.has_signature
+              ? "On file"
+              : "Missing"
+            : "Not needed",
         cell: (row) =>
           row.needs_signature ? (
-            <StatusBadge status={row.has_signature ? "active" : "pending"} label={row.has_signature ? "On file" : "Missing"} />
+            <StatusBadge
+              status={row.has_signature ? "active" : "pending"}
+              label={row.has_signature ? "On file" : "Missing"}
+            />
           ) : (
             <span className="text-muted-foreground">Not needed</span>
           ),
@@ -450,7 +640,11 @@ export default function StaffPage() {
         sortKey: "created_at",
         hideBelow: "lg",
         csv: (row) => date(row.created_at),
-        cell: (row) => <span className="text-muted-foreground tabular-nums">{date(row.created_at)}</span>,
+        cell: (row) => (
+          <span className="text-muted-foreground tabular-nums">
+            {date(row.created_at)}
+          </span>
+        ),
       },
     ],
     [],
@@ -498,8 +692,16 @@ export default function StaffPage() {
           />
         }
       />
-      {adding ? <AddStaff roles={roleList} onClose={() => setAdding(false)} /> : null}
-      {editing ? <ManageStaff person={editing} roles={roleList} onClose={() => setEditing(null)} /> : null}
+      {adding ? (
+        <AddStaff roles={roleList} onClose={() => setAdding(false)} />
+      ) : null}
+      {editing ? (
+        <ManageStaff
+          person={editing}
+          roles={roleList}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </>
   );
 }

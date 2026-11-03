@@ -139,6 +139,7 @@ REST_FRAMEWORK = {
         "organization": env("THROTTLE_ORGANIZATION", default="6000/min"),
         "login": env("THROTTLE_LOGIN", default="10/min"),
         "mfa": env("THROTTLE_MFA", default="30/min"),
+        "mobile_login": env("THROTTLE_MOBILE_LOGIN", default="20/min"),
         # Field staff can share one mobile network address.
         "exchange": env("THROTTLE_EXCHANGE", default="600/min"),
     },

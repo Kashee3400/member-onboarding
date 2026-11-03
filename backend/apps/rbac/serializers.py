@@ -72,7 +72,7 @@ class AcceptInvitationSerializer(serializers.Serializer):
 
 
 class StaffSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(source="user.email", read_only=True)
+    email = serializers.SerializerMethodField()
     full_name = serializers.CharField(source="user.full_name", read_only=True)
     photo_url = serializers.ReadOnlyField()
     status = serializers.SerializerMethodField()
@@ -85,6 +85,7 @@ class StaffSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "email",
+            "mobile",
             "full_name",
             "is_active",
             "status",
@@ -95,6 +96,11 @@ class StaffSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+    @staticmethod
+    def get_email(membership) -> str:
+        email = membership.user.email
+        return "" if email.endswith(NO_EMAIL_DOMAIN) else email
 
     @staticmethod
     def get_status(membership) -> str:
@@ -121,8 +127,16 @@ class StaffSerializer(serializers.ModelSerializer):
         return StaffRoleSerializer(roles, many=True).data
 
 
+MOBILE = r"^[6-9]\d{9}$"
+# Field staff who sign in only by SMS have no address; this stands in for one.
+NO_EMAIL_DOMAIN = "@mobile.invalid"
+
+
 class StaffCreateSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False)
+    mobile = serializers.RegexField(
+        MOBILE, required=False, help_text="Signs in to the app with a code by SMS."
+    )
     full_name = serializers.CharField(max_length=200)
     # Without a password the person is invited by email and chooses their own.
     password = serializers.CharField(write_only=True, trim_whitespace=False, required=False)
@@ -134,10 +148,16 @@ class StaffCreateSerializer(serializers.Serializer):
         validate_password(value)
         return value
 
+    def validate(self, attrs):
+        if not attrs.get("email") and not attrs.get("mobile"):
+            raise serializers.ValidationError({"email": ["Enter an email, a mobile, or both."]})
+        return attrs
+
 
 class StaffUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(required=False, allow_blank=False, max_length=200)
     email = serializers.EmailField(required=False)
+    mobile = serializers.RegexField(MOBILE, required=False, allow_blank=True)
     is_active = serializers.BooleanField(required=False)
     role_ids = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), many=True, required=False
