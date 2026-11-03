@@ -134,6 +134,7 @@ class Strings {
   static const aadhaarBack = 'Aadhaar back';
   static const passbook = 'Bank passbook';
   static const takePhoto = 'Take photo';
+  static const signOut = 'Sign out';
   static const useCamera = 'Take a photo with the camera';
   static const fromGallery = 'Choose from the gallery';
   static const retake = 'Retake';

@@ -30,11 +30,16 @@ class MemberOnboardingScreen extends StatefulWidget {
     this.device = const DeviceServices(),
     this.vault,
     this.openApplicationId,
+    this.onSignOut,
     super.key,
   });
 
   /// A form to open at once, such as the one a push notification was about.
   final String? openApplicationId;
+
+  /// Shows a sign-out button, for an app whose only screen this is. A host app
+  /// with its own menu leaves it null.
+  final VoidCallback? onSignOut;
 
   final MemberOnboardingConfig config;
   final DraftStore? store;
@@ -373,6 +378,12 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                   icon: const Icon(Icons.insights_rounded),
                   onPressed: _openRecords,
                 ),
+                if (widget.onSignOut case final signOut?)
+                  IconButton(
+                    tooltip: Strings.signOut,
+                    icon: const Icon(Icons.logout_rounded),
+                    onPressed: signOut,
+                  ),
               ],
             ),
             body: RefreshIndicator(
