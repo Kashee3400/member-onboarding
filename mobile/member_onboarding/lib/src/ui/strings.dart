@@ -222,7 +222,7 @@ class Strings {
   static const locationAgain = 'Take the location again';
   static const animalsTitle = 'Animals';
   static const milkTitle = 'Milk';
-  static const milkToSell = 'Milk to sell';
+  static const milkToSell = 'Surplus Milk';
   static const litresPerDay = 'litres a day';
   static const findingBranch = 'Finding the bank and branch';
   static const branchNotFound = 'Bank not found for this IFSC. Type the bank and branch.';
