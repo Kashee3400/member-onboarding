@@ -172,6 +172,8 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _detail(self, application, status_code=status.HTTP_200_OK):
         fresh = self.get_queryset().get(pk=application.pk)
+        # Not stored: what this save refused, which only the object that saved knows.
+        fresh.duplicate_fields = getattr(application, "duplicate_fields", {})
         context = self.get_serializer_context()
         return Response(
             ApplicationDetailSerializer(fresh, context=context).data, status=status_code

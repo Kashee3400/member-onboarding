@@ -5051,6 +5051,13 @@ components:
           description: When the mobile number and email were confirmed by OTP, or
             null.
           readOnly: true
+        duplicate_fields:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Set only by a save: what was not kept because another form
+            or member has it.'
+          readOnly: true
         decisions:
           type: array
           items:
@@ -5070,6 +5077,7 @@ components:
       - created_at
       - created_by_name
       - decisions
+      - duplicate_fields
       - fee
       - field_warnings
       - id

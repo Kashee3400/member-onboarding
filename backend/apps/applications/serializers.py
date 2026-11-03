@@ -124,6 +124,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     mpp_place = serializers.SerializerMethodField()
     review_steps = serializers.SerializerMethodField()
     contact_verified = serializers.SerializerMethodField()
+    duplicate_fields = serializers.SerializerMethodField()
     decisions = DecisionSerializer(many=True, read_only=True)
     revisions = RevisionSerializer(many=True, read_only=True)
 
@@ -151,9 +152,15 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "mpp_place",
             "review_steps",
             "contact_verified",
+            "duplicate_fields",
             "decisions",
             "revisions",
         ]
+
+    @staticmethod
+    def get_duplicate_fields(application) -> dict[str, str]:
+        """Set only by a save: what was not kept because another form or member has it."""
+        return getattr(application, "duplicate_fields", {})
 
     @staticmethod
     def get_contact_verified(application) -> dict:

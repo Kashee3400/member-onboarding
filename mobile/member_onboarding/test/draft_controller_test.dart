@@ -7,6 +7,7 @@ import 'package:member_onboarding/src/config.dart';
 import 'package:member_onboarding/src/models/draft.dart';
 import 'package:member_onboarding/src/storage/draft_store.dart';
 import 'package:member_onboarding/src/sync/draft_controller.dart';
+import 'package:member_onboarding/src/ui/strings.dart';
 
 class FakeApi extends OnboardingApi {
   FakeApi()
@@ -214,7 +215,7 @@ void main() {
     controller.setAadhaar('234123412346');
     await controller.sync();
 
-    expect(controller.aadhaarError, 'Already exists');
+    expect(controller.aadhaarError, Taken.aadhaar);
     expect(controller.draft.pendingAadhaar, isNull);
   });
 

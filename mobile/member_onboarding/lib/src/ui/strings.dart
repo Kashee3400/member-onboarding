@@ -7,6 +7,24 @@ class OtpWords {
   static const notSaved = 'फॉर्म अभी सहेजा नहीं गया। थोड़ी देर बाद फिर कोशिश करें।';
 }
 
+/// Said on the field itself when what was typed already belongs to someone else.
+class Taken {
+  const Taken._();
+
+  static const aadhaar = 'यह आधार नंबर पहले से किसी फॉर्म या सदस्या का है। सही नंबर भरें।';
+  static const mobile =
+      'यह मोबाइल नंबर पहले से किसी फॉर्म या सदस्या का है। सदस्या का अपना नंबर भरें।';
+  static const email = 'यह ईमेल पहले से किसी फॉर्म में है। सदस्या का अपना ईमेल भरें।';
+  static const account = 'यह बैंक खाता पहले से किसी फॉर्म में है। सदस्या का अपना खाता भरें।';
+
+  static String? forPath(String path) => switch (path) {
+    'address.mobile' => mobile,
+    'address.email' => email,
+    'bank.account_number' => account,
+    _ => null,
+  };
+}
+
 class Strings {
   const Strings._();
 

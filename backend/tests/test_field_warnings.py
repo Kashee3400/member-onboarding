@@ -3,10 +3,8 @@ from datetime import date
 import pytest
 
 from apps.applications import warnings
-from apps.applications.models import Application
-from apps.core.tenancy import organization_context
 
-from .test_applications import OTHER_AADHAAR, URL, World, complete_form
+from .test_applications import URL, World, complete_form
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -117,44 +115,6 @@ def test_the_name_mismatch_is_tied_to_the_holder_field(world):
 # Warnings from other forms ---------------------------------------------------------------
 
 
-def test_a_shared_bank_account_names_the_other_form(world):
-    first = world.submitted()
-    second = world.submitted(OTHER_AADHAAR)  # The helper gives every form the same account.
-
-    found = detail(world, second)["field_warnings"]
-
-    assert found["bank.account_number"] == (
-        f"This bank account is on another form ({first['form_number']})."
-    )
-    assert found["bank.account_number"] in detail(world, second)["warnings"]
-
-
-def test_another_form_outside_the_reviewers_mpps_is_not_named(world, org_a):
-    first = world.submitted()
-    second = world.submitted(OTHER_AADHAAR)
-    with organization_context(org_a.id):
-        Application.objects.filter(pk=first["id"]).update(mpp=world.other_mpp)
-
-    found = detail(world, second)["field_warnings"]
-
-    assert found["bank.account_number"] == "This bank account is on another form."
-    assert first["form_number"] not in str(detail(world, second))
-
-
-def test_a_mobile_number_on_another_form_is_pointed_out(world):
-    first = world.submitted()
-    client = world.client(world.facilitator)
-    later = world.draft(client)
-    client.patch(
-        f"{URL}{later['id']}/",
-        {"data": {"address": {"mobile": first["data"]["address"]["mobile"]}}},
-    )
-
-    found = detail(world, first)["field_warnings"]
-
-    assert found["address.mobile"] == "This mobile number is on another form."
-
-
 def place_drafts(world, *positions):
     client = world.client(world.facilitator)
     for latitude, longitude in positions:
@@ -191,9 +151,3 @@ def test_too_few_earlier_forms_say_nothing_about_the_place(world):
     place_drafts(world, *USUAL[:1], (27.0, 80.0))
     found = detail(world, world.submitted())["field_warnings"]
     assert "location.latitude" not in found
-
-
-def test_drafts_skip_the_checks_against_other_forms(world):
-    world.submitted()
-    second = world.filled(OTHER_AADHAAR)
-    assert "bank.account_number" not in second["field_warnings"]

@@ -7,7 +7,7 @@ import '../api/api_client.dart';
 import '../api/onboarding_api.dart';
 import '../models/draft.dart';
 import '../storage/draft_store.dart';
-import '../ui/strings.dart' show OtpWords;
+import '../ui/strings.dart' show OtpWords, Taken;
 
 enum SyncState { saved, saving, offline, conflict, failed }
 
@@ -69,6 +69,7 @@ class DraftController extends ChangeNotifier {
 
   void setAccount(String number) {
     draft.pendingAccount = number;
+    serverErrors = Map.of(serverErrors)..remove('bank.account_number');
     _changed();
   }
 
@@ -109,6 +110,22 @@ class DraftController extends ChangeNotifier {
     }
     // The server knows the MPP's latest place, even for a form started before it was set.
     if (server['mpp_place'] != null) draft.place = placeFromJson(server['mpp_place']);
+  }
+
+  /// A mobile number, email or bank account another form or member already has: the
+  /// server did not keep it, so neither does the phone, and the field says why.
+  void _refuseTaken(Object? taken) {
+    if (taken is! Map || taken.isEmpty) return;
+    final errors = Map.of(serverErrors);
+    final address = draft.section('address');
+    for (final path in taken.keys.cast<String>()) {
+      final message = Taken.forPath(path);
+      if (message == null) continue;
+      errors[path] = message;
+      if (path.startsWith('address.')) address[path.substring(8)] = '';
+    }
+    draft.data['address'] = address;
+    serverErrors = errors;
   }
 
   /// Sends an OTP for "mobile" or "email". Returns why it could not, or null.
@@ -172,6 +189,7 @@ class DraftController extends ChangeNotifier {
       // The server holds them now, so they must not stay on the phone.
       if (draft.pendingAadhaar == aadhaar) draft.pendingAadhaar = null;
       if (draft.pendingAccount == account) draft.pendingAccount = null;
+      _refuseTaken(saved['duplicate_fields']);
 
       for (final entry in Map.of(draft.pendingDocuments).entries) {
         final file = File(entry.value);
@@ -192,7 +210,7 @@ class DraftController extends ChangeNotifier {
       if (error.code == 'stale_version') {
         state = SyncState.conflict;
       } else if (error.code == 'duplicate_record') {
-        aadhaarError = error.message;
+        aadhaarError = Taken.aadhaar;
         draft.pendingAadhaar = null;
         state = SyncState.failed;
       } else {

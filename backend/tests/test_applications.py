@@ -194,11 +194,12 @@ class World:
         client = self.client(self.facilitator)
         application = self.draft(client)
         data = complete_form()
-        # Each member needs her own mobile number, so it follows the Aadhaar number.
+        # Each member needs her own mobile number and bank account, so they follow the Aadhaar.
         data["address"]["mobile"] = f"9{aadhaar[-9:]}"
+        account = ACCOUNT if aadhaar == AADHAAR else f"6563{aadhaar[-11:]}"
         response = client.patch(
             f"{URL}{application['id']}/",
-            {"data": data, "aadhaar_number": aadhaar, "account_number": ACCOUNT},
+            {"data": data, "aadhaar_number": aadhaar, "account_number": account},
         )
         assert response.status_code == 200, response.content
         self.attach_documents(client, application["id"])

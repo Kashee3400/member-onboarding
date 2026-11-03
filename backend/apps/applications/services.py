@@ -159,6 +159,10 @@ def _organization_scope(application) -> str:
     return str(application.organization_id)
 
 
+# Refused as soon as they are saved. Aadhaar is refused even earlier, in set_aadhaar.
+TAKEN_ON_SAVE = {"address.mobile", "address.email", "bank.account_number"}
+
+
 def contact_index(kind: str, value: str, organization_id) -> str:
     return crypto.blind_index(value, f"{kind}:{organization_id}")
 
@@ -173,7 +177,7 @@ def _active_member_with(**index) -> str | None:
 
 
 def already_used(application) -> dict[str, str]:
-    """Aadhaar, mobile and email must be new to everything that is still current."""
+    """Aadhaar, mobile, email and bank account must be new to everything still current."""
     errors = {}
     others = Application.objects.exclude(pk=application.pk).exclude(status=Status.DISCARDED)
     organization = _organization_scope(application)
@@ -200,6 +204,12 @@ def already_used(application) -> dict[str, str]:
     email = str(address.get("email") or "").strip().lower()
     if email and others.filter(data__address__email__iexact=email).exists():
         errors["address.email"] = "Another form already uses this email."
+
+    if (
+        application.account_index
+        and others.filter(account_index=application.account_index).exists()
+    ):
+        errors["bank.account_number"] = "Another form already uses this bank account."
     return errors
 
 
@@ -317,6 +327,25 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
         set_aadhaar(application, aadhaar)
     if account:
         set_account(application, account)
+
+    # A number or address already taken is not kept, and the rest of the form still is:
+    # failing the whole save would lose everything else typed since the last one.
+    taken = {
+        path: problem
+        for path, problem in already_used(application).items()
+        if path in TAKEN_ON_SAVE
+    }
+    if taken:
+        address = dict(application.data.get("address", {}))
+        for path in taken:
+            if path.startswith("address."):
+                address[path.split(".", 1)[1]] = ""
+        application.data = {**application.data, "address": address}
+        if "bank.account_number" in taken:
+            application.account_encrypted = application.account_index = (
+                application.account_last4
+            ) = ""
+    application.duplicate_fields = taken
 
     application.version += 1
     application.last_edited_by = user

@@ -7,13 +7,12 @@ another member's details; it names another form only to staff who can open it.
 import math
 import statistics
 
-from django.db.models import F
 from django.utils import timezone
 
 from apps.hierarchy.services import accessible_mpps
 
 from . import form
-from .models import Application, Member, Status
+from .models import Application, Status
 
 # Ages outside this range are allowed, but rarely right.
 YOUNGEST_USUAL_AGE = form.MINIMUM_MEMBER_AGE
@@ -29,9 +28,6 @@ MAX_LITRES_PER_ANIMAL = 20
 FAR_KM = 10
 NEARBY_FORMS_NEEDED = 3
 NEARBY_FORMS_READ = 200
-
-# A sent form has a number a reviewer can look up; a draft has none.
-SENT_FIRST = F("submitted_at").desc(nulls_last=True)
 
 
 def data_warnings(data: dict, *, on) -> dict[str, str]:
@@ -75,13 +71,6 @@ def data_warnings(data: dict, *, on) -> dict[str, str]:
 
 def _others(application):
     return Application.objects.exclude(pk=application.pk).exclude(status=Status.DISCARDED)
-
-
-def _named(other, visible_mpps) -> str:
-    """The other form's number, only if this reviewer may open it."""
-    if other is None or not other.form_number or other.mpp_id not in visible_mpps:
-        return ""
-    return f" ({other.form_number})"
 
 
 def _distance_km(a, b) -> float:
@@ -129,43 +118,9 @@ def _usual_spot(application) -> tuple[float, float] | None:
 def record_warnings(application, visible_mpps) -> dict[str, str]:
     """What only a look at other forms can tell. `visible_mpps` are the reviewer's MPP ids."""
     warnings = {}
-    others = _others(application)
 
-    if application.account_index:
-        other = (
-            others.filter(account_index=application.account_index)
-            .order_by(SENT_FIRST)
-            .only("form_number", "mpp_id", "status")
-            .first()
-        )
-        if other:
-            approved = other.status == Status.APPROVED
-            whose = "an existing member's form" if approved else "another form"
-            warnings["bank.account_number"] = (
-                f"This bank account is on {whose}{_named(other, visible_mpps)}."
-            )
-
-    mobile = str(application.data.get("address", {}).get("mobile") or "").strip()
-    if mobile:
-        member = (
-            Member.objects.filter(mobile=mobile)
-            .exclude(application=application)
-            .select_related("application")
-            .first()
-        )
-        other = (
-            member.application
-            if member
-            else others.filter(data__address__mobile=mobile)
-            .order_by(SENT_FIRST)
-            .only("form_number", "mpp_id", "status")
-            .first()
-        )
-        if other:
-            whose = "an existing member" if member else "another form"
-            warnings["address.mobile"] = (
-                f"This mobile number is on {whose}{_named(other, visible_mpps)}."
-            )
+    # A bank account or mobile number already taken never gets this far: the form
+    # refuses it as it is typed (services.TAKEN_ON_SAVE), so no warning is needed here.
 
     here = _position(application.data.get("location"))
     spot = _usual_spot(application) if here else None
