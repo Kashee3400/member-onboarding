@@ -67,6 +67,17 @@ class Strings {
   static const startedOn = 'Started';
   static const sentOn = 'Submitted';
   static const recordsNeedNetwork = 'The internet is needed to see records.';
+  static const mpp = 'MPP';
+  static const formNumber = 'Form number';
+  static const mobileLabel = 'Mobile';
+  static const approvals = 'Approvals';
+  static const stageApproved = 'Approved';
+  static const stageReturned = 'Sent back';
+  static const stagePending = 'Waiting';
+  static const stageNotYet = 'Not reached yet';
+  static const days = 'days';
+  static const editForm = 'Edit form';
+  static const correctForm = 'Correct the form';
 
   static const back = 'Back';
   static const next = 'Next';

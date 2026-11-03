@@ -19,6 +19,7 @@ from .models import (
     Member,
     MemberCodeSettings,
     OrganizationProfile,
+    Status,
 )
 
 
@@ -31,12 +32,17 @@ class ApplicationListSerializer(serializers.ModelSerializer):
     is_overdue = serializers.SerializerMethodField()
     tr_code = serializers.SerializerMethodField()
     approved_at = serializers.SerializerMethodField()
+    mobile = serializers.SerializerMethodField()
+    photo_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         fields = [
             "id",
             "form_number",
+            "aadhaar_last4",
+            "mobile",
+            "photo_id",
             "status",
             "status_label",
             "mpp",
@@ -56,6 +62,16 @@ class ApplicationListSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_applicant_name(application) -> str:
         return application.data.get("applicant", {}).get("full_name", "")
+
+    @staticmethod
+    def get_mobile(application) -> str:
+        return str(application.data.get("address", {}).get("mobile") or "")
+
+    @staticmethod
+    def get_photo_id(application) -> str | None:
+        """The member's photo, for a list to show; only lists and the form page carry it."""
+        photo = getattr(application, "photo_id", None)
+        return str(photo) if photo else None
 
     @staticmethod
     def get_waiting_since(application) -> datetime | None:
@@ -127,10 +143,12 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     duplicate_fields = serializers.SerializerMethodField()
     decisions = DecisionSerializer(many=True, read_only=True)
     revisions = RevisionSerializer(many=True, read_only=True)
+    stages = serializers.SerializerMethodField()
 
     class Meta(ApplicationListSerializer.Meta):
         fields = [
             *ApplicationListSerializer.Meta.fields,
+            "stages",
             "client_id",
             "form_version",
             "version",
@@ -216,6 +234,42 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     def get_mpp_place(application) -> dict:
         """The address fields the MPP fills and locks, so the app shows them read-only."""
         return place.locked_values(application.mpp)
+
+    @staticmethod
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_stages(application) -> list[dict]:
+        """
+        Where the current submission stands at each approval stage, for the facilitator:
+        approved (by whom, when), rejected (why), pending (since when), or not reached yet.
+        """
+        stamp = serializers.DateTimeField().to_representation
+        decisions = {
+            decision.stage: decision
+            for decision in sorted(application.decisions.all(), key=lambda item: item.decided_at)
+            if decision.revision == application.revision
+        }
+        stages = []
+        for stage in services.STAGES:
+            decision = decisions.get(stage)
+            if decision:
+                state = decision.decision
+            elif application.status == stage:
+                state = "pending"
+            else:
+                state = "waiting"
+            since = getattr(application, "waiting_since", None) if state == "pending" else None
+            stages.append(
+                {
+                    "stage": stage,
+                    "label": Status(stage).label.removeprefix("Pending "),
+                    "state": state,
+                    "by": decision.decided_by_name if decision else "",
+                    "at": stamp(decision.decided_at) if decision else None,
+                    "since": stamp(since) if since else None,
+                    "reason": decision.reason if decision else "",
+                }
+            )
+        return stages
 
     @staticmethod
     def get_fee(application) -> dict:

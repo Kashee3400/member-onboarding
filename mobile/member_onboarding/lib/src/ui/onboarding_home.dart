@@ -190,6 +190,9 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   }
 
   Future<void> _openRejected(ApplicationSummary item) async {
+    for (final draft in await _store.all()) {
+      if (draft.serverId == item.id) return _open(draft);
+    }
     await _open(Draft.fromServer(await _api.fetchApplication(item.id)));
   }
 

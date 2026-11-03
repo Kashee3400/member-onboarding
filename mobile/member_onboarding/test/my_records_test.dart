@@ -35,6 +35,8 @@ class RecordsApi extends OnboardingApi {
           applicantName: 'Member $i',
           mppCode: '1305',
           formNumber: 'A0000$i',
+          aadhaarLast4: '4639',
+          mobile: '9876543210',
           createdAt: DateTime(2026, 11, 2),
         ),
     ];
@@ -43,6 +45,15 @@ class RecordsApi extends OnboardingApi {
         : all.skip((page - 1) * 30).take(30).toList();
     return RecordPage(items, status == 'rejected' ? 1 : all.length);
   }
+
+  @override
+  Future<Map<String, dynamic>> fetchApplication(String id) async => {
+    'stages': [
+      {'label': 'Area Manager', 'state': 'approved', 'by': 'AM Chunar', 'at': '2026-11-03T10:00:00Z'},
+      {'label': 'CS & Legal', 'state': 'pending', 'since': '2026-11-03T10:00:00Z'},
+      {'label': 'Finance', 'state': 'waiting'},
+    ],
+  };
 
   @override
   Future<RecordSummary> fetchSummary({required DateTime from, required DateTime to}) async =>
@@ -103,8 +114,40 @@ void main() {
 
     await tester.tap(find.text('Member 0'));
     await tester.pumpAndSettle();
+    expect(opened, isNull);
+
+    // The details open first; the form opens from them.
+    await tester.tap(find.text(Strings.correctForm));
+    await tester.pumpAndSettle();
 
     expect(opened?.id, 'a0');
+  });
+
+  testWidgets('a row shows the form number, Aadhaar and mobile, and its status', (tester) async {
+    await tester.pumpWidget(screen(RecordsApi()));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('A00001'), findsOneWidget);
+    expect(find.textContaining('Aadhaar XXXX 4639'), findsWidgets);
+    expect(find.textContaining('9876543210'), findsWidgets);
+    expect(find.text('Pending Area Manager'), findsWidgets);
+  });
+
+  testWidgets('a submitted form shows where it stands at each stage', (tester) async {
+    final api = RecordsApi();
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Member 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(Strings.approvals), findsOneWidget);
+    expect(find.text('Area Manager'), findsOneWidget);
+    expect(find.textContaining(Strings.stageApproved), findsOneWidget);
+    expect(find.textContaining(Strings.stagePending), findsOneWidget);
+    expect(find.text(Strings.stageNotYet), findsOneWidget);
+    // Waiting at a stage cannot be edited from the phone.
+    expect(find.text(Strings.editForm), findsNothing);
   });
 
   testWidgets('without a network it says so', (tester) async {

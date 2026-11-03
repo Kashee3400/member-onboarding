@@ -1,7 +1,7 @@
 from datetime import date
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from apps.audit.services import record_event
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
+from apps.documents.models import Document
 from apps.documents.services import current_signature
 from apps.hierarchy.models import Mpp
 from apps.hierarchy.services import accessible_mpps
@@ -137,7 +138,13 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
         forms = services.searchable_applications(
             user.active_membership, user.active_permissions
         ).select_related("mpp", "member")
-        return services.with_waiting_since(forms) if self.action in ("list", "retrieve") else forms
+        if self.action not in ("list", "retrieve"):
+            return forms
+        # The member's photo, so a list can show who each form is for.
+        photo = Document.objects.filter(
+            application=OuterRef("pk"), document_type="photo", is_current=True
+        ).values("id")[:1]
+        return services.with_waiting_since(forms).annotate(photo_id=Subquery(photo))
 
     def get_serializer_class(self):
         return ApplicationListSerializer if self.action == "list" else ApplicationDetailSerializer

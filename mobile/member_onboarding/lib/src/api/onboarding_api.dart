@@ -47,6 +47,10 @@ class ApplicationSummary {
     required this.applicantName,
     required this.mppCode,
     this.formNumber = '',
+    this.mppName = '',
+    this.aadhaarLast4 = '',
+    this.mobile = '',
+    this.photoId,
     this.createdAt,
     this.submittedAt,
   });
@@ -58,6 +62,10 @@ class ApplicationSummary {
     applicantName: (json['applicant_name'] as String?) ?? '',
     mppCode: json['mpp_code'] as String,
     formNumber: (json['form_number'] as String?) ?? '',
+    mppName: (json['mpp_name'] as String?) ?? '',
+    aadhaarLast4: (json['aadhaar_last4'] as String?) ?? '',
+    mobile: (json['mobile'] as String?) ?? '',
+    photoId: json['photo_id'] as String?,
     createdAt: DateTime.tryParse((json['created_at'] as String?) ?? '')?.toLocal(),
     submittedAt: DateTime.tryParse((json['submitted_at'] as String?) ?? '')?.toLocal(),
   );
@@ -68,6 +76,12 @@ class ApplicationSummary {
   final String applicantName;
   final String mppCode;
   final String formNumber;
+  final String mppName;
+  final String aadhaarLast4;
+  final String mobile;
+
+  /// The member's photo document, when one has been uploaded.
+  final String? photoId;
   final DateTime? createdAt;
   final DateTime? submittedAt;
 }
