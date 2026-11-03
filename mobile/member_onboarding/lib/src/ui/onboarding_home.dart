@@ -61,6 +61,9 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   List<MppSummary> _mpps = const [];
   List<Draft> _drafts = const [];
   List<ApplicationSummary> _rejected = const [];
+
+  /// Drafts on the server that are not on this phone: started on another, or before a reinstall.
+  List<ApplicationSummary> _serverDrafts = const [];
   RecordSummary? _month;
   bool _offline = false;
 
@@ -101,6 +104,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
       final form = await _api.fetchFormJson();
       final mpps = await _api.fetchMppsJson();
       final rejected = await _api.fetchApplications(status: 'rejected');
+      final serverDrafts = await _api.fetchApplications(status: 'draft');
       await _store.writeCache(_formCacheKey, jsonEncode(form));
       await _store.writeCache(_mppCacheKey, jsonEncode(mpps));
       if (!mounted) return;
@@ -108,6 +112,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
         _useForm(form);
         _useMpps(mpps);
         _rejected = rejected;
+        _serverDrafts = serverDrafts;
         _offline = false;
       });
       unawaited(_registerPush());
@@ -168,6 +173,12 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   }
 
   bool _announced = false;
+
+  /// Server drafts this phone does not hold, so none shows twice.
+  List<ApplicationSummary> get _onlyOnServer {
+    final here = {for (final draft in _drafts) ?draft.serverId};
+    return [for (final item in _serverDrafts) if (!here.contains(item.id)) item];
+  }
   bool _pushRegistered = false;
   bool _requestOpened = false;
 
@@ -426,9 +437,9 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                       ),
                   ],
                   const SizedBox(height: 20),
-                  _SectionTitle(Strings.myDrafts, count: _drafts.length),
+                  _SectionTitle(Strings.myDrafts, count: _drafts.length + _onlyOnServer.length),
                   const SizedBox(height: 8),
-                  if (_drafts.isEmpty)
+                  if (_drafts.isEmpty && _onlyOnServer.isEmpty)
                     const _Empty()
                   else
                     for (final draft in _drafts)
@@ -441,6 +452,16 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                         photo: _draftPhoto(draft),
                         onTap: () => _open(draft),
                       ),
+                  for (final item in _onlyOnServer)
+                    RecordCard(
+                      name: item.applicantName,
+                      lines: recordLines(item),
+                      status: 'draft',
+                      statusLabel: Strings.draftStatus,
+                      statusIcon: Icons.edit_note,
+                      photo: item.photoId == null ? null : _serverPhoto(item.photoId!),
+                      onTap: () => _openRejected(item),
+                    ),
                 ],
               ),
             ),

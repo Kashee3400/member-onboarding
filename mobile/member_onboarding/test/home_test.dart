@@ -71,6 +71,7 @@ class FakeApi extends OnboardingApi {
   bool online = true;
   int saves = 0;
   List<ApplicationSummary> sentBack = const [];
+  List<ApplicationSummary> serverDrafts = const [];
   final pushTokens = <String>[];
 
   @override
@@ -105,7 +106,11 @@ class FakeApi extends OnboardingApi {
   @override
   Future<List<ApplicationSummary>> fetchApplications({String? status}) async {
     _check();
-    return status == 'rejected' ? sentBack : const [];
+    return switch (status) {
+      'rejected' => sentBack,
+      'draft' => serverDrafts,
+      _ => const [],
+    };
   }
 
   @override
@@ -294,5 +299,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.pushTokens, ['fcm-token-1']);
+  });
+
+  testWidgets('a draft only on the server still shows among the unfinished forms', (tester) async {
+    final api = FakeApi()
+      ..serverDrafts = const [
+        ApplicationSummary(
+          id: 's1',
+          status: 'draft',
+          statusLabel: 'Draft',
+          applicantName: 'Sita Devi',
+          mppCode: '1305',
+        ),
+      ];
+
+    await tester.pumpWidget(app(api, MemoryDraftStore()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sita Devi'), findsOneWidget);
+    expect(find.text(Strings.noDrafts), findsNothing);
   });
 }
