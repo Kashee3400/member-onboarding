@@ -349,7 +349,7 @@ class DateBox extends StatelessWidget {
     return _TapBox(
       label: label,
       text: _display,
-      placeholder: 'दिन-महीना-साल',
+      placeholder: 'DD-MM-YYYY',
       icon: Icons.calendar_today_outlined,
       optional: optional,
       error: error,

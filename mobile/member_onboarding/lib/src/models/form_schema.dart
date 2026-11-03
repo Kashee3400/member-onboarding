@@ -3,7 +3,7 @@ class ChoiceOption {
 
   factory ChoiceOption.fromJson(Map<String, dynamic> json) => ChoiceOption(
     value: json['value'] as String,
-    label: (json['label_hi'] ?? json['label']) as String,
+    label: json['label'] as String,
   );
 
   final String value;
@@ -40,7 +40,7 @@ class FormFieldSpec {
 
   factory FormFieldSpec.fromJson(Map<String, dynamic> json) => FormFieldSpec(
     key: json['key'] as String,
-    label: (json['label_hi'] ?? json['label']) as String,
+    label: json['label'] as String,
     type: json['type'] as String,
     required: json['required'] as bool,
     options: _choices(json['options']),
@@ -82,7 +82,7 @@ class FormSectionSpec {
 
   factory FormSectionSpec.fromJson(Map<String, dynamic> json) => FormSectionSpec(
     key: json['key'] as String,
-    title: (json['title_hi'] ?? json['title']) as String,
+    title: json['title'] as String,
     fields: (json['fields'] as List)
         .cast<Map<String, dynamic>>()
         .map(FormFieldSpec.fromJson)

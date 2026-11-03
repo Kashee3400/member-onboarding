@@ -87,6 +87,7 @@ void main() {
     await tester.pumpWidget(screen(api));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text(Strings.returned).last);
     await tester.tap(find.text(Strings.returned).last);
     await tester.pumpAndSettle();
 

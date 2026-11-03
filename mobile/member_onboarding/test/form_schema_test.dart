@@ -37,14 +37,14 @@ final json = <String, dynamic>{
 };
 
 void main() {
-  test('choices read in Hindi, retired ones kept apart', () {
+  test('choices read in English, retired ones kept apart', () {
     final schema = FormSchema.fromJson(json);
     final relation = schema.section('nominee').fields.single;
 
     expect(relation.type, 'choice');
-    expect(relation.options.single.label, 'पुत्र');
+    expect(relation.options.single.label, 'Son');
     expect(relation.retired.single.value, 'other');
-    expect(schema.retiredRelations.single.label, 'भाई');
+    expect(schema.retiredRelations.single.label, 'Brother');
     expect(schema.retiredGenders, isEmpty);
   });
 
@@ -65,8 +65,8 @@ void main() {
     final relation = FormSchema.fromJson(json).section('nominee').fields.single;
     String? label(String? value) => choiceLabel(value, relation.options, relation.retired);
 
-    expect(label('son'), 'पुत्र');
-    expect(label('other'), 'अन्य');
+    expect(label('son'), 'Son');
+    expect(label('other'), 'Other');
     expect(label('Grandson'), 'Grandson');
     expect(label(''), isNull);
     expect(label(null), isNull);

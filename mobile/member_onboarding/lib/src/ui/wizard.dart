@@ -360,7 +360,7 @@ class _FormWizardState extends State<FormWizard> {
           ],
         ),
       for (final spec in amounts) _field('animals', spec),
-      Text('बिक्री योग्य दूध: ${(production - consumption).toStringAsFixed(1)} लीटर प्रति दिन'),
+      Text('Milk to sell: ${(production - consumption).toStringAsFixed(1)} litres per day'),
     ]);
   }
 
