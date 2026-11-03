@@ -16,7 +16,7 @@ from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
 from apps.rbac.catalog import APPROVE_ALL
 
-from . import form, form_lists, legacy, place, review_steps
+from . import form, form_lists, legacy, place, review_settings, review_steps
 from .models import (
     Application,
     ApplicationDecision,
@@ -360,6 +360,7 @@ def submit(application, *, user, version=None):
     application.submitted_at = now
     application.rejection_reason = ""
     application.rejected_fields = []
+    application.rejected_field_notes = {}
     application.last_edited_by = user
     application.last_edited_by_name = display_name(user)
     application.save()
@@ -472,16 +473,20 @@ def _create_member(application, now):
     )
 
 
-def _record_decision(application, user, decision, now, *, reason="", rejected_fields=None):
+def _record_decision(
+    application, user, decision, now, *, reason="", rejected_fields=None, field_notes=None
+):
     """One stage's decision, signed as that stage prints: by its head, or by whoever decided."""
     signature, signed_by = _signer(application, user)
+    rejected = decision == Decision.REJECTED
     ApplicationDecision.objects.create(
         application=application,
         revision=application.revision,
         stage=application.status,
         decision=decision,
         reason=reason.strip(),
-        rejected_fields=(rejected_fields or []) if decision == Decision.REJECTED else [],
+        rejected_fields=(rejected_fields or []) if rejected else [],
+        field_notes=(field_notes or {}) if rejected else {},
         decided_by=user,
         decided_by_name=display_name(user),
         signature=signature,
@@ -490,9 +495,25 @@ def _record_decision(application, user, decision, now, *, reason="", rejected_fi
     )
 
 
+def ensure_not_preparer(application, user) -> None:
+    worked_on_it = ApplicationRevision.objects.filter(
+        application=application, submitted_by=user
+    ).exists()
+    if worked_on_it or application.created_by_id == user.pk:
+        raise exceptions.PermissionDenied("You cannot decide on an application you prepared.")
+
+
 @transaction.atomic
 def decide(
-    application, *, user, permissions, decision, reason="", rejected_fields=None, steps=None
+    application,
+    *,
+    user,
+    permissions,
+    decision,
+    reason="",
+    rejected_fields=None,
+    steps=None,
+    field_notes=None,
 ):
     """Runs one workflow stage. The row is locked, so a double click cannot act twice."""
     application = (
@@ -508,13 +529,11 @@ def decide(
     if permission not in permissions and APPROVE_ALL not in permissions:
         raise exceptions.PermissionDenied("This stage needs a different role.")
 
-    worked_on_it = ApplicationRevision.objects.filter(
-        application=application, submitted_by=user
-    ).exists()
-    if worked_on_it or application.created_by_id == user.pk:
-        raise exceptions.PermissionDenied("You cannot decide on an application you prepared.")
+    ensure_not_preparer(application, user)
 
-    if decision == Decision.REJECTED and not reason.strip():
+    notes = {path: note.strip() for path, note in (field_notes or {}).items()}
+    rejected_fields = list(dict.fromkeys([*(rejected_fields or []), *notes]))
+    if decision == Decision.REJECTED and not reason.strip() and not notes:
         raise exceptions.ValidationError({"reason": ["Give a reason for rejecting."]})
     if decision == Decision.REJECTED and rejected_fields:
         allowed = review_steps.my_sections(user.active_membership)
@@ -522,6 +541,14 @@ def decide(
             raise exceptions.ValidationError(
                 {"rejected_fields": ["You can mark fields only on your own steps."]}
             )
+    if decision == Decision.REJECTED and not reason.strip():
+        # Marks alone are enough: the facilitator still needs one line to read.
+        reason = "; ".join(
+            f"{review_settings.field_label(path)}: {note}"
+            if note
+            else review_settings.field_label(path)
+            for path, note in notes.items()
+        )
 
     # A missing signature stops even one step being approved, before anything is saved.
     _signer(application, user)
@@ -569,13 +596,21 @@ def decide(
             if next_status not in STAGES or review_steps.stage_steps(next_status) - approved:
                 break
     else:
+        notes = {path: note for path, note in notes.items() if note}
         _record_decision(
-            application, user, decision, now, reason=reason, rejected_fields=rejected_fields
+            application,
+            user,
+            decision,
+            now,
+            reason=reason,
+            rejected_fields=rejected_fields,
+            field_notes=notes,
         )
         # Back to the MPP's current facilitator, and later from the first stage again.
         application.status = Status.REJECTED
         application.rejection_reason = reason.strip()
-        application.rejected_fields = rejected_fields or []
+        application.rejected_fields = rejected_fields
+        application.rejected_field_notes = notes
         notifications.application_rejected(application, reason.strip())
 
     application.version += 1
@@ -591,4 +626,39 @@ def decide(
         notifications.application_awaits(application, STAGES[application.status][0])
 
     record_event("application.decided", actor=user, target=application, metadata=metadata)
+    return application
+
+
+@transaction.atomic
+def withdraw_step(application, *, user, step):
+    """Takes back a step approved by mistake, while the form is still at that stage."""
+    application = Application.objects.select_for_update(of=("self",)).get(pk=application.pk)
+    if step not in review_steps.STEP_KEYS:
+        raise exceptions.NotFound("There is no such step.")
+    if application.status not in STAGES:
+        raise Conflict("This form is no longer waiting for review.")
+
+    approval = review_steps.approvals_of(application).get(step)
+    if approval is None:
+        raise Conflict("This step is not approved.")
+    membership = user.active_membership
+    if step not in review_steps.withdrawable(application, membership):
+        if approval.decided_by_id != user.pk and not review_steps.acts_on_all(membership):
+            raise exceptions.PermissionDenied("Only the person who approved it can withdraw it.")
+        raise Conflict("The form has moved on since this step was approved.")
+
+    approval.delete()
+    application.version += 1
+    application.save()
+    record_event(
+        "application.step_withdrawn",
+        actor=user,
+        target=application,
+        metadata={
+            "revision": application.revision,
+            "step": step,
+            "approved_by_name": approval.decided_by_name,
+            "approved_at": approval.decided_at.isoformat(),
+        },
+    )
     return application

@@ -180,6 +180,8 @@ export type ReviewStep = {
   /** This person acts on the step. Every other step is theirs to read only. */
   mine: boolean;
   can_approve: boolean;
+  /** This person may take the approval back: the form has not moved on since. */
+  can_withdraw: boolean;
   approved_by_name: string;
   approved_at: string | null;
 };
@@ -205,6 +207,8 @@ export type ApplicationDetail = ApplicationSummary & {
   account_last4: string;
   rejection_reason: string;
   rejected_fields: string[];
+  /** The reviewer's reason for each marked field, where one was given. */
+  rejected_field_notes: Record<string, string>;
   computed: { total_animals: number; total_in_milk: number; surplus_lpd: number };
   fee: {
     admission_fee: number;
@@ -244,6 +248,7 @@ export type ApplicationDetail = ApplicationSummary & {
     decision: string;
     reason: string;
     rejected_fields: string[];
+    field_notes: Record<string, string>;
     decided_by_name: string;
     decided_at: string;
   }[];
@@ -484,6 +489,18 @@ export type ApplicationDocument = {
 
 /** A ready-made reason for sending a form back, and the fields it marks. */
 export type RejectReason = { text: string; section: string; fields: string[] };
+
+/** A field a reviewer marked wrong on the current submission, kept until the form is decided. */
+export type FieldMark = {
+  id: string;
+  path: string;
+  label: string;
+  reason: string;
+  marked_by_name: string;
+  marked_at: string;
+  mine: boolean;
+  can_remove: boolean;
+};
 
 export type ReviewSettings = {
   overdue_days: number;

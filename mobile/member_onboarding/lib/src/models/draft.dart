@@ -21,6 +21,7 @@ class Draft {
     Set<String>? uploadedDocuments,
     this.rejectionReason = '',
     List<String>? rejectedFields,
+    Map<String, String>? rejectedFieldNotes,
     this.needsSync = false,
     this.mobileVerified = false,
     this.emailVerified = false,
@@ -29,7 +30,8 @@ class Draft {
        data = data ?? {},
        pendingDocuments = pendingDocuments ?? {},
        uploadedDocuments = uploadedDocuments ?? {},
-       rejectedFields = rejectedFields ?? [];
+       rejectedFields = rejectedFields ?? [],
+       rejectedFieldNotes = rejectedFieldNotes ?? {};
 
   factory Draft.fromJson(Map<String, dynamic> json) => Draft(
     clientId: json['client_id'] as String,
@@ -47,6 +49,8 @@ class Draft {
     uploadedDocuments: (json['uploaded_documents'] as List).cast<String>().toSet(),
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
+    // Drafts saved by an older app have no notes.
+    rejectedFieldNotes: notesFromJson(json['rejected_field_notes']),
     needsSync: json['needs_sync'] as bool,
     // Drafts saved by an older app have neither; they start unverified.
     mobileVerified: json['mobile_verified'] as bool? ?? false,
@@ -67,6 +71,8 @@ class Draft {
     accountLast4: json['account_last4'] as String,
     rejectionReason: json['rejection_reason'] as String,
     rejectedFields: (json['rejected_fields'] as List).cast<String>(),
+    // An older server, or a form sent back before reasons per field, has none.
+    rejectedFieldNotes: notesFromJson(json['rejected_field_notes']),
     mobileVerified: (json['contact_verified'] as Map?)?['mobile'] != null,
     emailVerified: (json['contact_verified'] as Map?)?['email'] != null,
     place: placeFromJson(json['mpp_place']),
@@ -99,7 +105,16 @@ class Draft {
 
   String rejectionReason;
   List<String> rejectedFields;
+
+  /// The reviewer's own reason for a returned field, where they gave one.
+  Map<String, String> rejectedFieldNotes;
   bool needsSync;
+
+  /// Why this field was sent back: the reviewer's words, or null when none were given.
+  String? noteFor(String path) {
+    final note = rejectedFieldNotes[path]?.trim();
+    return note == null || note.isEmpty ? null : note;
+  }
 
   /// Proven by an OTP on the server. A changed number or email loses it.
   bool mobileVerified;
@@ -140,6 +155,7 @@ class Draft {
     'uploaded_documents': uploadedDocuments.toList(),
     'rejection_reason': rejectionReason,
     'rejected_fields': rejectedFields,
+    'rejected_field_notes': rejectedFieldNotes,
     'needs_sync': needsSync,
     'mobile_verified': mobileVerified,
     'email_verified': emailVerified,

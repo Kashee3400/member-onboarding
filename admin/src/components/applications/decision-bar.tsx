@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import { Kbd } from "@/components/shell/shortcuts-help";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -23,9 +24,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, api, type Page } from "@/lib/api/client";
 import { isTyping } from "@/lib/shortcuts";
-import type { ApplicationDetail, ApplicationSummary, FormSchema, RejectReason, ReviewStep } from "@/lib/types";
+import type { ApplicationDetail, ApplicationSummary, FormSchema, ReviewStep } from "@/lib/types";
 
 import { STAGE_LABEL, STAGE_QUEUE } from "./constants";
+import { MarkedSummary, carriedMarks, useFieldMarkState, useRejectReasons } from "./field-marks";
 
 const message = (error: unknown) => (error instanceof ApiError ? error.summary : "Something went wrong. Try again.");
 
@@ -65,6 +67,10 @@ export function DecisionBar({
   const targetBlocked = target?.key === "fee" ? blocked : null;
   // The last step left on the whole form: approving it makes the member.
   const finishes = application.status === "pending_finance" && left === 1 && !!target;
+  const mySections = application.review_steps.filter((step) => step.mine).flatMap((step) => step.sections);
+  const markState = useFieldMarkState();
+  // What was marked on the form goes with a rejection, each field with its reason.
+  const carried = markState ? carriedMarks(markState.marks, mySections) : [];
 
   const decide = useMutation({
     mutationFn: (body: object) => api<ApplicationDetail>(`applications/${id}/decide`, { method: "POST", body }),
@@ -170,6 +176,7 @@ export function DecisionBar({
                 </span>
               </div>
             ) : null}
+            <MarkedSummary onReject={() => setRejecting(true)} />
           </div>
           <div className="flex items-center gap-2 max-sm:w-full [&>*]:max-sm:flex-1">
             <Button
@@ -220,25 +227,21 @@ export function DecisionBar({
       />
 
       <RejectDialog
+        // Opens filled with the latest marks; edits made in it start again when they change.
+        key={carried.map((row) => `${row.path}:${row.reason}`).join("|")}
         open={rejecting}
         onOpenChange={setRejecting}
         schema={schema}
-        mySections={application.review_steps.filter((step) => step.mine).flatMap((step) => step.sections)}
+        mySections={mySections}
+        marks={carried}
         pending={decide.isPending}
         error={decide.isError && rejecting ? message(decide.error) : null}
-        onReject={(reason, fields) => decide.mutate({ decision: "rejected", reason, rejected_fields: fields })}
+        onReject={(reason, fields, notes) =>
+          decide.mutate({ decision: "rejected", reason, rejected_fields: fields, field_notes: notes })
+        }
       />
     </>
   );
-}
-
-/** The usual problems, one press each, as the organization set them under Review Steps. */
-function useRejectReasons() {
-  return useQuery({
-    queryKey: ["reject-reasons"],
-    queryFn: () => api<RejectReason[]>("applications/reject-reasons"),
-    staleTime: 10 * 60_000,
-  });
 }
 
 function RejectDialog({
@@ -246,6 +249,7 @@ function RejectDialog({
   onOpenChange,
   schema,
   mySections,
+  marks,
   pending,
   error,
   onReject,
@@ -255,11 +259,17 @@ function RejectDialog({
   schema: FormSchema;
   /** The sections of this person's own steps: the problems they can send back. */
   mySections: string[];
+  /** Fields marked wrong on the form, each with its reason. */
+  marks: { path: string; label: string; reason: string }[];
   pending: boolean;
   error: string | null;
-  onReject: (reason: string, fields: string[]) => void;
+  onReject: (reason: string, fields: string[], notes: Record<string, string>) => void;
 }) {
   const [note, setNote] = useState("");
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(marks.map((mark) => [mark.path, mark.reason])),
+  );
+  const noted = marks.filter((mark) => mark.path in notes);
   const [picked, setPicked] = useState<string[]>([]);
   const [marked, setMarked] = useState<string[]>([]);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -267,9 +277,16 @@ function RejectDialog({
   const offered = useRejectReasons();
   const reasons = (offered.data ?? []).filter((item) => mySections.includes(item.section));
   const chosen = reasons.filter((item) => picked.includes(item.text));
-  const fields = [...new Set([...marked, ...chosen.flatMap((item) => item.fields.filter((path) => known.has(path)))])];
+  const fields = [
+    ...new Set([
+      ...Object.keys(notes),
+      ...marked,
+      ...chosen.flatMap((item) => item.fields.filter((path) => known.has(path))),
+    ]),
+  ];
   const reason = [...chosen.map((item) => item.text), note.trim()].filter(Boolean).join(". ");
-  const ok = reason.length > 0 && !pending;
+  // A reason, or at least one marked field: each mark says what is wrong with it.
+  const ok = (reason.length > 0 || noted.length > 0) && !pending;
   const sections = schema.sections
     .map((section) => ({ ...section, fields: section.fields.filter((field) => field.required) }))
     .filter((section) => section.fields.length);
@@ -282,6 +299,41 @@ function RejectDialog({
           <DialogDescription>It goes straight back to the facilitator, and starts again from the Area Manager.</DialogDescription>
         </DialogHeader>
         <div className="min-w-0 space-y-4">
+          {noted.length ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Marked on the form <span className="font-normal text-muted-foreground">{noted.length}</span>
+              </p>
+              <ul className="space-y-2">
+                {noted.map((mark) => (
+                  <li key={mark.path} className="space-y-1">
+                    <Label htmlFor={`note-${mark.path}`} className="text-xs text-destructive">
+                      {mark.label}
+                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        id={`note-${mark.path}`}
+                        value={notes[mark.path]}
+                        maxLength={300}
+                        onChange={(event) => setNotes({ ...notes, [mark.path]: event.target.value })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Leave out ${mark.label}`}
+                        title="Leave out of this rejection"
+                        onClick={() =>
+                          setNotes(Object.fromEntries(Object.entries(notes).filter(([path]) => path !== mark.path)))
+                        }
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {reasons.length ? (
             <div className="space-y-2">
               <p className="text-sm font-medium">What is wrong?</p>
@@ -310,7 +362,10 @@ function RejectDialog({
             </div>
           ) : null}
           <div className="space-y-2">
-            <Label htmlFor="reject-reason">{reasons.length ? "Anything else" : "Reason"}</Label>
+            <Label htmlFor="reject-reason">
+              {reasons.length || noted.length ? "Anything else" : "Reason"}
+              {noted.length ? <span className="font-normal text-muted-foreground">(optional)</span> : null}
+            </Label>
             <Textarea
               ref={box}
               id="reject-reason"
@@ -321,7 +376,7 @@ function RejectDialog({
               onKeyDown={(event) => {
                 if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && ok) {
                   event.preventDefault();
-                  onReject(reason, fields);
+                  onReject(reason, fields, notes);
                 }
               }}
             />
@@ -368,7 +423,7 @@ function RejectDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button variant="destructive" disabled={!ok} onClick={() => onReject(reason, fields)}>
+          <Button variant="destructive" disabled={!ok} onClick={() => onReject(reason, fields, notes)}>
             {pending ? "Rejecting…" : "Reject form"}
           </Button>
         </DialogFooter>

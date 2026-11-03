@@ -24,7 +24,17 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.permissions import require_permission
 
-from . import banks, form, form_lists, home, place, review_settings, review_steps, services
+from . import (
+    banks,
+    form,
+    form_lists,
+    home,
+    place,
+    review_settings,
+    review_steps,
+    services,
+)
+from . import marks as field_marks
 from .models import (
     Application,
     BankBranch,
@@ -45,6 +55,7 @@ from .serializers import (
     BankImportResultSerializer,
     BankImportSerializer,
     DecideSerializer,
+    FieldMarkSerializer,
     FormListSerializer,
     LegacyMemberSerializer,
     MemberCodeSettingsSerializer,
@@ -135,7 +146,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             "discard": "applications.edit",
             "submit": "applications.submit",
         }.get(self.action, "applications.view")
-        if self.action in ("decide", "payment", "numbers"):
+        if self.action in ("decide", "payment", "numbers", "marks", "unmark", "withdraw_step"):
             # Which approval permission applies depends on the stage.
             return [IsAuthenticated()]
         return [IsAuthenticated(), require_permission(required)()]
@@ -294,7 +305,75 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             reason=data.get("reason", ""),
             rejected_fields=data.get("rejected_fields"),
             steps=data.get("steps"),
+            field_notes=data.get("field_notes"),
         )
+        return self._detail(application)
+
+    def _marks(self, application):
+        return Response(
+            FieldMarkSerializer(
+                field_marks.serialized(application, self.request.user), many=True
+            ).data
+        )
+
+    @extend_schema(
+        methods=["GET"],
+        request=None,
+        responses={200: FieldMarkSerializer(many=True), 403: ErrorResponseSerializer},
+    )
+    @extend_schema(
+        methods=["PUT"],
+        request=FieldMarkSerializer,
+        responses={
+            200: FieldMarkSerializer(many=True),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=True, methods=["get", "put"])
+    def marks(self, request, pk=None):
+        """
+        Fields marked wrong on this submission, by everyone reviewing it. A PUT marks one
+        field, or changes the reason of this person's mark on it.
+        """
+        if not NUMBER_VIEWERS & set(request.user.active_permissions):
+            raise exceptions.PermissionDenied("Only reviewers see marked fields.")
+        application = self.get_object()
+        if request.method == "PUT":
+            serializer = FieldMarkSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            field_marks.mark(application, user=request.user, **serializer.validated_data)
+        return self._marks(application)
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: FieldMarkSerializer(many=True),
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=True, methods=["delete"], url_path=r"marks/(?P<mark_id>[0-9a-f-]{36})")
+    def unmark(self, request, pk=None, mark_id=None):
+        application = self.get_object()
+        field_marks.unmark(application, user=request.user, mark_id=mark_id)
+        return self._marks(application)
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: ApplicationDetailSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path=r"steps/(?P<step>[a-z_]+)/withdraw")
+    def withdraw_step(self, request, pk=None, step=None):
+        """Takes back a step approval given by mistake, while the form is at that stage."""
+        application = services.withdraw_step(self.get_object(), user=request.user, step=step)
         return self._detail(application)
 
     @extend_schema(

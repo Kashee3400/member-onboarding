@@ -93,6 +93,7 @@ class DecisionSerializer(serializers.ModelSerializer):
             "decision",
             "reason",
             "rejected_fields",
+            "field_notes",
             "decided_by_name",
             "decided_at",
         ]
@@ -138,6 +139,7 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "last_edited_by_name",
             "rejection_reason",
             "rejected_fields",
+            "rejected_field_notes",
             "payment",
             "computed",
             "warnings",
@@ -295,6 +297,24 @@ class DecideSerializer(serializers.Serializer):
     steps = serializers.ListField(
         child=serializers.CharField(max_length=20), required=False, allow_empty=True
     )
+    field_notes = serializers.DictField(
+        child=serializers.CharField(max_length=300, allow_blank=True),
+        required=False,
+        help_text="Each marked field with the reviewer's reason for it.",
+    )
+
+
+class FieldMarkSerializer(serializers.Serializer):
+    """A field marked wrong. Sent with a path and a reason; returned with who marked it."""
+
+    id = serializers.UUIDField(read_only=True)
+    path = serializers.CharField(max_length=100)
+    label = serializers.CharField(read_only=True)
+    reason = serializers.CharField(max_length=300)
+    marked_by_name = serializers.CharField(read_only=True)
+    marked_at = serializers.DateTimeField(read_only=True)
+    mine = serializers.BooleanField(read_only=True)
+    can_remove = serializers.BooleanField(read_only=True)
 
 
 class PaymentSerializer(serializers.Serializer):
