@@ -5642,7 +5642,7 @@ components:
           type: string
           format: date-time
         health:
-          $ref: '#/components/schemas/Health'
+          $ref: '#/components/schemas/OrganizationHealth'
       required:
       - created_at
       - health
@@ -5827,6 +5827,19 @@ components:
       description: |-
         * `approved` - Approved
         * `rejected` - Rejected
+    DeliveryFailures:
+      type: object
+      properties:
+        mail:
+          type: integer
+        sms:
+          type: integer
+        push:
+          type: integer
+      required:
+      - mail
+      - push
+      - sms
     District:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -5964,19 +5977,6 @@ components:
       required:
       - access
       - expires_in
-    Failures:
-      type: object
-      properties:
-        mail:
-          type: integer
-        sms:
-          type: integer
-        push:
-          type: integer
-      required:
-      - mail
-      - push
-      - sms
     FieldMark:
       type: object
       description: A field marked wrong. Sent with a path and a reason; returned with
@@ -6123,42 +6123,14 @@ components:
     Health:
       type: object
       properties:
-        forms_total:
-          type: integer
-        forms_this_week:
-          type: integer
-        pending:
-          type: integer
-        late:
-          type: integer
-        sent_back:
-          type: integer
-        members:
-          type: integer
-        staff:
-          type: integer
-        last_activity:
+        status:
           type: string
-          format: date-time
-          nullable: true
-        failures_this_week:
-          $ref: '#/components/schemas/Failures'
-        storage_bytes:
-          type: integer
-        setup:
-          $ref: '#/components/schemas/Setup'
+        checks:
+          type: object
+          additionalProperties:
+            type: string
       required:
-      - failures_this_week
-      - forms_this_week
-      - forms_total
-      - last_activity
-      - late
-      - members
-      - pending
-      - sent_back
-      - setup
-      - staff
-      - storage_bytes
+      - status
     IntegrationRead:
       type: object
       description: Never includes secret values, only the names of those that are
@@ -7039,6 +7011,45 @@ components:
       required:
       - invitation_link
       - organization
+    OrganizationHealth:
+      type: object
+      properties:
+        forms_total:
+          type: integer
+        forms_this_week:
+          type: integer
+        pending:
+          type: integer
+        late:
+          type: integer
+        sent_back:
+          type: integer
+        members:
+          type: integer
+        staff:
+          type: integer
+        last_activity:
+          type: string
+          format: date-time
+          nullable: true
+        failures_this_week:
+          $ref: '#/components/schemas/DeliveryFailures'
+        storage_bytes:
+          type: integer
+        setup:
+          $ref: '#/components/schemas/OrganizationSetup'
+      required:
+      - failures_this_week
+      - forms_this_week
+      - forms_total
+      - last_activity
+      - late
+      - members
+      - pending
+      - sent_back
+      - setup
+      - staff
+      - storage_bytes
     OrganizationProfile:
       type: object
       properties:
@@ -7137,6 +7148,37 @@ components:
           nullable: true
         members_female_only:
           type: boolean
+    OrganizationSetup:
+      type: object
+      properties:
+        branding:
+          type: boolean
+        email_domain:
+          type: boolean
+        mail:
+          type: boolean
+        sms:
+          type: boolean
+        push:
+          type: boolean
+        review_steps:
+          type: boolean
+        signatories:
+          type: integer
+        connected_apps:
+          type: integer
+        mpps:
+          type: integer
+      required:
+      - branding
+      - connected_apps
+      - email_domain
+      - mail
+      - mpps
+      - push
+      - review_steps
+      - signatories
+      - sms
     PaginatedApplicationListList:
       type: object
       required:
@@ -8621,37 +8663,6 @@ components:
       required:
       - aadhaar_number
       - account_number
-    Setup:
-      type: object
-      properties:
-        branding:
-          type: boolean
-        email_domain:
-          type: boolean
-        mail:
-          type: boolean
-        sms:
-          type: boolean
-        push:
-          type: boolean
-        review_steps:
-          type: boolean
-        signatories:
-          type: integer
-        connected_apps:
-          type: integer
-        mpps:
-          type: integer
-      required:
-      - branding
-      - connected_apps
-      - email_domain
-      - mail
-      - mpps
-      - push
-      - review_steps
-      - signatories
-      - sms
     SignatureStatus:
       type: object
       properties:

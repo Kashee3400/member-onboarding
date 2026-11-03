@@ -3,13 +3,13 @@ from rest_framework import serializers
 from apps.branding.serializers import DOMAIN
 
 
-class FailuresSerializer(serializers.Serializer):
+class DeliveryFailuresSerializer(serializers.Serializer):
     mail = serializers.IntegerField()
     sms = serializers.IntegerField()
     push = serializers.IntegerField()
 
 
-class SetupSerializer(serializers.Serializer):
+class OrganizationSetupSerializer(serializers.Serializer):
     branding = serializers.BooleanField()
     email_domain = serializers.BooleanField()
     mail = serializers.BooleanField()
@@ -21,7 +21,7 @@ class SetupSerializer(serializers.Serializer):
     mpps = serializers.IntegerField()
 
 
-class HealthSerializer(serializers.Serializer):
+class OrganizationHealthSerializer(serializers.Serializer):
     forms_total = serializers.IntegerField()
     forms_this_week = serializers.IntegerField()
     pending = serializers.IntegerField()
@@ -30,9 +30,9 @@ class HealthSerializer(serializers.Serializer):
     members = serializers.IntegerField()
     staff = serializers.IntegerField()
     last_activity = serializers.DateTimeField(allow_null=True)
-    failures_this_week = FailuresSerializer()
+    failures_this_week = DeliveryFailuresSerializer()
     storage_bytes = serializers.IntegerField()
-    setup = SetupSerializer()
+    setup = OrganizationSetupSerializer()
 
 
 class ConsoleOrganizationSerializer(serializers.Serializer):
@@ -41,7 +41,7 @@ class ConsoleOrganizationSerializer(serializers.Serializer):
     slug = serializers.CharField()
     is_active = serializers.BooleanField()
     created_at = serializers.DateTimeField()
-    health = HealthSerializer()
+    health = OrganizationHealthSerializer()
 
 
 class OrganizationCreateSerializer(serializers.Serializer):
