@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { api, auth, reloadTo } from "@/lib/api";
 
 import { AuthCard } from "./auth-frame";
-import { EmailField, IconField, LINK_CLASS, PasswordField, ProblemNote, SUBMIT_CLASS } from "./fields";
+import { EmailField, IconField, LINK_CLASS, PasswordField, ProblemNote, SUBMIT_CLASS, staffEmail } from "./fields";
 
 const PASSWORD_HELP = "At least 12 characters.";
 
@@ -96,7 +96,7 @@ export function ChangePasswordForm() {
   );
 }
 
-export function ForgotPasswordForm({ organization }: { organization: string }) {
+export function ForgotPasswordForm({ organization, domain = "" }: { organization: string; domain?: string }) {
   const [org, setOrg] = useState("");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -113,7 +113,7 @@ export function ForgotPasswordForm({ organization }: { organization: string }) {
     setBusy(true);
     setProblem(null);
     try {
-      await auth("password/forgot", { email: email.trim(), organization: slug });
+      await auth("password/forgot", { email: staffEmail(email, domain), organization: slug });
       setSent(true);
     } catch (failure) {
       setProblem(failure);
@@ -153,7 +153,12 @@ export function ForgotPasswordForm({ organization }: { organization: string }) {
             onChange={(event) => setOrg(event.target.value)}
           />
         )}
-        <EmailField autoFocus={!!organization} value={email} onChange={(event) => setEmail(event.target.value)} />
+        <EmailField
+          autoFocus={!!organization}
+          domain={domain}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
         <Button type="submit" disabled={busy} className={SUBMIT_CLASS}>
           {busy ? "Sending…" : "Send reset link"}
         </Button>

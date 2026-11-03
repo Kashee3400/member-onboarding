@@ -195,8 +195,8 @@ function BrandingForm({ value }: { value: Branding }) {
   const [form, setForm] = useState(value);
   // Images save as soon as they are chosen, so only the text and colours can be unsaved,
   // and the images shown always come from the server.
-  const text = ({ display_name, tagline, primary_color, accent_color }: Branding) =>
-    JSON.stringify([display_name, tagline, primary_color.toLowerCase(), accent_color.toLowerCase()]);
+  const text = ({ display_name, tagline, primary_color, accent_color, email_domain }: Branding) =>
+    JSON.stringify([display_name, tagline, primary_color.toLowerCase(), accent_color.toLowerCase(), email_domain]);
   const dirty = text(form) !== text(value);
   const { dialog } = useUnsavedGuard(dirty);
   const valid = HEX.test(form.primary_color) && HEX.test(form.accent_color);
@@ -231,8 +231,8 @@ function BrandingForm({ value }: { value: Branding }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!valid) return;
-    const { display_name, tagline, primary_color, accent_color } = form;
-    save.mutate({ display_name, tagline, primary_color, accent_color });
+    const { display_name, tagline, primary_color, accent_color, email_domain } = form;
+    save.mutate({ display_name, tagline, primary_color, accent_color, email_domain });
   };
 
   const busyKind = upload.isPending ? upload.variables?.kind : remove.isPending ? remove.variables : null;
@@ -261,6 +261,20 @@ function BrandingForm({ value }: { value: Branding }) {
                 maxLength={160}
                 value={form.tagline}
                 onChange={(event) => setForm({ ...form, tagline: event.target.value })}
+              />
+            </Field>
+            <Field
+              label="Staff email domain"
+              htmlFor="email_domain"
+              optional
+              help="Staff sign in as name@this-domain, and new staff need an address on it. Facilitators sign in through the mobile app instead."
+            >
+              <Input
+                id="email_domain"
+                placeholder="kasheemilk.com"
+                maxLength={120}
+                value={form.email_domain ?? ""}
+                onChange={(event) => setForm({ ...form, email_domain: event.target.value })}
               />
             </Field>
           </div>

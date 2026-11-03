@@ -71,17 +71,44 @@ export function IconField({
   );
 }
 
-export function EmailField(props: Omit<ComponentProps<typeof IconField>, "id" | "label" | "icon">) {
+/** The address to sign in with: the name typed here, and the official domain when there is one. */
+export function staffEmail(typed: string, domain: string): string {
+  const value = typed.trim();
+  return domain && value && !value.includes("@") ? `${value}@${domain}` : value;
+}
+
+export function EmailField({
+  domain = "",
+  ...props
+}: { domain?: string } & Omit<ComponentProps<typeof IconField>, "id" | "label" | "icon">) {
+  if (!domain) {
+    return (
+      <IconField
+        id="email"
+        label="Email"
+        icon={Mail}
+        type="email"
+        autoComplete="username"
+        placeholder="you@company.com"
+        {...props}
+      />
+    );
+  }
+  // Staff all have official addresses, so only the name before the @ is typed.
   return (
-    <IconField
-      id="email"
-      label="Email"
-      icon={Mail}
-      type="email"
-      autoComplete="username"
-      placeholder="you@company.com"
-      {...props}
-    />
+    <Field label="Email" htmlFor="email">
+      <InputGroup className="h-10">
+        <InputGroupAddon align="inline-start">
+          <InputGroupText>
+            <Mail className="size-4 text-muted-foreground" />
+          </InputGroupText>
+        </InputGroupAddon>
+        <InputGroupInput id="email" type="text" autoComplete="username" placeholder="your.name" {...props} />
+        <InputGroupAddon align="inline-end">
+          <InputGroupText className="text-muted-foreground">@{domain}</InputGroupText>
+        </InputGroupAddon>
+      </InputGroup>
+    </Field>
   );
 }
 

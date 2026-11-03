@@ -12,6 +12,7 @@ from apps.accounts.mfa import reset_mfa
 from apps.accounts.password_views import issue_temporary_password
 from apps.applications.models import Signatory
 from apps.audit.services import record_event
+from apps.branding.services import staff_email_problem
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
 from apps.core.tenancy import organization_context
 from apps.documents.models import StaffSignature
@@ -160,6 +161,8 @@ class StaffListView(generics.ListAPIView):
 
         User = get_user_model()
         email = data["email"].strip().lower()
+        if problem := staff_email_problem(email):
+            raise exceptions.ValidationError({"email": [problem]})
         user = User.objects.filter(email=email).first()
         if user is None:
             user = User.objects.create_user(
@@ -247,6 +250,8 @@ class StaffDetailView(APIView):
 def change_email(user, email, organization) -> None:
     """The email is how they sign in, so it must be theirs alone, and theirs to lose."""
     email = email.strip().lower()
+    if problem := staff_email_problem(email):
+        raise exceptions.ValidationError({"email": [problem]})
     ensure_only_here(user, organization)
     if get_user_model().objects.filter(email=email).exclude(pk=user.pk).exists():
         raise Conflict("Another account already uses this email.")

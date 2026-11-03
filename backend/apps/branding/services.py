@@ -35,6 +35,7 @@ def describe(organization, branding, *, name: str = "") -> dict:
             "accent_color": DEFAULT_ACCENT,
             "logo_url": None,
             "login_image_url": None,
+            "email_domain": "",
         }
     return {
         "display_name": branding.display_name or name or DEFAULT_NAME,
@@ -43,6 +44,7 @@ def describe(organization, branding, *, name: str = "") -> dict:
         "accent_color": branding.accent_color,
         "logo_url": _image_url(organization, "logo", branding.logo_path),
         "login_image_url": _image_url(organization, "login_image", branding.login_image_path),
+        "email_domain": branding.email_domain,
     }
 
 
@@ -66,6 +68,15 @@ def public_image(slug: str, kind: str) -> tuple[bytes, str] | None:
     if not path:
         return None
     return storage.read_public(path), CONTENT_TYPES[PurePosixPath(path).suffix]
+
+
+def staff_email_problem(email: str) -> str | None:
+    """Why this address cannot be a staff login here, or None when it can."""
+    branding = Branding.objects.first()
+    domain = branding.email_domain if branding else ""
+    if domain and not email.strip().lower().endswith(f"@{domain}"):
+        return f"Use an official @{domain} address."
+    return None
 
 
 def branding_for(membership) -> Branding:

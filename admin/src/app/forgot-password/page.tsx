@@ -15,7 +15,7 @@ export default async function ForgotPasswordPage() {
       headline={"Back in\nin a moment"}
       message="We will email you a link that works for one hour."
     >
-      <ForgotPasswordForm organization={organization} />
+      <ForgotPasswordForm organization={organization} domain={branding.email_domain} />
     </AuthFrame>
   );
 }

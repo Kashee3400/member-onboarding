@@ -5507,9 +5507,12 @@ components:
         login_image_url:
           type: string
           nullable: true
+        email_domain:
+          type: string
       required:
       - accent_color
       - display_name
+      - email_domain
       - login_image_url
       - logo_url
       - primary_color
@@ -7489,6 +7492,9 @@ components:
           minLength: 1
           pattern: ^#[0-9A-Fa-f]{6}$
           maxLength: 7
+        email_domain:
+          type: string
+          maxLength: 120
     PatchedMccRequest:
       type: object
       description: The unique constraint includes the organization, which clients

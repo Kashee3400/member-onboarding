@@ -12,6 +12,7 @@ export const DEFAULT_BRANDING: Branding = {
   accent_color: "#f59e0b",
   logo_url: null,
   login_image_url: null,
+  email_domain: "",
 };
 
 /** The browser reaches the backend only through this portal. */

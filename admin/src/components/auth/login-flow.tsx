@@ -14,7 +14,17 @@ import { auth, reloadTo } from "@/lib/api";
 import type { Branding } from "@/lib/branding-types";
 
 import { AuthCard, AuthFrame, type TrustBadge } from "./auth-frame";
-import { CodeBoxes, EmailField, IconField, InfoNote, LINK_CLASS, PasswordField, ProblemNote, SUBMIT_CLASS } from "./fields";
+import {
+  CodeBoxes,
+  EmailField,
+  IconField,
+  InfoNote,
+  LINK_CLASS,
+  PasswordField,
+  ProblemNote,
+  SUBMIT_CLASS,
+  staffEmail,
+} from "./fields";
 
 type Step =
   | { name: "password" }
@@ -103,7 +113,7 @@ export function LoginFlow({ branding, organization }: { branding: Branding; orga
       return;
     }
     run(async () => {
-      const result = await auth("login", { email: email.trim(), password, organization: slug });
+      const result = await auth("login", { email: staffEmail(email, branding.email_domain), password, organization: slug });
       setPassword("");
       if (result.status === "ok") {
         reloadTo(next);
@@ -142,7 +152,7 @@ export function LoginFlow({ branding, organization }: { branding: Branding; orga
 
   function download(codes: string[]) {
     const url = URL.createObjectURL(
-      new Blob([`${branding.display_name} recovery codes for ${email.trim()}\n\n${codes.join("\n")}\n`], {
+      new Blob([`${branding.display_name} recovery codes for ${staffEmail(email, branding.email_domain)}\n\n${codes.join("\n")}\n`], {
         type: "text/plain",
       }),
     );
@@ -175,7 +185,12 @@ export function LoginFlow({ branding, organization }: { branding: Branding; orga
                 onChange={(event) => setOrg(event.target.value)}
               />
             )}
-            <EmailField autoFocus={!!organization} value={email} onChange={(event) => setEmail(event.target.value)} />
+            <EmailField
+              autoFocus={!!organization}
+              domain={branding.email_domain}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
             <PasswordField
               id="password"
               label="Password"

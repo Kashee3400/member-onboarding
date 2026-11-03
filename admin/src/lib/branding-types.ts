@@ -5,4 +5,6 @@ export type Branding = {
   accent_color: string;
   logo_url: string | null;
   login_image_url: string | null;
+  /** Staff sign in as name@this-domain. Empty allows any address. */
+  email_domain: string;
 };

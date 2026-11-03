@@ -18,6 +18,8 @@ class Branding(OrganizationOwnedModel):
     accent_color = models.CharField(max_length=7, default=DEFAULT_ACCENT, validators=[hex_color])
     logo_path = models.CharField(max_length=300, blank=True)
     login_image_path = models.CharField(max_length=300, blank=True)
+    # Staff sign in with official addresses only, such as name@kasheemilk.com. Blank allows any.
+    email_domain = models.CharField(max_length=120, blank=True)
 
     class Meta:
         db_table = "organization_branding"
