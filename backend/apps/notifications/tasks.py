@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.core.tenancy import organization_context
 
+from .failures import record_failure
 from .mail import MailNotConfigured, send_mail
 from .models import Notification
 
@@ -31,6 +32,7 @@ def deliver_email(notification_id: str, organization_id: str) -> None:
         except smtplib.SMTPException, OSError:
             # The portal copy already exists, so a mail outage loses nothing.
             logger.warning("notification_email_failed", notification=notification_id)
+            record_failure("mail", "A notification email could not be sent.")
             return
         notification.emailed_at = timezone.now()
         notification.save(update_fields=["emailed_at", "updated_at"])
@@ -55,6 +57,7 @@ def deliver_push(
         except PushFailed as exc:
             # The portal notice already exists, so a push outage loses nothing.
             logger.warning("push_not_sent", reason=str(exc))
+            record_failure("push", str(exc))
             return 0
         if gone:
             PushDevice.objects.filter(token__in=gone).update(is_active=False)
@@ -78,6 +81,7 @@ def send_invitation(
             )
         except MailNotConfigured, smtplib.SMTPException, OSError:
             logger.warning("invitation_email_failed")
+            record_failure("mail", "An invitation email could not be sent.")
 
 
 @shared_task
@@ -92,6 +96,7 @@ def send_password_reset(organization_id: str, to: str, link: str) -> None:
             )
         except MailNotConfigured, smtplib.SMTPException, OSError:
             logger.warning("password_reset_email_failed")
+            record_failure("mail", "A password reset email could not be sent.")
 
 
 @shared_task

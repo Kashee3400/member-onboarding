@@ -126,3 +126,25 @@ class PushDevice(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.membership_id} {self.platform}"
+
+
+class DeliveryFailure(OrganizationOwnedModel):
+    """
+    A mail, SMS or push that did not go out. Kept so the platform console can show
+    an organization whose gateway is failing, rather than leaving it to the logs.
+    """
+
+    class Channel(models.TextChoices):
+        MAIL = "mail"
+        SMS = "sms"
+        PUSH = "push"
+
+    channel = models.CharField(max_length=10, choices=Channel.choices)
+    reason = models.CharField(max_length=200)
+
+    class Meta:
+        db_table = "notification_delivery_failure"
+        indexes = [models.Index(fields=["created_at"], name="delivery_failure_time_idx")]
+
+    def __str__(self):
+        return f"{self.channel}: {self.reason}"

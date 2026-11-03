@@ -13,6 +13,8 @@ import structlog
 
 from apps.configuration.models import IntegrationConfig
 
+from .failures import record_failure
+
 logger = structlog.get_logger(__name__)
 
 TIMEOUT_SECONDS = 10
@@ -73,6 +75,7 @@ def send_otp_sms(mobile: str, code: str) -> str:
             data = json.loads(response.read().decode("utf-8") or "{}")
     except (URLError, OSError, ValueError) as exc:
         logger.error("sms_gateway_unreachable", error=_redact(f"{type(exc).__name__}: {exc}"))
+        record_failure("sms", "The SMS gateway could not be reached.")
         raise SmsFailed("Could not reach the SMS gateway. Try again in a few minutes.") from None
 
     status = str(data.get("status", "")).lower()
@@ -80,4 +83,5 @@ def send_otp_sms(mobile: str, code: str) -> str:
         return str(data.get("msgid") or data.get("requestId") or "")
     reason = str(data.get("reason") or data.get("message") or "The gateway refused the message.")
     logger.error("sms_gateway_refused", reason=_redact(reason)[:200])
+    record_failure("sms", _redact(reason))
     raise SmsFailed(_redact(reason)[:200])

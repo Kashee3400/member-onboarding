@@ -579,3 +579,34 @@ export type ReviewSettings = {
   checks: Record<string, string[]>;
   steps: { key: string; number: number; title: string }[];
 };
+
+export type ConsoleOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+  health: {
+    forms_total: number;
+    forms_this_week: number;
+    pending: number;
+    late: number;
+    sent_back: number;
+    members: number;
+    staff: number;
+    last_activity: string | null;
+    failures_this_week: { mail: number; sms: number; push: number };
+    storage_bytes: number;
+    setup: {
+      branding: boolean;
+      email_domain: boolean;
+      mail: boolean;
+      sms: boolean;
+      push: boolean;
+      review_steps: boolean;
+      signatories: number;
+      connected_apps: number;
+      mpps: number;
+    };
+  };
+};

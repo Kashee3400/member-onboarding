@@ -271,13 +271,35 @@ def _visible(item: NavItem, permissions) -> dict | None:
     }
 
 
-def navigation_for(permissions) -> list[dict]:
-    return [node for item in NAVIGATION if (node := _visible(item, permissions)) is not None]
+# Not in NAVIGATION: no role permission opens it, so no organization admin can grant it.
+CONSOLE = NavItem(
+    "console",
+    "Platform",
+    "server",
+    "/console",
+    description="Every organization, its health and setup",
+)
 
 
-def locked_paths(permissions) -> list[str]:
+def _console_node() -> dict:
+    return {
+        "key": CONSOLE.key,
+        "label": CONSOLE.label,
+        "icon": CONSOLE.icon,
+        "path": CONSOLE.path,
+        "description": CONSOLE.description,
+        "children": [],
+    }
+
+
+def navigation_for(permissions, *, operator: bool = False) -> list[dict]:
+    nodes = [node for item in NAVIGATION if (node := _visible(item, permissions)) is not None]
+    return [*nodes, _console_node()] if operator else nodes
+
+
+def locked_paths(permissions, *, operator: bool = False) -> list[str]:
     """The pages this person may not open. The portal shows them a refusal instead."""
-    found = []
+    found = [] if operator else [CONSOLE.path]
 
     def walk(items):
         for item in items:

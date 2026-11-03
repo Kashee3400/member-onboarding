@@ -40,6 +40,19 @@ docker compose up -d --build
 
 Migrations and role updates run before the new backend starts.
 
+## Platform console
+
+The Platform page (`/console`) lists every organization with its usage, late forms,
+failed deliveries, storage and what is still to set up, and creates new
+organizations. Only platform operators see it, and they must sign in with MFA. It is
+not a role permission, so no organization admin can grant it. Make one on the server:
+
+```bash
+docker exec member_onboarding-backend-1 python manage.py make_platform_operator you@kasheemilk.com
+```
+
+`--remove` takes it away again.
+
 ## Backups
 
 A restore needs three things, kept in three places:

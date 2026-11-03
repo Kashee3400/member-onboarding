@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/v1/reports/", include("apps.reports.urls")),
     path("api/v1/", include("apps.notifications.urls")),
     path("api/v1/", include("apps.branding.urls")),
+    path("api/v1/console/", include("apps.console.urls")),
 ]
 
 if settings.EXPOSE_API_DOCS:

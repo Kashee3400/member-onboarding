@@ -22,6 +22,7 @@ import {
   Plug,
   Route,
   Scale,
+  Server,
   Settings,
   Shield,
   UserCheck,
@@ -59,6 +60,7 @@ const ICONS: Record<string, LucideIcon> = {
   "badge-check": BadgeCheck,
   "circle-x": CircleX,
   "file-down": FileDown,
+  server: Server,
 };
 
 export const iconFor = (name: string): LucideIcon => ICONS[name] ?? Circle;
@@ -81,7 +83,9 @@ export const LIST_STATUS: Record<string, string[]> = {
 
 export function isActive(path: string | null, pathname: string): boolean {
   if (!path) return false;
-  return path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(`${path}/`);
+  return path === "/"
+    ? pathname === "/"
+    : pathname === path || pathname.startsWith(`${path}/`);
 }
 
 /** Every page in the menu, each with the group it sits in. */

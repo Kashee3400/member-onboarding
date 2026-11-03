@@ -13,6 +13,7 @@ from apps.accounts.password_views import issue_temporary_password
 from apps.applications.models import Signatory
 from apps.audit.services import record_event
 from apps.branding.services import staff_email_problem
+from apps.console.permissions import is_operator
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
 from apps.core.tenancy import organization_context
 from apps.documents.models import StaffSignature
@@ -50,7 +51,9 @@ class NavigationView(APIView):
 
     @extend_schema(responses={200: NavigationItemSerializer(many=True)})
     def get(self, request):
-        return Response(navigation_for(request.user.active_permissions))
+        return Response(
+            navigation_for(request.user.active_permissions, operator=is_operator(request))
+        )
 
 
 class LockedPagesView(APIView):
@@ -58,7 +61,8 @@ class LockedPagesView(APIView):
 
     @extend_schema(responses={200: LockedPagesSerializer})
     def get(self, request):
-        return Response({"paths": locked_paths(request.user.active_permissions)})
+        permissions = request.user.active_permissions
+        return Response({"paths": locked_paths(permissions, operator=is_operator(request))})
 
 
 class PermissionCatalogView(APIView):
