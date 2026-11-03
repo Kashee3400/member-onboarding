@@ -11,7 +11,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
 
-RUN useradd --system --uid 10001 onboarding \
+RUN useradd --system --create-home --uid 10001 onboarding \
     && mkdir -p /var/lib/member-onboarding/media \
     && chown -R onboarding /var/lib/member-onboarding
 USER onboarding
