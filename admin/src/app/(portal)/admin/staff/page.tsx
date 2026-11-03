@@ -162,6 +162,7 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
   const me = useMe();
   const [roleIds, setRoleIds] = useState(person.roles.map((role) => role.id));
   const [name, setName] = useState(person.full_name);
+  const [email, setEmail] = useState(person.email);
   const refresh = () => {
     client.invalidateQueries({ queryKey: ["queue"] });
     client.invalidateQueries({ queryKey: ["staff"] });
@@ -178,7 +179,9 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
             : "Reactivated."
           : "full_name" in body
             ? "Name saved."
-            : "Roles saved.",
+            : "email" in body
+              ? "Email saved. They sign in with the new one from now on."
+              : "Roles saved.",
       );
       onClose();
     },
@@ -239,6 +242,37 @@ function ManageStaff({ person, roles, onClose }: { person: Staff; roles: Role[];
           </div>
         </Field>
       </div>
+
+      <Field
+        label="Email"
+        htmlFor="staff-email"
+        help={
+          person.status === "invited"
+            ? "They sign in with this. Send the invitation again after changing it."
+            : "They sign in with this."
+        }
+      >
+        <div className="flex gap-2">
+          <Input
+            id="staff-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              update.isPending ||
+              !email.includes("@") ||
+              email.trim().toLowerCase() === person.email.toLowerCase()
+            }
+            onClick={() => update.mutate({ email: email.trim() })}
+          >
+            Save email
+          </Button>
+        </div>
+      </Field>
 
       <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} />
       {self ? (

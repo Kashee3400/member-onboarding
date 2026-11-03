@@ -133,6 +133,7 @@ class StaffCreateSerializer(serializers.Serializer):
 
 class StaffUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(required=False, allow_blank=False, max_length=200)
+    email = serializers.EmailField(required=False)
     is_active = serializers.BooleanField(required=False)
     role_ids = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), many=True, required=False

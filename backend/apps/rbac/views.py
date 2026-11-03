@@ -210,6 +210,12 @@ class StaffDetailView(APIView):
             membership.user.full_name = data["full_name"].strip()
             membership.user.save(update_fields=["full_name", "updated_at"])
 
+        old_email = membership.user.email
+        if "email" in data and data["email"].strip().lower() != old_email:
+            change_email(
+                membership.user, data["email"], request.user.active_membership.organization
+            )
+
         if "role_ids" in data:
             ensure_can_assign(request.user, data["role_ids"], membership=membership)
             set_membership_roles(membership, data["role_ids"])
@@ -228,9 +234,24 @@ class StaffDetailView(APIView):
             metadata={
                 "is_active": membership.is_active,
                 "roles": sorted(role.code for role in data.get("role_ids", [])),
+                **(
+                    {"email_from": old_email, "email_to": membership.user.email}
+                    if membership.user.email != old_email
+                    else {}
+                ),
             },
         )
         return Response(StaffSerializer(_staff_queryset().get(pk=membership.pk)).data)
+
+
+def change_email(user, email, organization) -> None:
+    """The email is how they sign in, so it must be theirs alone, and theirs to lose."""
+    email = email.strip().lower()
+    ensure_only_here(user, organization)
+    if get_user_model().objects.filter(email=email).exclude(pk=user.pk).exists():
+        raise Conflict("Another account already uses this email.")
+    user.email = email
+    user.save(update_fields=["email", "updated_at"])
 
 
 def ensure_only_here(user, organization) -> None:

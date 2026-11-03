@@ -45,6 +45,45 @@ def test_a_blank_name_is_refused(org_a, admin_a, staff_a):
     assert response.status_code == 400
 
 
+def patch_staff(org, admin, staff, body):
+    return authenticated_client(org, admin).patch(
+        f"{STAFF_URL}{membership_of(org, staff).id}/", body, format="json"
+    )
+
+
+def test_admin_corrects_an_email(org_a, admin_a, staff_a, api_client):
+    response = patch_staff(org_a, admin_a, staff_a, {"email": " Sunita.Rai@Example.com "})
+
+    assert response.status_code == 200, response.content
+    assert response.data["email"] == "sunita.rai@example.com"
+    login = api_client.post(
+        "/api/v1/auth/login/",
+        {"email": "sunita.rai@example.com", "password": PASSWORD, "organization": org_a.slug},
+        format="json",
+    )
+    assert login.status_code == 200, login.content
+    with organization_context(org_a.id):
+        event = AuditEvent.objects.filter(action="staff.updated").latest("occurred_at")
+    assert event.metadata["email_to"] == "sunita.rai@example.com"
+
+
+def test_an_email_another_account_has_is_refused(org_a, admin_a, staff_a):
+    response = patch_staff(org_a, admin_a, staff_a, {"email": admin_a.email.upper()})
+
+    assert response.status_code == 409
+    staff_a.refresh_from_db()
+    assert staff_a.email != admin_a.email
+
+
+def test_an_email_shared_with_another_organization_is_left_alone(org_a, org_b, admin_a, staff_a):
+    with organization_context(org_b.id):
+        Membership.objects.create(organization=org_b, user=staff_a)
+
+    response = patch_staff(org_a, admin_a, staff_a, {"email": "new@example.com"})
+
+    assert response.status_code == 409
+
+
 def test_reset_gives_a_one_time_password(org_a, admin_a, staff_a, api_client):
     response = authenticated_client(org_a, admin_a).post(reset_url(org_a, staff_a))
 
