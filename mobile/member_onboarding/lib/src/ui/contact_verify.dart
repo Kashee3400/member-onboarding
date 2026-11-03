@@ -95,7 +95,6 @@ class _ContactVerifyState extends State<ContactVerify> {
       key: ValueKey('verify.${widget.channel}'),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: verified ? Colors.green.shade300 : Colors.black12),
         color: verified ? Colors.green.shade50 : null,
       ),

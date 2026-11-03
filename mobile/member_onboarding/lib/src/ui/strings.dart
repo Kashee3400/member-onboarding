@@ -78,6 +78,8 @@ class Strings {
   static const days = 'days';
   static const editForm = 'Edit form';
   static const correctForm = 'Correct the form';
+  static const draftStatus = 'Draft';
+  static const savedOn = 'Saved';
 
   static const back = 'Back';
   static const next = 'Next';

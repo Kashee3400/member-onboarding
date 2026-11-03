@@ -259,12 +259,12 @@ void main() {
     expect(tester.widget<LiftBox>(field).active, isTrue);
   });
 
-  wizardTest('a field box has softly rounded corners', (tester) async {
+  wizardTest('a corner is square', (tester) async {
     await pumpOnMember(tester, newController());
     final box = tester.widget<AnimatedContainer>(
       find.descendant(of: boxFor('applicant.full_name'), matching: find.byType(AnimatedContainer)),
     );
-    expect((box.decoration! as BoxDecoration).borderRadius, isNotNull);
+    expect((box.decoration! as BoxDecoration).borderRadius, isNull);
   });
 
   wizardTest('the Aadhaar box takes only digits, twelve at most', (tester) async {

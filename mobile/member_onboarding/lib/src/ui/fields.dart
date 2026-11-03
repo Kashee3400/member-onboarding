@@ -11,7 +11,7 @@ class UpperCaseTextFormatter extends TextInputFormatter {
       newValue.copyWith(text: newValue.text.toUpperCase());
 }
 
-/// A field box with softly rounded corners, lifting while in use.
+/// The sharp box of the staff portal: square corners, lifting while in use.
 class LiftBox extends StatelessWidget {
   const LiftBox({required this.active, required this.child, this.hasError = false, super.key});
 
@@ -34,7 +34,6 @@ class LiftBox extends StatelessWidget {
       transform: Matrix4.translationValues(0, active ? -2 : 0, 0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor, width: active ? 1.5 : 1),
         boxShadow: active
             ? [
@@ -46,10 +45,7 @@ class LiftBox extends StatelessWidget {
               ]
             : const [],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Material(type: MaterialType.transparency, child: child),
-      ),
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }
@@ -506,7 +502,6 @@ class LockedBox extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Row(

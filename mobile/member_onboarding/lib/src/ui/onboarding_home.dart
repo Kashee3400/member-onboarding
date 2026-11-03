@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -8,11 +9,13 @@ import '../api/onboarding_api.dart';
 import '../config.dart';
 import '../models/draft.dart';
 import '../models/form_schema.dart';
+import '../storage/document_vault.dart';
 import '../storage/draft_store.dart';
 import '../sync/bank_lookup.dart';
 import '../sync/draft_controller.dart';
 import 'device_services.dart';
 import 'my_records.dart';
+import 'record_card.dart';
 import 'strings.dart';
 import 'wizard.dart';
 
@@ -23,6 +26,7 @@ class MemberOnboardingScreen extends StatefulWidget {
     this.store,
     this.api,
     this.device = const DeviceServices(),
+    this.vault,
     super.key,
   });
 
@@ -31,6 +35,9 @@ class MemberOnboardingScreen extends StatefulWidget {
   final OnboardingApi? api;
   final DeviceServices device;
 
+  /// Where photos wait on the phone; the encrypted vault unless a test gives another.
+  final DocumentVault? vault;
+
   @override
   State<MemberOnboardingScreen> createState() => _MemberOnboardingScreenState();
 }
@@ -38,6 +45,7 @@ class MemberOnboardingScreen extends StatefulWidget {
 class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   late final DraftStore _store = widget.store ?? SecureDraftStore();
   late final OnboardingApi _api = widget.api ?? OnboardingApi(ApiClient(widget.config));
+  late final DocumentVault _vault = widget.vault ?? SecureDocumentVault();
   late final BankLookup _banks = BankLookup(api: _api, store: _store, device: widget.device);
 
   static const _formCacheKey = 'form';
@@ -105,6 +113,52 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     }
   }
 
+  final Map<String, Future<Uint8List?>> _photos = {};
+
+  Future<Uint8List?> _serverPhoto(String id) => _photos.putIfAbsent(id, () async {
+    try {
+      return Uint8List.fromList(await _api.fetchDocumentFile(id));
+    } on Exception {
+      return null;
+    }
+  });
+
+  /// A draft's photo: still in the vault, or already on the server.
+  Future<Uint8List?>? _draftPhoto(Draft draft) {
+    final kept = draft.pendingDocuments['photo'];
+    if (kept != null) {
+      return _photos.putIfAbsent('vault:$kept', () async {
+        try {
+          return await _vault.read(kept);
+        } on Exception {
+          return null;
+        }
+      });
+    }
+    final id = draft.serverId;
+    if (id == null || !draft.uploadedDocuments.contains('photo')) return null;
+    return _photos.putIfAbsent('form:$id', () async {
+      try {
+        final photo = (await _api.fetchDocumentIds(id))['photo'];
+        return photo == null ? null : Uint8List.fromList(await _api.fetchDocumentFile(photo));
+      } on Exception {
+        return null;
+      }
+    });
+  }
+
+  List<String> _draftLines(Draft draft) {
+    final aadhaar = draft.pendingAadhaar != null && draft.pendingAadhaar!.length >= 4
+        ? draft.pendingAadhaar!.substring(draft.pendingAadhaar!.length - 4)
+        : draft.aadhaarLast4;
+    final mobile = '${draft.section('address')['mobile'] ?? ''}';
+    return [
+      draft.mppLabel,
+      [if (aadhaar.isNotEmpty) 'Aadhaar XXXX $aadhaar', if (mobile.isNotEmpty) mobile].join(' · '),
+      if (draft.updatedAt != null) '${Strings.savedOn} ${formatDate(draft.updatedAt!)}',
+    ];
+  }
+
   /// This month's counts, loaded on their own so a failure never hides the forms.
   Future<void> _loadMonth() async {
     final today = DateTime.now();
@@ -124,7 +178,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   Future<void> _sendPending() async {
     final pending = (await _store.all()).where((draft) => draft.needsSync);
     for (final draft in pending) {
-      final controller = DraftController(draft: draft, api: _api, store: _store);
+      final controller = DraftController(draft: draft, api: _api, store: _store, vault: _vault);
       await controller.sync();
       controller.dispose();
     }
@@ -135,7 +189,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   Future<void> _open(Draft draft) async {
     final schema = _schema;
     if (schema == null) return;
-    final controller = DraftController(draft: draft, api: _api, store: _store);
+    final controller = DraftController(draft: draft, api: _api, store: _store, vault: _vault);
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => FormWizard(
@@ -270,16 +324,13 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                     _SectionTitle(Strings.sentBack, count: _rejected.length),
                     const SizedBox(height: 8),
                     for (final item in _rejected)
-                      _FormCard(
+                      RecordCard(
                         name: item.applicantName,
-                        detail: [item.mppCode, if (item.formNumber.isNotEmpty) item.formNumber]
-                            .join(' · '),
-                        accent: scheme.error,
-                        icon: Icons.assignment_return_rounded,
-                        trailing: Text(
-                          Strings.correct,
-                          style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
-                        ),
+                        lines: recordLines(item),
+                        status: item.status,
+                        statusLabel: Strings.stageReturned,
+                        statusIcon: Icons.assignment_return_rounded,
+                        photo: item.photoId == null ? null : _serverPhoto(item.photoId!),
                         onTap: () => _openRejected(item),
                       ),
                   ],
@@ -290,16 +341,13 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                     const _Empty()
                   else
                     for (final draft in _drafts)
-                      _FormCard(
+                      RecordCard(
                         name: draft.applicantName,
-                        detail: draft.mppLabel,
-                        accent: scheme.primary,
-                        trailing: draft.needsSync
-                            ? Tooltip(
-                                message: Strings.waitingUpload,
-                                child: Icon(Icons.cloud_upload_outlined, color: scheme.tertiary),
-                              )
-                            : Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+                        lines: _draftLines(draft),
+                        status: 'draft',
+                        statusLabel: draft.needsSync ? Strings.waitingUpload : Strings.draftStatus,
+                        statusIcon: draft.needsSync ? Icons.cloud_upload_outlined : Icons.edit_note,
+                        photo: _draftPhoto(draft),
                         onTap: () => _open(draft),
                       ),
                 ],
@@ -501,91 +549,6 @@ class _CountTile extends StatelessWidget {
                     style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FormCard extends StatelessWidget {
-  const _FormCard({
-    required this.name,
-    required this.detail,
-    required this.accent,
-    required this.trailing,
-    required this.onTap,
-    this.icon,
-  });
-
-  final String name;
-  final String detail;
-  final Color accent;
-  final Widget trailing;
-  final VoidCallback onTap;
-  final IconData? icon;
-
-  String get _initials {
-    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
-    if (parts.isEmpty) return '';
-    return parts.take(2).map((part) => part[0].toUpperCase()).join();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: accent.withValues(alpha: 0.12),
-                  child: _initials.isEmpty || icon != null
-                      ? Icon(icon ?? Icons.description_outlined, color: accent, size: 22)
-                      : Text(
-                          _initials,
-                          style: TextStyle(color: accent, fontWeight: FontWeight.w700),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name.isEmpty ? Strings.untitled : name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        detail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                trailing,
               ],
             ),
           ),

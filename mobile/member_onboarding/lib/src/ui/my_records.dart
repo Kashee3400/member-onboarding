@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../api/onboarding_api.dart';
+import 'record_card.dart';
 import 'strings.dart';
 
 enum _Range { today, yesterday, week, month, custom }
@@ -21,15 +22,18 @@ class MyRecordsScreen extends StatefulWidget {
   State<MyRecordsScreen> createState() => _MyRecordsScreenState();
 }
 
-String _date(DateTime date) =>
-    '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
-
-Color _tone(String status) => switch (status) {
-  'approved' => Colors.green.shade700,
-  'rejected' => Colors.red.shade700,
-  'draft' => Colors.blueGrey.shade600,
-  _ => Colors.orange.shade800,
-};
+/// What a list row says under the member's name.
+List<String> recordLines(ApplicationSummary item) => [
+  [if (item.formNumber.isNotEmpty) item.formNumber, '${Strings.mpp} ${item.mppCode}'].join(' · '),
+  [
+    if (item.aadhaarLast4.isNotEmpty) 'Aadhaar XXXX ${item.aadhaarLast4}',
+    if (item.mobile.isNotEmpty) item.mobile,
+  ].join(' · '),
+  if (item.submittedAt != null)
+    '${Strings.sentOn} ${formatDate(item.submittedAt!)}'
+  else if (item.createdAt != null)
+    '${Strings.startedOn} ${formatDate(item.createdAt!)}',
+];
 
 bool _editable(String status) => status == 'draft' || status == 'rejected';
 
@@ -220,8 +224,8 @@ class _MyRecordsScreenState extends State<MyRecordsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
                 _dates.start == _dates.end
-                    ? _date(_dates.start)
-                    : '${_date(_dates.start)} – ${_date(_dates.end)}',
+                    ? formatDate(_dates.start)
+                    : '${formatDate(_dates.start)} – ${formatDate(_dates.end)}',
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
@@ -280,10 +284,16 @@ class _MyRecordsScreenState extends State<MyRecordsScreen> {
             else if (_items.isEmpty)
               const ListTile(title: Text(Strings.noRecords)),
             for (final item in _items)
-              _RecordCard(
-                item: item,
-                photo: item.photoId == null ? null : _photo(item.photoId!),
-                onTap: () => _details(item),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: RecordCard(
+                  name: item.applicantName,
+                  lines: recordLines(item),
+                  status: item.status,
+                  statusLabel: item.statusLabel,
+                  photo: item.photoId == null ? null : _photo(item.photoId!),
+                  onTap: () => _details(item),
+                ),
               ),
             if (_items.length < _total)
               Padding(
@@ -298,145 +308,6 @@ class _MyRecordsScreenState extends State<MyRecordsScreen> {
                 ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The member's photo when there is one, her initials until it loads or when there is none.
-class _MemberPhoto extends StatelessWidget {
-  const _MemberPhoto({required this.name, required this.photo, this.size = 52});
-
-  final String name;
-  final Future<Uint8List?>? photo;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
-    final initials = parts.take(2).map((part) => part[0].toUpperCase()).join();
-    final fallback = Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      color: scheme.primaryContainer,
-      child: initials.isEmpty
-          ? Icon(Icons.person_outline, color: scheme.onPrimaryContainer)
-          : Text(initials, style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w700)),
-    );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size / 4),
-      child: SizedBox.square(
-        dimension: size,
-        child: photo == null
-            ? fallback
-            : FutureBuilder<Uint8List?>(
-                future: photo,
-                builder: (context, snapshot) {
-                  final bytes = snapshot.data;
-                  if (bytes == null || bytes.isEmpty) return fallback;
-                  return Image.memory(bytes, fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback);
-                },
-              ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status, required this.label});
-
-  final String status;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = _tone(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(label, style: TextStyle(color: tone, fontWeight: FontWeight.w700, fontSize: 12.5)),
-    );
-  }
-}
-
-class _RecordCard extends StatelessWidget {
-  const _RecordCard({required this.item, required this.photo, required this.onTap});
-
-  final ApplicationSummary item;
-  final Future<Uint8List?>? photo;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
-    final when = item.submittedAt != null
-        ? '${Strings.sentOn} ${_date(item.submittedAt!)}'
-        : item.createdAt != null
-        ? '${Strings.startedOn} ${_date(item.createdAt!)}'
-        : '';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: Material(
-        color: scheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: scheme.outlineVariant),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _MemberPhoto(name: item.applicantName, photo: photo),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.applicantName.isEmpty ? Strings.untitled : item.applicantName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        [
-                          if (item.formNumber.isNotEmpty) item.formNumber,
-                          '${Strings.mpp} ${item.mppCode}',
-                        ].join(' · '),
-                        style: muted,
-                      ),
-                      if (item.aadhaarLast4.isNotEmpty || item.mobile.isNotEmpty)
-                        Text(
-                          [
-                            if (item.aadhaarLast4.isNotEmpty) 'Aadhaar XXXX ${item.aadhaarLast4}',
-                            if (item.mobile.isNotEmpty) item.mobile,
-                          ].join(' · '),
-                          style: muted,
-                        ),
-                      if (when.isNotEmpty) Text(when, style: muted),
-                      const SizedBox(height: 8),
-                      _StatusChip(status: item.status, label: item.statusLabel),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -520,7 +391,7 @@ class _RecordSheetState extends State<_RecordSheet> {
         [
           Strings.stageApproved,
           if (stage.by.isNotEmpty) stage.by,
-          if (stage.at != null) _date(stage.at!),
+          if (stage.at != null) formatDate(stage.at!),
         ].join(' · '),
       ),
       'rejected' => (
@@ -528,7 +399,7 @@ class _RecordSheetState extends State<_RecordSheet> {
         Colors.red.shade600,
         [
           Strings.stageReturned,
-          if (stage.at != null) _date(stage.at!),
+          if (stage.at != null) formatDate(stage.at!),
           if (stage.reason.isNotEmpty) stage.reason,
         ].join(' · '),
       ),
@@ -582,7 +453,7 @@ class _RecordSheetState extends State<_RecordSheet> {
           children: [
             Row(
               children: [
-                _MemberPhoto(name: item.applicantName, photo: widget.photo, size: 64),
+                MemberPhoto(name: item.applicantName, photo: widget.photo, size: 64),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -593,7 +464,7 @@ class _RecordSheetState extends State<_RecordSheet> {
                         style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
-                      _StatusChip(status: item.status, label: item.statusLabel),
+                      StatusChip(status: item.status, label: item.statusLabel),
                     ],
                   ),
                 ),
@@ -604,8 +475,8 @@ class _RecordSheetState extends State<_RecordSheet> {
             _row(Strings.mpp, '${item.mppCode} ${item.mppName}'.trim()),
             if (item.aadhaarLast4.isNotEmpty) _row(Strings.aadhaarNumber, 'XXXX XXXX ${item.aadhaarLast4}'),
             if (item.mobile.isNotEmpty) _row(Strings.mobileLabel, item.mobile),
-            if (item.createdAt != null) _row(Strings.startedOn, _date(item.createdAt!)),
-            if (item.submittedAt != null) _row(Strings.sentOn, _date(item.submittedAt!)),
+            if (item.createdAt != null) _row(Strings.startedOn, formatDate(item.createdAt!)),
+            if (item.submittedAt != null) _row(Strings.sentOn, formatDate(item.submittedAt!)),
             if (item.status != 'draft') ...[
               const SizedBox(height: 12),
               Text(Strings.approvals, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
