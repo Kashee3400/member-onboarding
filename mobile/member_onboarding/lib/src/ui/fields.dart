@@ -466,10 +466,13 @@ class YesBox extends StatelessWidget {
 
 /// A value the MPP fills: shown greyed with a lock, and never editable.
 class LockedBox extends StatelessWidget {
-  const LockedBox({required this.label, required this.value, super.key});
+  const LockedBox({required this.label, required this.value, this.compact = false, super.key});
 
   final String label;
   final String value;
+
+  /// Half a row wide: the lock alone says where it came from.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -495,8 +498,10 @@ class LockedBox extends StatelessWidget {
                   child: Text(value, style: const TextStyle(fontSize: 16, color: Colors.black54)),
                 ),
                 const Icon(Icons.lock_outline, size: 16, color: Colors.black45),
-                const SizedBox(width: 4),
-                const Text(Strings.fromMpp, style: TextStyle(fontSize: 12, color: Colors.black45)),
+                if (!compact) ...[
+                  const SizedBox(width: 4),
+                  const Text(Strings.fromMpp, style: TextStyle(fontSize: 12, color: Colors.black45)),
+                ],
               ],
             ),
           ),

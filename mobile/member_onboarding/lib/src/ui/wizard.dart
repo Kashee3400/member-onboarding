@@ -173,11 +173,16 @@ class _FormWizardState extends State<FormWizard> {
     return born == null ? null : ageOn(born, DateTime.now());
   }
 
-  Widget _field(String section, FormFieldSpec spec, {ValueChanged<Object?>? onSaved}) {
+  Widget _field(
+    String section,
+    FormFieldSpec spec, {
+    ValueChanged<Object?>? onSaved,
+    bool compact = false,
+  }) {
     final path = '$section.${spec.key}';
     final fixed = _fromMpp(section, spec);
     if (fixed != null) {
-      return LockedBox(key: ValueKey(path), label: spec.label, value: fixed);
+      return LockedBox(key: ValueKey(path), label: spec.label, value: fixed, compact: compact);
     }
     final value = _form.draft.section(section)[spec.key];
     final error = _errorFor(path);
@@ -507,41 +512,28 @@ class _FormWizardState extends State<FormWizard> {
     final location = _form.draft.section('location');
     final captured = location['latitude'] != null;
     final theme = Theme.of(context);
+    // The address and village, two to a row: short values, and most come from the MPP.
+    final place = [for (final spec in fields) if (!contact.contains(spec.key)) spec];
 
     return _spaced([
-      if (locked.isNotEmpty)
-        SectionCard(
-          title: Strings.fromMppTitle,
-          icon: Icons.lock_outline,
-          children: [
-            for (final spec in locked)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      spec.label,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _fromMpp('address', spec)!,
-                      key: ValueKey('address.${spec.key}'),
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
       SectionCard(
         title: Strings.addressTitle,
         icon: Icons.home_outlined,
         children: [
-          for (final spec in fields)
-            if (!locked.contains(spec) && !contact.contains(spec.key)) _field('address', spec),
+          if (locked.isNotEmpty) _note(Icons.lock_outline, Strings.fromMppTitle),
+          for (var at = 0; at < place.length; at += 2)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _field('address', place[at], compact: true)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: at + 1 < place.length
+                      ? _field('address', place[at + 1], compact: true)
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
         ],
       ),
       SectionCard(
