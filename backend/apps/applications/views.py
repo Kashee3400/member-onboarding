@@ -96,7 +96,16 @@ class FormSchemaView(APIView):
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
-        return Response(form_lists.schema())
+        schema = form_lists.schema()
+        # What the member pays, so the app can say so before she signs.
+        settings = services.code_settings()
+        schema["fee"] = {
+            "admission_fee": settings.entry_fee,
+            "share_count": settings.share_count,
+            "share_price": settings.share_price,
+            "total": settings.entry_fee + settings.share_count * settings.share_price,
+        }
+        return Response(schema)
 
 
 class StatusIn(filters.BaseInFilter, filters.CharFilter):

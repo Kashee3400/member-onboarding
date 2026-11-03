@@ -1198,6 +1198,52 @@ class _FormWizardState extends State<FormWizard> {
     if (path != null) await _attach('member_signature', path);
   }
 
+  /// What the member pays, said before she signs.
+  Widget? _feeCard() {
+    final fee = _schema.fee;
+    if (fee == null || fee.total == 0) return null;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    Widget line(String label, String amount, {bool strong = false}) => Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: strong
+                  ? const TextStyle(fontWeight: FontWeight.w700)
+                  : TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+              fontSize: strong ? 18 : 14,
+            ),
+          ),
+        ],
+      ),
+    );
+    return SectionCard(
+      key: const ValueKey('review.fee'),
+      title: Strings.memberFee,
+      icon: Icons.currency_rupee,
+      children: [
+        Column(
+          children: [
+            line(Strings.admissionFee, '₹${fee.admissionFee}'),
+            line('${Strings.shares} (${fee.shareCount} × ₹${fee.sharePrice})', '₹${fee.shareCount * fee.sharePrice}'),
+            const Divider(),
+            line(Strings.totalToPay, '₹${fee.total}', strong: true),
+          ],
+        ),
+        Text(Strings.feeHint, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+      ],
+    );
+  }
+
   Widget _signatureCard() {
     final draft = _form.draft;
     final signed = draft.hasDocument('member_signature');
@@ -1338,31 +1384,6 @@ class _FormWizardState extends State<FormWizard> {
     return left;
   }
 
-  /// Every step at a glance: done, or how much is left, one tap from fixing it.
-  Widget _checklist(Map<int, int> left) {
-    return SectionCard(
-      title: Strings.checklist,
-      icon: Icons.checklist,
-      children: [
-        for (var step = 0; step < _steps.length; step++)
-          ListTile(
-            key: ValueKey('checklist.$step'),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            minVerticalPadding: 0,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              left.containsKey(step) ? Icons.error_outline : Icons.check_circle,
-              color: left.containsKey(step) ? Colors.orange.shade800 : Colors.green,
-            ),
-            title: Text('${step + 1}. ${_steps[step].title}'),
-            trailing: Text(left.containsKey(step) ? '${left[step]} ${Strings.stepLeft}' : Strings.stepDone),
-            onTap: () => _go(step),
-          ),
-      ],
-    );
-  }
-
   /// For a returned form: each field the reviewer marked, and whether it was changed.
   Widget _corrections() {
     final rejected = _form.draft.rejectedFields;
@@ -1476,7 +1497,7 @@ class _FormWizardState extends State<FormWizard> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _go(0),
         ),
-      _checklist(_leftByStep()),
+      ?_feeCard(),
       _signatureCard(),
       if (missing.isEmpty)
         Text(Strings.allFilled, style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w600)),

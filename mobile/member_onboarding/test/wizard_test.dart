@@ -591,14 +591,25 @@ void main() {
     expect(Draft.fromJson(stored).rejectedFieldNotes, isEmpty);
   });
 
-  wizardTest('review shows every step as done or with what is left', (tester) async {
-    await pump(tester, newController());
+  wizardTest('the review says what the member pays, before the signature', (tester) async {
+    final withFee = FormSchema(
+      version: 1,
+      maxFamilyMembers: 2,
+      familyGenders: schema.familyGenders,
+      familyRelations: schema.familyRelations,
+      sections: schema.sections,
+      fee: const MemberFee(admissionFee: 50, shareCount: 5, sharePrice: 100, total: 550),
+    );
+    await pump(tester, newController(), withSchema: withFee);
     await goToStep(tester, 9);
 
-    expect(find.text(Strings.checklist), findsOneWidget);
-    expect(find.byKey(const ValueKey('checklist.0')), findsOneWidget);
-    expect(find.byKey(const ValueKey('checklist.7')), findsOneWidget);
-    expect(find.textContaining(Strings.stepLeft), findsWidgets);
+    expect(find.byKey(const ValueKey('checklist.0')), findsNothing);
+    expect(find.text('₹550'), findsOneWidget);
+    expect(find.text('₹50'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('review.fee'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(const ValueKey('review.signature'))).dy),
+    );
   });
 
   wizardTest('a complete IFSC fills the bank and branch', (tester) async {

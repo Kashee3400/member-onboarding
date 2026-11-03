@@ -94,6 +94,28 @@ class FormSectionSpec {
   final List<FormFieldSpec> fields;
 }
 
+/// What joining costs: the admission fee and the shares the member buys.
+class MemberFee {
+  const MemberFee({
+    required this.admissionFee,
+    required this.shareCount,
+    required this.sharePrice,
+    required this.total,
+  });
+
+  factory MemberFee.fromJson(Map<String, dynamic> json) => MemberFee(
+    admissionFee: json['admission_fee'] as int? ?? 0,
+    shareCount: json['share_count'] as int? ?? 0,
+    sharePrice: json['share_price'] as int? ?? 0,
+    total: json['total'] as int? ?? 0,
+  );
+
+  final int admissionFee;
+  final int shareCount;
+  final int sharePrice;
+  final int total;
+}
+
 /// The form as the server defines it, so the app shows exactly what is validated.
 /// The organization's lists come inside it, so the cached copy works offline too.
 class FormSchema {
@@ -105,6 +127,7 @@ class FormSchema {
     required this.familyRelations,
     this.retiredGenders = const [],
     this.retiredRelations = const [],
+    this.fee,
   });
 
   factory FormSchema.fromJson(Map<String, dynamic> json) {
@@ -121,6 +144,8 @@ class FormSchema {
       familyRelations: _choices(family['relations']),
       retiredGenders: _choices(family['retired_genders']),
       retiredRelations: _choices(family['retired_relations']),
+      // A form cached by an older server has no fee; the review then leaves it out.
+      fee: json['fee'] is Map ? MemberFee.fromJson((json['fee'] as Map).cast<String, dynamic>()) : null,
     );
   }
 
@@ -131,6 +156,7 @@ class FormSchema {
   final List<ChoiceOption> familyRelations;
   final List<ChoiceOption> retiredGenders;
   final List<ChoiceOption> retiredRelations;
+  final MemberFee? fee;
 
   FormSectionSpec section(String key) => sections.firstWhere((item) => item.key == key);
 }

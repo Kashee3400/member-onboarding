@@ -79,6 +79,11 @@ class Strings {
   static const editForm = 'Edit form';
   static const correctForm = 'Correct the form';
   static const draftStatus = 'Draft';
+  static const memberFee = 'Member fee';
+  static const admissionFee = 'Admission fee';
+  static const shares = 'Shares';
+  static const totalToPay = 'Total to pay';
+  static const feeHint = 'Tell the member this amount before she signs.';
   static const savedOn = 'Saved';
 
   static const back = 'Back';

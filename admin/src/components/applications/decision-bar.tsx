@@ -257,7 +257,9 @@ export function DecisionBar({
         open={rejecting}
         onOpenChange={setRejecting}
         schema={schema}
-        mySections={mySections}
+        // The step on screen, when it is one of theirs: its own fields and reasons only.
+        mySections={current?.mine ? current.sections : mySections}
+        step={current?.mine ? current : null}
         marks={carried}
         pending={decide.isPending}
         error={decide.isError && rejecting ? message(decide.error) : null}
@@ -274,6 +276,7 @@ function RejectDialog({
   onOpenChange,
   schema,
   mySections,
+  step,
   marks,
   pending,
   error,
@@ -282,8 +285,10 @@ function RejectDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schema: FormSchema;
-  /** The sections of this person's own steps: the problems they can send back. */
+  /** The sections being rejected: the step on screen, or all of this person's steps. */
   mySections: string[];
+  /** The step on screen, named in the dialog so it is clear what is being sent back. */
+  step: ReviewStep | null;
   /** Fields marked wrong on the form, each with its reason. */
   marks: { path: string; label: string; reason: string }[];
   pending: boolean;
@@ -313,6 +318,7 @@ function RejectDialog({
   // A reason, or at least one marked field: each mark says what is wrong with it.
   const ok = (reason.length > 0 || noted.length > 0) && !pending;
   const sections = schema.sections
+    .filter((section) => mySections.includes(section.key))
     .map((section) => ({ ...section, fields: section.fields.filter((field) => field.required) }))
     .filter((section) => section.fields.length);
 
@@ -324,7 +330,7 @@ function RejectDialog({
         initialFocus={box}
       >
         <DialogHeader>
-          <DialogTitle>Reject this form</DialogTitle>
+          <DialogTitle>{step ? `Reject at step ${step.number}: ${step.title}` : "Reject this form"}</DialogTitle>
           <DialogDescription>It goes straight back to the facilitator, and starts again from the Area Manager.</DialogDescription>
         </DialogHeader>
         <div className="-mx-4 min-w-0 space-y-4 overflow-y-auto px-4">

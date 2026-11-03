@@ -51,3 +51,10 @@ def test_a_rejection_shows_where_and_why(world):
 
     assert stages[0]["state"] == "rejected"
     assert stages[0]["reason"] == "Photo unclear"
+
+
+def test_the_form_says_what_the_member_pays(world):
+    fee = world.client(world.facilitator).get(f"{URL}form/").data["fee"]
+
+    assert fee["total"] == fee["admission_fee"] + fee["share_count"] * fee["share_price"]
+    assert fee["admission_fee"] > 0
