@@ -10,11 +10,15 @@ class TrustedIssuer(UUIDModel, TimeStampedModel):
 
     Not row-level isolated: an incoming assertion names its issuer before any
     organization is known. The API filters by organization explicitly.
+
+    Several organizations may trust the same host, as when one ERP serves more than
+    one company: each registers it in its own Connected Apps, and a sign-in goes to
+    the organization that owns the person's MPPs (services.verify_assertion).
     """
 
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="+")
     name = models.CharField(max_length=100)
-    issuer = models.CharField(max_length=200, unique=True)
+    issuer = models.CharField(max_length=200)
     audience = models.CharField(max_length=200)
     public_key = models.TextField(help_text="RSA public key in PEM format.")
     default_role_code = models.SlugField(
@@ -27,6 +31,11 @@ class TrustedIssuer(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "federation_trusted_issuer"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "issuer"], name="unique_issuer_per_organization"
+            ),
+        ]
 
     def __str__(self):
         return self.name

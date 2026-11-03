@@ -288,3 +288,92 @@ def test_issuers_stay_within_their_organization(org_a, org_b, admin_b, issuer):
 
 def test_issuers_need_the_settings_permission(org_a, staff_a):
     assert authenticated_client(org_a, staff_a).get(ISSUERS).status_code == 403
+
+
+# One ERP, several companies -----------------------------------------------------------
+
+
+def trust(organization, key, **extra):
+    return TrustedIssuer.objects.create(
+        organization=organization,
+        name="ERP",
+        issuer=ISSUER,
+        audience=AUDIENCE,
+        public_key=pem(key.public_key()),
+        default_role_code="facilitator",
+        syncs_mpp_assignments=True,
+        **extra,
+    )
+
+
+def own_mpp(organization, source_code):
+    with organization_context(organization.id):
+        plant = Plant.objects.create(code=f"P{source_code}", name="Plant")
+        mcc = Mcc.objects.create(plant=plant, code=f"M{source_code}", name="MCC")
+        return Mpp.objects.create(
+            mcc=mcc,
+            code=source_code[-4:],
+            source_code=source_code,
+            name="MPP",
+            village_code="00209982",
+        )
+
+
+def organization_of(response):
+    return client_for(response).get(ME).data["organization"]["slug"]
+
+
+@pytest.fixture
+def two_companies(org_a, org_b, private_key):
+    trust(org_a, private_key)
+    trust(org_b, private_key)
+    own_mpp(org_a, "901305")
+    own_mpp(org_b, "702001")
+
+
+def test_a_shared_erp_signs_each_person_into_their_own_company(two_companies, private_key):
+    kashee = exchange(private_key, sub="1", mpps=["901305"])
+    paayas = exchange(private_key, sub="2", mpps=["702001"])
+
+    assert organization_of(kashee) == "org-a"
+    assert organization_of(paayas) == "org-b"
+    assert visible_codes(paayas) == ["2001"]
+
+
+def test_mpps_no_company_owns_are_refused(two_companies, private_key):
+    assert exchange(private_key, mpps=["999999"]).status_code == 401
+    assert exchange(private_key, mpps=[]).status_code == 401
+
+
+def test_mpps_in_two_companies_are_refused_rather_than_guessed(two_companies, private_key):
+    assert exchange(private_key, mpps=["901305", "702001"]).status_code == 401
+
+
+def test_one_companys_key_cannot_sign_into_another(org_a, org_b, private_key):
+    trust(org_a, private_key)
+    own_mpp(org_a, "901305")
+    # Org B's admin connects "the ERP" with a key of their own, and names org A's MPP.
+    forger = new_private_key()
+    trust(org_b, forger)
+
+    response = exchange(forger, mpps=["901305"])
+
+    assert response.status_code == 200
+    assert organization_of(response) == "org-b"
+    assert visible_codes(response) == []
+
+
+def test_a_token_is_used_once_across_companies(two_companies, private_key):
+    token = assertion(private_key, mpps=["702001"])
+
+    assert APIClient().post(EXCHANGE, {"assertion": token}).status_code == 200
+    assert APIClient().post(EXCHANGE, {"assertion": token}).status_code == 401
+
+
+def test_each_company_connects_the_same_erp(org_a, org_b, admin_a, admin_b, private_key):
+    payload = issuer_payload(private_key, issuer=ISSUER)
+
+    assert authenticated_client(org_a, admin_a).post(ISSUERS, payload).status_code == 201
+    assert authenticated_client(org_b, admin_b).post(ISSUERS, payload).status_code == 201
+    again = authenticated_client(org_a, admin_a).post(ISSUERS, payload)
+    assert again.status_code == 400

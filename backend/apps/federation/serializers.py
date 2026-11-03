@@ -32,6 +32,15 @@ class TrustedIssuerSerializer(serializers.ModelSerializer):
             "is_active",
         ]
 
+    def validate_issuer(self, value):
+        organization_id = self.context["request"].user.active_membership.organization_id
+        taken = TrustedIssuer.objects.filter(organization_id=organization_id, issuer=value)
+        if self.instance is not None:
+            taken = taken.exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise serializers.ValidationError("This app is already connected.")
+        return value
+
     def validate_public_key(self, value):
         try:
             key = serialization.load_pem_public_key(value.encode())

@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.db import transaction
 
 from apps.audit.services import record_event
+from apps.core.tenancy import organization_context
 from apps.hierarchy.models import Mpp, MppAssignment, Responsibility
 from apps.hierarchy.services import assign_mpp, end_assignment
 from apps.organizations.models import Membership
@@ -41,38 +42,49 @@ def verify_assertion(token: str) -> VerifiedAssertion:
     except jwt.InvalidTokenError as exc:
         raise AssertionRejected("malformed") from exc
 
-    issuer = (
+    candidates = list(
         TrustedIssuer.objects.select_related("organization")
         .filter(issuer=issuer_name, is_active=True, organization__is_active=True)
-        .first()
+        .order_by("created_at")
     )
-    if issuer is None:
+    if not candidates:
         raise AssertionRejected("unknown_issuer")
 
-    try:
-        claims = jwt.decode(
-            token,
-            issuer.public_key,
-            # Pinned, so a forged token cannot choose a weaker algorithm for itself.
-            algorithms=[ALLOWED_ALGORITHM],
-            audience=issuer.audience,
-            issuer=issuer.issuer,
-            leeway=CLOCK_LEEWAY_SECONDS,
-            options={"require": REQUIRED_CLAIMS},
-        )
-    except jwt.InvalidTokenError as exc:
-        raise AssertionRejected(type(exc).__name__) from exc
+    # Only an organization whose own key and audience accept the token is in the
+    # running, so one organization's key can never sign someone into another.
+    verified, failure, claims = [], None, None
+    for candidate in candidates:
+        try:
+            claims = jwt.decode(
+                token,
+                candidate.public_key,
+                # Pinned, so a forged token cannot choose a weaker algorithm for itself.
+                algorithms=[ALLOWED_ALGORITHM],
+                audience=candidate.audience,
+                issuer=candidate.issuer,
+                leeway=CLOCK_LEEWAY_SECONDS,
+                options={"require": REQUIRED_CLAIMS},
+            )
+        except jwt.InvalidTokenError as exc:
+            failure = exc
+            continue
+        verified.append(candidate)
+    if not verified:
+        raise AssertionRejected(type(failure).__name__) from failure
 
     if claims["exp"] - claims["iat"] > MAX_ASSERTION_LIFETIME_SECONDS:
         raise AssertionRejected("lifetime_too_long")
 
+    # Keyed by the host, not the organization, so one token is used once in all.
     replay_window = MAX_ASSERTION_LIFETIME_SECONDS + CLOCK_LEEWAY_SECONDS
-    if not cache.add(f"assertion:{issuer.pk}:{claims['jti']}", 1, timeout=replay_window):
+    if not cache.add(f"assertion:{issuer_name}:{claims['jti']}", 1, timeout=replay_window):
         raise AssertionRejected("replayed")
 
     mpps = claims.get("mpps", [])
     if not isinstance(mpps, list) or not all(isinstance(code, str) for code in mpps):
         raise AssertionRejected("invalid_mpps")
+
+    issuer = _organization_for(verified, mpps)
 
     return VerifiedAssertion(
         issuer=issuer,
@@ -80,6 +92,26 @@ def verify_assertion(token: str) -> VerifiedAssertion:
         name=str(claims.get("name", ""))[:200],
         mpp_codes=tuple(mpps),
     )
+
+
+def _organization_for(verified: list[TrustedIssuer], mpps: list[str]) -> TrustedIssuer:
+    """
+    The one organization this person works for. With a single organization trusting
+    the host there is nothing to choose; otherwise it is whoever owns their MPPs.
+    """
+    if len(verified) == 1:
+        return verified[0]
+    owners = []
+    for candidate in verified:
+        with organization_context(candidate.organization_id):
+            if Mpp.objects.filter(source_code__in=mpps, is_active=True).exists():
+                owners.append(candidate)
+    if not owners:
+        raise AssertionRejected("no_organization_owns_the_mpps")
+    if len(owners) > 1:
+        # Someone with MPPs in two companies: refused rather than guessed.
+        raise AssertionRejected("mpps_in_several_organizations")
+    return owners[0]
 
 
 def _provision(assertion: VerifiedAssertion) -> Membership:
