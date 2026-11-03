@@ -19,7 +19,7 @@ def test_me_returns_the_active_organization(org_a, admin_a):
     assert response.data["email"] == admin_a.email
     assert response.data["organization"]["slug"] == org_a.slug
     assert response.data["roles"] == ["org_admin"]
-    assert "settings.manage" in response.data["permissions"]
+    assert "settings.branding" in response.data["permissions"]
 
 
 def test_login_is_case_insensitive_on_email(api_client, org_a, admin_a):

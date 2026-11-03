@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.rbac.views import NavigationView
+from apps.rbac.views import LockedPagesView, NavigationView
 
 from .mfa_views import MfaConfirmView, MfaEnrollView, MfaVerifyView
 from .password_views import PasswordChangeView, PasswordForgotView, PasswordResetView
@@ -18,4 +18,5 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("me/navigation/", NavigationView.as_view(), name="auth-navigation"),
+    path("me/locked-pages/", LockedPagesView.as_view(), name="auth-locked-pages"),
 ]

@@ -562,7 +562,7 @@ class LegacyMemberViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class OrganizationProfileView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.member_code")]
 
     @extend_schema(responses={200: OrganizationProfileSerializer})
     def get(self, request):
@@ -750,7 +750,7 @@ class MppOpenWorkView(APIView):
 class ReviewStepAccessView(APIView):
     """Which role acts on which step of the form. Everyone can still read every step."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.review_steps")]
 
     def _state(self):
         saved = review_steps.roles_by_step()
@@ -818,7 +818,7 @@ class RejectReasonsView(APIView):
 class ReviewSettingsView(APIView):
     """When a waiting form is late, the reject reasons reviewers are offered, and checklists."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.review_steps")]
 
     def _state(self):
         return {
@@ -860,7 +860,7 @@ class ReviewSettingsView(APIView):
 class SignatoriesView(APIView):
     """Who signs the printed form for each stage a team works."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.review_steps")]
 
     def _state(self):
         chosen = {row.stage: row.membership_id for row in Signatory.objects.all()}
@@ -921,7 +921,7 @@ class SignatoriesView(APIView):
 
 
 class MemberCodeSettingsView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.member_code")]
 
     @extend_schema(responses={200: MemberCodeSettingsSerializer})
     def get(self, request):
@@ -947,7 +947,7 @@ class MemberCodeSettingsView(APIView):
 class FormListsView(APIView):
     """The form's dropdown lists, each as the organization words and orders it."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.form_lists")]
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
@@ -955,7 +955,7 @@ class FormListsView(APIView):
 
 
 class FormListView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.form_lists")]
 
     @extend_schema(
         request=FormListSerializer,
@@ -1002,7 +1002,7 @@ class BankBranchViewSet(
     def get_permissions(self):
         if self.action in ("list", "retrieve", "by_ifsc"):
             return [IsAuthenticated(), require_permission("applications.view")()]
-        return [IsAuthenticated(), require_permission("settings.manage")()]
+        return [IsAuthenticated(), require_permission("settings.banks")()]
 
     def perform_create(self, serializer):
         branch = serializer.save()

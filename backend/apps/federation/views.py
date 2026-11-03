@@ -91,7 +91,7 @@ class ExchangeView(APIView):
 
 class TrustedIssuerViewSet(viewsets.ModelViewSet):
     serializer_class = TrustedIssuerSerializer
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.connected_apps")]
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):

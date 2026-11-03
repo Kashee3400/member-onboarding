@@ -225,6 +225,10 @@ class _PlaceViewSet(_MasterViewSet):
 
     http_method_names = ["get", "head", "options"]
     kind = ""
+
+    def get_permissions(self):
+        return [IsAuthenticated(), require_permission("hierarchy.view", "locations.view")()]
+
     search_fields = ["code", "name", "name_hi"]
     ordering_fields = ["code", "name", "created_at"]
 

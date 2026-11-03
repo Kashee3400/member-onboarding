@@ -5,7 +5,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { Branding } from "@/lib/branding-types";
 import type { Me, NavItem } from "@/lib/types";
 
-type Session = { me: Me; navigation: NavItem[]; branding: Branding };
+type Session = { me: Me; navigation: NavItem[]; lockedPaths: string[]; branding: Branding };
 
 const SessionContext = createContext<Session | null>(null);
 

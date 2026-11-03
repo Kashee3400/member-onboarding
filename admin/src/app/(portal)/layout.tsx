@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { PageGuard } from "@/components/common/page-guard";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { PanelFooter } from "@/components/shell/panel-footer";
 import { ShortcutsHelp } from "@/components/shell/shortcuts-help";
@@ -10,7 +11,7 @@ import { brandingCss, DEFAULT_BRANDING, getBranding } from "@/lib/branding";
 import { getSession } from "@/lib/session";
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
-  const { me, navigation } = await getSession();
+  const { me, navigation, lockedPaths } = await getSession();
   const found = await getBranding(me.organization.slug);
   // An organization that has not set a display name still has its own name.
   const branding = {
@@ -19,7 +20,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   };
 
   return (
-    <SessionProvider value={{ me, navigation, branding }}>
+    <SessionProvider value={{ me, navigation, lockedPaths, branding }}>
       <style>{brandingCss(branding)}</style>
       <SidebarProvider>
         <AppSidebar />
@@ -31,7 +32,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
             tabIndex={-1}
             className="w-full min-w-0 flex-1 space-y-6 p-4 outline-none md:p-6"
           >
-            {children}
+            <PageGuard>{children}</PageGuard>
           </div>
           <PanelFooter />
         </SidebarInset>

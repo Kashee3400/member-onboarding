@@ -13,7 +13,7 @@ from . import services
 from .serializers import BrandingImageSerializer, BrandingSerializer, BrandingUpdateSerializer
 
 IMAGE_MAX_AGE = 60 * 60 * 24 * 365
-MANAGE = "settings.manage"
+MANAGE = "settings.branding"
 
 
 def _described(request, branding) -> dict:

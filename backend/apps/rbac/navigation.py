@@ -2,7 +2,9 @@
 The staff portal sidebar.
 
 The backend decides what each person sees, so a role change needs no frontend
-release. This only shapes the menu: every API still checks its own permission.
+release. Every page has a permission of its own; `requires` names the data a page
+also reads, so nobody is shown a page that would only fail. The portal refuses a
+page whose item is hidden, and every API still checks its own permission.
 """
 
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ class NavItem:
     path: str | None = None
     permission: str | None = None
     children: tuple[NavItem, ...] = ()
+    requires: tuple[str, ...] = ()
     description: str = ""
 
 
@@ -47,7 +50,8 @@ NAVIGATION = (
                 "Pending Members",
                 "clock",
                 "/applications/pending",
-                "applications.view",
+                "applications.list_pending",
+                requires=("applications.view",),
                 description="Forms somewhere in approval",
             ),
             NavItem(
@@ -55,7 +59,8 @@ NAVIGATION = (
                 "Approved Members",
                 "badge-check",
                 "/applications/approved",
-                "applications.view",
+                "applications.list_approved",
+                requires=("applications.view",),
                 description="Members made through this portal",
             ),
             NavItem(
@@ -63,7 +68,8 @@ NAVIGATION = (
                 "Rejected Members",
                 "circle-x",
                 "/applications/rejected",
-                "applications.view",
+                "applications.list_rejected",
+                requires=("applications.view",),
                 description="Forms sent back to the facilitator",
             ),
             NavItem(
@@ -71,7 +77,7 @@ NAVIGATION = (
                 "PDF Center",
                 "file-down",
                 "/applications/pdf",
-                "applications.view",
+                "applications.pdf_center",
                 description="Print approved forms in bulk, in the background",
             ),
             NavItem(
@@ -135,7 +141,7 @@ NAVIGATION = (
                 "Locations",
                 "map-pin",
                 "/masters/locations",
-                "hierarchy.view",
+                "locations.view",
                 description="States to hamlets, and where each MPP is",
             ),
             NavItem(
@@ -175,7 +181,7 @@ NAVIGATION = (
                 "Branding",
                 "palette",
                 "/admin/branding",
-                "settings.manage",
+                "settings.branding",
                 description="Logo, colours and login image",
             ),
             NavItem(
@@ -183,7 +189,7 @@ NAVIGATION = (
                 "Review Steps",
                 "list-checks",
                 "/admin/review-steps",
-                "settings.manage",
+                "settings.review_steps",
                 description="Which role acts on which step of a form",
             ),
             NavItem(
@@ -191,7 +197,7 @@ NAVIGATION = (
                 "Integrations",
                 "plug",
                 "/admin/integrations",
-                "settings.manage",
+                "settings.integrations",
                 description="Mail, SMS and WhatsApp",
             ),
             NavItem(
@@ -199,7 +205,7 @@ NAVIGATION = (
                 "Connected Apps",
                 "plug",
                 "/admin/connected-apps",
-                "settings.manage",
+                "settings.connected_apps",
                 description="Apps that sign people in here",
             ),
             NavItem(
@@ -207,7 +213,7 @@ NAVIGATION = (
                 "Member Code",
                 "hash",
                 "/admin/member-code",
-                "settings.manage",
+                "settings.member_code",
                 description="Series, form prefix and fees",
             ),
             NavItem(
@@ -215,7 +221,7 @@ NAVIGATION = (
                 "Form Lists",
                 "list",
                 "/admin/form-lists",
-                "settings.manage",
+                "settings.form_lists",
                 description="Choices offered in the membership form",
             ),
             NavItem(
@@ -223,7 +229,7 @@ NAVIGATION = (
                 "Banks",
                 "landmark",
                 "/admin/banks",
-                "settings.manage",
+                "settings.banks",
                 description="Banks and branches, found by IFSC",
             ),
             NavItem(
@@ -239,8 +245,13 @@ NAVIGATION = (
 )
 
 
+def _allowed(item: NavItem, permissions) -> bool:
+    needed = ((item.permission,) if item.permission else ()) + item.requires
+    return all(code in permissions for code in needed)
+
+
 def _visible(item: NavItem, permissions) -> dict | None:
-    if item.permission and item.permission not in permissions:
+    if not _allowed(item, permissions):
         return None
 
     children = [
@@ -264,6 +275,20 @@ def navigation_for(permissions) -> list[dict]:
     return [node for item in NAVIGATION if (node := _visible(item, permissions)) is not None]
 
 
+def locked_paths(permissions) -> list[str]:
+    """The pages this person may not open. The portal shows them a refusal instead."""
+    found = []
+
+    def walk(items):
+        for item in items:
+            if item.path and not _allowed(item, permissions):
+                found.append(item.path)
+            walk(item.children)
+
+    walk(NAVIGATION)
+    return found
+
+
 def all_navigation_permissions() -> set[str]:
     found = set()
 
@@ -271,6 +296,7 @@ def all_navigation_permissions() -> set[str]:
         for item in items:
             if item.permission:
                 found.add(item.permission)
+            found.update(item.requires)
             walk(item.children)
 
     walk(NAVIGATION)

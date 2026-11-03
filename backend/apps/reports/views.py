@@ -114,7 +114,7 @@ def _label(filters: dict) -> str:
 class PdfPreviewView(APIView):
     """How many forms a filter picks, and how long they will take, before anything starts."""
 
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(request=PdfJobRequestSerializer, responses={200: PrintPreviewSerializer})
     def post(self, request):
@@ -158,7 +158,7 @@ class PdfBatchListView(generics.ListAPIView):
     """A person's own PDF jobs, newest first."""
 
     serializer_class = PdfBatchSerializer
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
     filterset_fields = ["status"]
     ordering_fields = ["created_at", "status", "form_count"]
 
@@ -228,7 +228,7 @@ def _own_batch(request, pk) -> PdfBatch:
 class PdfBatchDetailView(APIView):
     """Polled while a job runs, for its progress."""
 
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(responses={200: PdfBatchSerializer})
     def get(self, request, pk):
@@ -238,7 +238,7 @@ class PdfBatchDetailView(APIView):
 
 
 class PdfBatchCancelView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(request=None, responses={200: PdfBatchSerializer, 409: ErrorResponseSerializer})
     def post(self, request, pk):
@@ -255,7 +255,7 @@ class PdfBatchCancelView(APIView):
 class PdfBatchRetryView(APIView):
     """A new job for just the forms that could not be made."""
 
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(request=None, responses={202: PdfBatchSerializer, 400: ErrorResponseSerializer})
     def post(self, request, pk):
@@ -328,7 +328,7 @@ def _zip_stream(files):
 
 
 class PdfBatchZipView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(responses={(200, "application/zip"): OpenApiTypes.BINARY})
     def get(self, request, pk):
@@ -366,7 +366,7 @@ class PdfBatchZipView(APIView):
 class PdfBatchFileView(APIView):
     """One merged print file of the job."""
 
-    permission_classes = [IsAuthenticated, require_permission("applications.view")]
+    permission_classes = [IsAuthenticated, require_permission("applications.pdf_center")]
 
     @extend_schema(
         parameters=[OpenApiParameter("part", int, required=False)],

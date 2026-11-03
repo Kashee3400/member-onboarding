@@ -13,7 +13,7 @@ from django.utils import timezone
 from apps.documents.services import OWN_SIGNATURE_PERMISSIONS, current_signature
 from apps.hierarchy.models import Mcc, MccAssignment
 from apps.organizations.models import Membership
-from apps.rbac.catalog import APPROVAL_PERMISSIONS, APPROVE_ALL
+from apps.rbac.catalog import APPROVAL_PERMISSIONS, APPROVE_ALL, SETTINGS_PERMISSIONS
 from apps.rbac.services import role_codes_for
 
 from . import review_settings, review_steps, services
@@ -186,13 +186,13 @@ def home_for(user) -> dict:
         home["my_queue"] = _my_queue(membership, forms)
     if approves or can("reports.view"):
         home["by_mcc"] = _by_mcc(forms)
-    if approves or can("reports.view") or can("settings.manage"):
+    if approves or can("reports.view") or SETTINGS_PERMISSIONS & set(permissions):
         home["trend"] = _trend(forms)
     if review_steps.FEE_STEP in review_steps.my_steps(membership):
         home["fee"] = _fee(forms)
     if can("members.view"):
         home["members"] = _members(membership, permissions, forms)
-    if can("settings.manage"):
+    if can("settings.review_steps"):
         home["setup"] = _setup()
     if can("applications.create"):
         month = timezone.localdate().replace(day=1)

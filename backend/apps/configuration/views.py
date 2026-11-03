@@ -25,7 +25,7 @@ def _present(kind: str, integration: IntegrationConfig | None) -> dict:
 
 
 class IntegrationListView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.integrations")]
     pagination_class = None
 
     @extend_schema(
@@ -43,7 +43,7 @@ KIND_PARAMETER = OpenApiParameter(
 
 
 class IntegrationDetailView(APIView):
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.integrations")]
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)

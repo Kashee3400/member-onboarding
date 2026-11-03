@@ -97,7 +97,7 @@ class PreferenceView(APIView):
 class MailTestView(APIView):
     """Tries the saved settings by sending to the person who pressed the button."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.integrations")]
 
     @extend_schema(request=None, responses={204: None})
     def post(self, request):
@@ -235,7 +235,7 @@ class PushDeviceView(APIView):
 class PushTestView(APIView):
     """Checks the saved Firebase key with Google, without sending anything to anyone."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.integrations")]
 
     @extend_schema(request=None, responses={204: None})
     def post(self, request):
@@ -254,7 +254,7 @@ class PushTestView(APIView):
 class SmsTestView(APIView):
     """Sends the OTP template with a sample code, to check the saved gateway settings."""
 
-    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+    permission_classes = [IsAuthenticated, require_permission("settings.integrations")]
 
     @extend_schema(request=SmsTestSerializer, responses={204: None})
     def post(self, request):

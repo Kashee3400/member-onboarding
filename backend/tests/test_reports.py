@@ -128,7 +128,7 @@ def test_a_job_gives_one_pdf_per_form_named_by_form_number(world):
     first = world.fully_approved(AADHAAR)
     second = world.fully_approved(OTHER_AADHAAR)
     world.submitted(_third_aadhaar())
-    client = world.client(world.finance)
+    client = world.client(world.legal)
 
     started = job(client, want_zip=True, want_merged=True)
 
@@ -152,7 +152,7 @@ def _third_aadhaar():
 def test_the_preview_counts_by_approval_day_and_search(world):
     final = world.fully_approved(AADHAAR)
     world.fully_approved(OTHER_AADHAAR)
-    client = world.client(world.finance)
+    client = world.client(world.legal)
     today = timezone.localdate()
 
     def count(**filters):
@@ -166,11 +166,23 @@ def test_the_preview_counts_by_approval_day_and_search(world):
 
 
 def test_a_job_with_nothing_to_print_is_refused(world):
-    assert job(world.client(world.finance), want_zip=True).status_code == 400
+    assert job(world.client(world.legal), want_zip=True).status_code == 400
+
+
+def test_the_pdf_center_needs_its_permission(world):
+    world.fully_approved()
+
+    # Finance sees every form but was not given the PDF Center.
+    assert job(world.client(world.finance), want_zip=True).status_code == 403
+    assert world.client(world.manager).get(BATCHES).status_code == 403
 
 
 def test_the_full_form_needs_its_permission(world):
     world.fully_approved()
+    with organization_context(world.org.id):
+        role = Role.objects.get(code="area_manager")
+        role.permissions = [*role.permissions, "applications.pdf_center"]
+        role.save()
     manager = world.client(world.manager)
 
     assert job(manager, want_zip=True).status_code == 403
@@ -179,14 +191,14 @@ def test_the_full_form_needs_its_permission(world):
 
 def test_a_zip_or_a_print_file_must_be_chosen(world):
     world.fully_approved()
-    response = job(world.client(world.finance), want_zip=False, want_merged=False)
+    response = job(world.client(world.legal), want_zip=False, want_merged=False)
     assert response.status_code == 400
 
 
 def test_forms_that_fail_are_listed_and_can_be_retried(world, monkeypatch):
     final = world.fully_approved()
     monkeypatch.setattr("apps.reports.tasks.printed_form", _explode)
-    client = world.client(world.finance)
+    client = world.client(world.legal)
 
     failed = client.get(f"{BATCHES}{job(client, want_zip=True).data['id']}/").data
 
@@ -215,15 +227,15 @@ def running_job(world, user):
 
 def test_one_job_at_a_time_per_person(world):
     world.fully_approved()
-    running_job(world, world.finance)
+    running_job(world, world.legal)
 
-    assert job(world.client(world.finance), want_zip=True).status_code == 409
+    assert job(world.client(world.legal), want_zip=True).status_code == 409
 
 
 def test_jobs_wait_their_turn_and_can_be_cancelled(world):
     world.fully_approved()
     running_job(world, world.admin)
-    client = world.client(world.finance)
+    client = world.client(world.legal)
 
     queued = job(client, want_zip=True).data
 
@@ -235,16 +247,16 @@ def test_jobs_wait_their_turn_and_can_be_cancelled(world):
 
 def test_a_job_is_seen_only_by_whoever_asked(world):
     world.fully_approved()
-    started = job(world.client(world.finance), want_zip=True).data
+    started = job(world.client(world.legal), want_zip=True).data
 
-    other = world.client(world.legal)
+    other = world.client(world.admin)
     assert other.get(f"{BATCHES}{started['id']}/").status_code == 404
     assert other.get(f"{BATCHES}{started['id']}/zip/").status_code == 404
 
 
 def test_files_go_after_seven_days(world):
     world.fully_approved()
-    client = world.client(world.finance)
+    client = world.client(world.legal)
     started = job(client, want_zip=True).data
     with organization_context(world.org.id):
         PdfBatch.objects.filter(pk=started["id"]).update(

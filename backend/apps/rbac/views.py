@@ -22,12 +22,13 @@ from apps.organizations.models import Membership, Organization
 from . import invitations
 from .catalog import PERMISSIONS
 from .models import Role
-from .navigation import navigation_for
+from .navigation import locked_paths, navigation_for
 from .permissions import require_permission
 from .serializers import (
     AcceptInvitationSerializer,
     InvitationLinkSerializer,
     InvitationSerializer,
+    LockedPagesSerializer,
     NavigationItemSerializer,
     PermissionSerializer,
     RoleSerializer,
@@ -50,6 +51,14 @@ class NavigationView(APIView):
     @extend_schema(responses={200: NavigationItemSerializer(many=True)})
     def get(self, request):
         return Response(navigation_for(request.user.active_permissions))
+
+
+class LockedPagesView(APIView):
+    """Portal pages the signed-in user may not open, so a typed URL meets a refusal."""
+
+    @extend_schema(responses={200: LockedPagesSerializer})
+    def get(self, request):
+        return Response({"paths": locked_paths(request.user.active_permissions)})
 
 
 class PermissionCatalogView(APIView):

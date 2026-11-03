@@ -21,6 +21,10 @@ class NavigationItemSerializer(serializers.Serializer):
     children = serializers.ListField(child=serializers.DictField())
 
 
+class LockedPagesSerializer(serializers.Serializer):
+    paths = serializers.ListField(child=serializers.CharField())
+
+
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.ListField(
         child=serializers.ChoiceField(choices=sorted(PERMISSIONS)), allow_empty=True

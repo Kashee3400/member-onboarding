@@ -11,6 +11,7 @@ from apps.audit.models import AuditEvent
 from apps.branding.models import Branding
 from apps.core.tenancy import organization_context
 from apps.hierarchy.models import Mcc, Mpp, Plant
+from apps.rbac.models import Role
 from apps.rbac.navigation import NAVIGATION, navigation_for
 
 from .conftest import authenticated_client, make_member
@@ -170,10 +171,52 @@ def test_the_menu_carries_descriptions():
     assert menu[0]["description"]
 
 
-def test_branding_appears_for_those_who_manage_settings():
-    keys = [node["key"] for node in navigation_for({"settings.manage"})[0]["children"]]
+def _keys(permissions):
+    return {child["key"] for node in navigation_for(permissions) for child in node["children"]} | {
+        node["key"] for node in navigation_for(permissions)
+    }
 
-    assert "administration.branding" in keys
+
+def test_each_settings_page_has_its_own_permission():
+    keys = _keys({"settings.banks"})
+
+    assert "administration.banks" in keys
+    assert "administration.branding" not in keys
+    assert "administration.integrations" not in keys
+
+
+def test_every_sidebar_page_has_a_permission_of_its_own():
+    pages = [child for item in NAVIGATION for child in (item.children or (item,)) if child.path]
+    codes = [page.permission for page in pages]
+
+    assert all(codes)
+    assert len(codes) == len(set(codes))
+
+
+def test_a_list_page_also_needs_the_forms_it_lists():
+    assert "applications.pending" not in _keys({"applications.list_pending"})
+    assert "applications.pending" in _keys({"applications.list_pending", "applications.view"})
+
+
+def test_locked_pages_are_named_for_the_portal(world):
+    paths = world.client(world.manager).get("/api/v1/auth/me/locked-pages/").data["paths"]
+
+    assert "/applications/pdf" in paths
+    assert "/admin/branding" in paths
+    assert "/approvals/area-manager" not in paths
+    assert "/applications/pending" not in paths
+
+
+def test_one_settings_page_does_not_open_the_others(world):
+    with organization_context(world.org.id):
+        role = Role.objects.get(code="area_manager")
+        role.permissions = [*role.permissions, "settings.banks"]
+        role.save()
+    client = world.client(world.manager)
+
+    assert client.get("/api/v1/settings/integrations/").status_code == 403
+    assert client.get("/api/v1/organization/branding/").status_code == 403
+    assert client.get("/api/v1/settings/form-lists/").status_code == 403
 
 
 def test_me_names_the_roles(world):

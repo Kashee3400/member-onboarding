@@ -19,14 +19,15 @@ async function backendGet<T>(path: string, access: string): Promise<T> {
   return response.json();
 }
 
-/** The signed-in person and their sidebar, loaded once per page render. */
+/** The signed-in person, their sidebar and the pages they may not open, loaded once per page render. */
 export const getSession = cache(async () => {
   const access = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!access) redirect("/login");
 
-  const [me, navigation] = await Promise.all([
+  const [me, navigation, locked] = await Promise.all([
     backendGet<Me>("auth/me/", access),
     backendGet<NavItem[]>("auth/me/navigation/", access),
+    backendGet<{ paths: string[] }>("auth/me/locked-pages/", access),
   ]);
-  return { me, navigation };
+  return { me, navigation, lockedPaths: locked.paths };
 });
