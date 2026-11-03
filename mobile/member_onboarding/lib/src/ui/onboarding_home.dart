@@ -58,6 +58,12 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
 
   void _useForm(Map<String, dynamic> json) => _schema = FormSchema.fromJson(json);
 
+  /// The phone's store keeps no order, so the list would shuffle on every visit.
+  static List<Draft> _newestFirst(List<Draft> drafts) {
+    final never = DateTime.fromMillisecondsSinceEpoch(0);
+    return drafts..sort((a, b) => (b.updatedAt ?? never).compareTo(a.updatedAt ?? never));
+  }
+
   void _useMpps(List<dynamic> json) =>
       _mpps = json.cast<Map<String, dynamic>>().map(MppSummary.fromJson).toList();
 
@@ -65,7 +71,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   Future<void> _loadCached() async {
     final form = await _store.readCache(_formCacheKey);
     final mpps = await _store.readCache(_mppCacheKey);
-    final drafts = await _store.all();
+    final drafts = _newestFirst(await _store.all());
     if (!mounted) return;
     setState(() {
       _drafts = drafts;
@@ -122,7 +128,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
       await controller.sync();
       controller.dispose();
     }
-    final drafts = await _store.all();
+    final drafts = _newestFirst(await _store.all());
     if (mounted) setState(() => _drafts = drafts);
   }
 
@@ -235,7 +241,11 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                         _CountTile(label: Strings.sent, value: month.submitted, onTap: _openRecords),
                         const SizedBox(width: 8),
                         _CountTile(label: Strings.waiting, value: month.pending, onTap: _openRecords),
-                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         _CountTile(
                           label: Strings.approved,
                           value: month.approved,
@@ -471,21 +481,22 @@ class _CountTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: scheme.outlineVariant),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
                 Text(
                   '$value',
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: color ?? scheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 2,
-                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
                 ),
               ],
             ),

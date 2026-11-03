@@ -118,6 +118,9 @@ class _FormWizardState extends State<FormWizard> {
 
   _Lookup _lookup = _Lookup.idle;
 
+  final _scroll = ScrollController();
+  final _chips = ScrollController();
+
   /// Steps someone tried to leave unfinished: their empty required fields now say so.
   final Set<int> _tried = {};
 
@@ -143,6 +146,8 @@ class _FormWizardState extends State<FormWizard> {
   @override
   void dispose() {
     _form.removeListener(_refresh);
+    _scroll.dispose();
+    _chips.dispose();
     super.dispose();
   }
 
@@ -150,7 +155,17 @@ class _FormWizardState extends State<FormWizard> {
     if (mounted) setState(() {});
   }
 
-  void _go(int step) => setState(() => _index = step);
+  void _go(int step) {
+    setState(() => _index = step);
+    // A new step starts at its top, with its chip in view.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+      if (_chips.hasClients) {
+        final target = (step * 72.0 - 96).clamp(0.0, _chips.position.maxScrollExtent);
+        _chips.animateTo(target, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
+    });
+  }
 
   /// What keeps a step from being complete. The OTPs are left out: they need a network
   /// the village may not have, so they hold back only the submit, not the next step.
@@ -166,13 +181,18 @@ class _FormWizardState extends State<FormWizard> {
     if (!widget.stepsInOrder || step <= _index) return _go(step);
     for (var at = _index; at < step; at++) {
       if (_blocking(at).isNotEmpty) {
-        setState(() {
-          _tried.add(at);
-          _index = at;
-        });
+        _tried.add(at);
+        _go(at);
+        // Floating, so it never covers the Next button.
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text(Strings.finishStepFirst)));
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(Strings.finishStepFirst),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.fromLTRB(16, 0, 16, 90),
+            ),
+          );
         return;
       }
     }
@@ -287,6 +307,7 @@ class _FormWizardState extends State<FormWizard> {
         error: error,
         check: _checkOf(section, spec.key),
         completeLength: _fullLength[path],
+        maxLines: path == 'nominee.address' ? 3 : 1,
         keyboard: switch (path) {
           'address.mobile' => TextInputType.phone,
           'address.email' => TextInputType.emailAddress,
@@ -569,7 +590,7 @@ class _FormWizardState extends State<FormWizard> {
           if (locked.isNotEmpty) _note(Icons.lock_outline, Strings.fromMppTitle),
           for (var at = 0; at < place.length; at += 2)
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(child: _field('address', place[at], compact: true)),
                 const SizedBox(width: 10),
@@ -708,7 +729,15 @@ class _FormWizardState extends State<FormWizard> {
         title: Strings.milkTitle,
         icon: Icons.water_drop_outlined,
         children: [
-          for (final spec in amounts) _field('animals', spec),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final (index, spec) in amounts.indexed) ...[
+                if (index > 0) const SizedBox(width: 10),
+                Expanded(child: _field('animals', spec)),
+              ],
+            ],
+          ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -735,6 +764,7 @@ class _FormWizardState extends State<FormWizard> {
 
   String _accountAgain = '';
   String _accountFirst = '';
+  bool _accountsMatched = false;
 
   /// A complete IFSC fills the bank and branch: the bank master first, then the internet.
   Future<void> _ifscChanged(String value) async {
@@ -836,12 +866,14 @@ class _FormWizardState extends State<FormWizard> {
             label: Strings.accountAgain,
             value: _accountAgain,
             keyboard: TextInputType.number,
+            obscure: _accountsMatched,
             formatters: [FilteringTextInputFormatter.digitsOnly],
             error: _accountAgain.isNotEmpty && !matches ? Strings.accountMismatch : null,
             onChanged: (value) {
               setState(() => _accountAgain = value);
               if (_accountProblem == null && value.isNotEmpty && value == _accountFirst) {
                 _form.setAccount(value);
+                setState(() => _accountsMatched = true);
               }
             },
           ),
@@ -901,6 +933,7 @@ class _FormWizardState extends State<FormWizard> {
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => PersonSheet(
+        isNew: index == null,
         person: start ?? (index == null ? const {} : family[index]),
         genders: _schema.familyGenders,
         relations: _schema.familyRelations,
@@ -993,20 +1026,10 @@ class _FormWizardState extends State<FormWizard> {
                 if ('${person['age'] ?? ''}'.isNotEmpty) '${person['age']} ${Strings.years}',
               ].where((part) => part.isNotEmpty).join(' · '),
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: Strings.editPerson,
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => _editPerson(index),
-                ),
-                IconButton(
-                  tooltip: Strings.removePerson,
-                  icon: Icon(Icons.delete_outline, color: scheme.error),
-                  onPressed: () => _removePerson(index),
-                ),
-              ],
+            trailing: IconButton(
+              tooltip: Strings.removePerson,
+              icon: Icon(Icons.delete_outline, color: scheme.error),
+              onPressed: () => _removePerson(index),
             ),
             onTap: () => _editPerson(index),
           ),
@@ -1223,12 +1246,18 @@ class _FormWizardState extends State<FormWizard> {
     final missing = <(String, int)>[];
 
     for (final section in _schema.sections) {
+      var locationMissing = false;
       for (final spec in section.fields.where((field) => field.required)) {
         final value = _fromMpp(section.key, spec) ?? draft.section(section.key)[spec.key];
         if (value == null || value == '' || value == false) {
-          missing.add((spec.label, _stepOf(section.key)));
+          if (section.key == 'location') {
+            locationMissing = true;
+          } else {
+            missing.add((spec.label, _stepOf(section.key)));
+          }
         }
       }
+      if (locationMissing) missing.add((Strings.locationTitle, _stepOf('location')));
     }
     if (!draft.hasAadhaar) missing.add((Strings.aadhaarNumber, 1));
     if (!draft.hasAccount) missing.add((Strings.accountNumber, 4));
@@ -1319,6 +1348,8 @@ class _FormWizardState extends State<FormWizard> {
           ListTile(
             key: ValueKey('checklist.$step'),
             dense: true,
+            visualDensity: VisualDensity.compact,
+            minVerticalPadding: 0,
             contentPadding: EdgeInsets.zero,
             leading: Icon(
               left.containsKey(step) ? Icons.error_outline : Icons.check_circle,
@@ -1499,6 +1530,7 @@ class _FormWizardState extends State<FormWizard> {
     return SizedBox(
       height: 44,
       child: ListView.separated(
+        controller: _chips,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         itemCount: _steps.length,
@@ -1586,6 +1618,7 @@ class _FormWizardState extends State<FormWizard> {
               ),
             Expanded(
               child: ListView(
+                controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 children: [
                   if (_tried.contains(_index) && _blocking(_index).isNotEmpty) ...[

@@ -25,6 +25,7 @@ class Draft {
     this.needsSync = false,
     this.mobileVerified = false,
     this.emailVerified = false,
+    this.updatedAt,
     Map<String, String>? place,
   }) : place = place ?? {},
        data = data ?? {},
@@ -56,6 +57,7 @@ class Draft {
     mobileVerified: json['mobile_verified'] as bool? ?? false,
     emailVerified: json['email_verified'] as bool? ?? false,
     place: placeFromJson(json['place']),
+    updatedAt: DateTime.tryParse('${json['updated_at'] ?? ''}'),
   );
 
   /// Opens a form from the server, such as one sent back for correction.
@@ -110,6 +112,9 @@ class Draft {
   Map<String, String> rejectedFieldNotes;
   bool needsSync;
 
+  /// When it was last saved on the phone, to list the latest first.
+  DateTime? updatedAt;
+
   /// Why this field was sent back: the reviewer's words, or null when none were given.
   String? noteFor(String path) {
     final note = rejectedFieldNotes[path]?.trim();
@@ -157,6 +162,7 @@ class Draft {
     'rejected_fields': rejectedFields,
     'rejected_field_notes': rejectedFieldNotes,
     'needs_sync': needsSync,
+    'updated_at': updatedAt?.toIso8601String(),
     'mobile_verified': mobileVerified,
     'email_verified': emailVerified,
     'place': place,

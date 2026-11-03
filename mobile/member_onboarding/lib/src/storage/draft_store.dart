@@ -32,8 +32,10 @@ class SecureDraftStore implements DraftStore {
   }
 
   @override
-  Future<void> save(Draft draft) =>
-      _storage.write(key: '$_prefix${draft.clientId}', value: draft.encode());
+  Future<void> save(Draft draft) {
+    draft.updatedAt = DateTime.now();
+    return _storage.write(key: '$_prefix${draft.clientId}', value: draft.encode());
+  }
 
   @override
   Future<void> delete(String clientId) => _storage.delete(key: '$_prefix$clientId');
@@ -54,7 +56,10 @@ class MemoryDraftStore implements DraftStore {
   Future<List<Draft>> all() async => _drafts.values.map(Draft.decode).toList();
 
   @override
-  Future<void> save(Draft draft) async => _drafts[draft.clientId] = draft.encode();
+  Future<void> save(Draft draft) async {
+    draft.updatedAt = DateTime.now();
+    _drafts[draft.clientId] = draft.encode();
+  }
 
   @override
   Future<void> delete(String clientId) async => _drafts.remove(clientId);

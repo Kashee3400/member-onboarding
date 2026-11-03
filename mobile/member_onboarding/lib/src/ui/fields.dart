@@ -108,6 +108,7 @@ class TextBox extends StatefulWidget {
     this.hint,
     this.check,
     this.completeLength,
+    this.maxLines = 1,
     super.key,
   });
 
@@ -125,6 +126,9 @@ class TextBox extends StatefulWidget {
   /// text reaches [completeLength], never while a value is still being typed.
   final String? Function(String text)? check;
   final int? completeLength;
+
+  /// More than one for a long answer, such as an address.
+  final int maxLines;
 
   @override
   State<TextBox> createState() => _TextBoxState();
@@ -179,6 +183,8 @@ class _TextBoxState extends State<TextBox> {
             focusNode: _focus,
             keyboardType: widget.keyboard,
             obscureText: widget.obscure,
+            minLines: 1,
+            maxLines: widget.obscure ? 1 : widget.maxLines,
             inputFormatters: widget.formatters,
             onChanged: (text) {
               widget.onChanged(text);
@@ -219,7 +225,17 @@ class _CountCellState extends State<CountCell> {
   @override
   void initState() {
     super.initState();
-    _focus.addListener(() => setState(() {}));
+    _focus.addListener(() {
+      _selectAll();
+      setState(() {});
+    });
+  }
+
+  void _selectAll() {
+    // A tap on a box showing 0 replaces it, instead of typing after it.
+    if (_focus.hasFocus) {
+      _controller.selection = TextSelection(baseOffset: 0, extentOffset: _controller.text.length);
+    }
   }
 
   @override
@@ -250,11 +266,12 @@ class _CountCellState extends State<CountCell> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
           onChanged: widget.onChanged,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          textAlignVertical: TextAlignVertical.center,
           decoration: const InputDecoration(
             isDense: true,
             hintText: '0',
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 12),
+            contentPadding: EdgeInsets.zero,
           ),
         ),
       ),

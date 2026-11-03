@@ -309,6 +309,7 @@ class DocumentViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(label),
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
@@ -341,9 +342,12 @@ class PersonSheet extends StatefulWidget {
     required this.genders,
     required this.relations,
     required this.checkAge,
+    this.isNew = true,
     super.key,
   });
 
+  /// Adding someone, or correcting someone already on the list.
+  final bool isNew;
   final Map<String, dynamic> person;
   final List<ChoiceOption> genders;
   final List<ChoiceOption> relations;
@@ -390,7 +394,7 @@ class _PersonSheetState extends State<PersonSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.person.isEmpty ? Strings.addPerson : Strings.editPerson,
+                widget.isNew ? Strings.addPerson : Strings.editPerson,
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),

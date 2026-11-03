@@ -204,7 +204,7 @@ class Strings {
   static const branchNotFound = 'Bank not found for this IFSC. Type the bank and branch.';
   static const accountsMatch = 'Both account numbers match';
   static const bankTitle = 'Bank';
-  static const sameAsMember = "Same as member's name";
+  static const sameAsMember = "Use member's name";
   static const cancel = 'Cancel';
   static const familyIntro = 'Everyone who lives with the member.';
   static const noFamily = 'No household members added yet';

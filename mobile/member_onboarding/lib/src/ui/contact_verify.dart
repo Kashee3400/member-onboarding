@@ -95,6 +95,7 @@ class _ContactVerifyState extends State<ContactVerify> {
       key: ValueKey('verify.${widget.channel}'),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: verified ? Colors.green.shade300 : Colors.black12),
         color: verified ? Colors.green.shade50 : null,
       ),
@@ -151,7 +152,7 @@ class _ContactVerifyState extends State<ContactVerify> {
                     const SizedBox(width: 8),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                        shape: const RoundedRectangleBorder(),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         minimumSize: const Size(96, 52),
                       ),
                       onPressed: _busy || _code.text.length != 6 ? null : _check,
@@ -164,7 +165,9 @@ class _ContactVerifyState extends State<ContactVerify> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                   onPressed: _busy || _left > 0 ? null : _send,
                   icon: _busy
                       ? const SizedBox.square(
