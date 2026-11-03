@@ -10,7 +10,11 @@ import { CheckRow } from "@/components/admin/check-row";
 import { FormError } from "@/components/admin/feedback";
 import { FileDrop } from "@/components/admin/file-drop";
 import { FormDialog } from "@/components/admin/form-dialog";
-import { DataTable, FilterSelect, type Column } from "@/components/common/data-table";
+import {
+  DataTable,
+  FilterSelect,
+  type Column,
+} from "@/components/common/data-table";
 import { Field, FormSection } from "@/components/common/field";
 import { Listbox } from "@/components/common/listbox";
 import { MasterSelect } from "@/components/common/master-select";
@@ -23,7 +27,15 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCan } from "@/hooks/use-session";
 import { api, type Page } from "@/lib/api/client";
-import type { Bmc, Mcc, Mpp, MppImportResult, Plant, Route } from "@/lib/types";
+import type {
+  Bmc,
+  Mcc,
+  Mpp,
+  MppImportResult,
+  MppPreviewEntry,
+  Plant,
+  Route,
+} from "@/lib/types";
 
 type Tab = "plants" | "mccs" | "bmcs" | "routes" | "mpps";
 type Master = Plant | Mcc | Bmc | Route | Mpp;
@@ -65,7 +77,10 @@ const MB = 1024 * 1024;
 const useMasters = <T,>(tab: Tab) =>
   useQuery({
     queryKey: ["hierarchy", tab],
-    queryFn: () => api<Page<T>>(`hierarchy/${tab}`, { query: { page_size: 5000, ordering: "code" } }),
+    queryFn: () =>
+      api<Page<T>>(`hierarchy/${tab}`, {
+        query: { page_size: 5000, ordering: "code" },
+      }),
   });
 
 const refreshKeys = (client: ReturnType<typeof useQueryClient>) => {
@@ -92,7 +107,9 @@ function MasterForm({
   const mcc = tab === "mccs" ? (item as Mcc | null) : null;
   const bmc = tab === "bmcs" ? (item as Bmc | null) : null;
   const route = tab === "routes" ? (item as Route | null) : null;
-  const [parent, setParent] = useState(mpp?.mcc ?? mcc?.plant ?? bmc?.mcc ?? route?.bmc ?? "");
+  const [parent, setParent] = useState(
+    mpp?.mcc ?? mcc?.plant ?? bmc?.mcc ?? route?.bmc ?? "",
+  );
   const [routeId, setRouteId] = useState(mpp?.route ?? "");
   // Linked to a village by the ERP import, its codes come from there and are not typed.
   const linked = !!mpp?.village;
@@ -119,9 +136,7 @@ function MasterForm({
       ...(tab === "mccs" ? { plant: parent } : {}),
       ...(tab === "bmcs" ? { mcc: parent } : {}),
       ...(tab === "routes" ? { bmc: parent } : {}),
-      ...(tab === "mpps"
-        ? { mcc: parent, route: routeId || null }
-        : {}),
+      ...(tab === "mpps" ? { mcc: parent, route: routeId || null } : {}),
     });
   };
 
@@ -136,7 +151,10 @@ function MasterForm({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={save.isPending || (tab !== "plants" && !parent)}>
+          <Button
+            type="submit"
+            disabled={save.isPending || (tab !== "plants" && !parent)}
+          >
             {save.isPending ? "Saving…" : "Save"}
           </Button>
         </>
@@ -149,7 +167,10 @@ function MasterForm({
             placeholder="Choose a plant"
             value={parent}
             onChange={setParent}
-            items={plants.map((plant) => ({ value: plant.id, label: `${plant.code} - ${plant.name}` }))}
+            items={plants.map((plant) => ({
+              value: plant.id,
+              label: `${plant.code} - ${plant.name}`,
+            }))}
           />
         </Field>
       ) : null}
@@ -174,7 +195,10 @@ function MasterForm({
             placeholder="Choose a BMC"
             value={parent}
             onChange={setParent}
-            items={bmcs.map((entry) => ({ value: entry.id, label: `${entry.code} - ${entry.name}` }))}
+            items={bmcs.map((entry) => ({
+              value: entry.id,
+              label: `${entry.code} - ${entry.name}`,
+            }))}
           />
         </Field>
       ) : null}
@@ -192,7 +216,14 @@ function MasterForm({
       ) : null}
       <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <Field label="Code" htmlFor="code">
-          <Input id="code" name="code" required defaultValue={item?.code} className="font-mono" autoFocus />
+          <Input
+            id="code"
+            name="code"
+            required
+            defaultValue={item?.code}
+            className="font-mono"
+            autoFocus
+          />
         </Field>
         <Field label="Name" htmlFor="name">
           <Input id="name" name="name" required defaultValue={item?.name} />
@@ -224,7 +255,9 @@ function MasterForm({
                 ))}
               </dl>
             ) : (
-              <p className="text-sm text-muted-foreground">Not loaded yet. Import the masters file from the ERP.</p>
+              <p className="text-sm text-muted-foreground">
+                Not loaded yet. Import the masters file from the ERP.
+              </p>
             )}
             {/* Disabled fields are left out of the form, so the server takes them from the village. */}
             <Field
@@ -246,7 +279,11 @@ function MasterForm({
             </Field>
             {linked ? null : (
               <Field label="Village name" htmlFor="village_name" optional>
-                <Input id="village_name" name="village_name" defaultValue={mpp?.village_name} />
+                <Input
+                  id="village_name"
+                  name="village_name"
+                  defaultValue={mpp?.village_name}
+                />
               </Field>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -254,7 +291,11 @@ function MasterForm({
                 label="State code"
                 htmlFor="state_code"
                 optional
-                help={linked ? "From the village." : "2 digits, like 09 for Uttar Pradesh."}
+                help={
+                  linked
+                    ? "From the village."
+                    : "2 digits, like 09 for Uttar Pradesh."
+                }
               >
                 <Input
                   id="state_code"
@@ -271,7 +312,11 @@ function MasterForm({
                 label="Hamlet code"
                 htmlFor="hamlet_code"
                 optional
-                help={mpp?.hamlet ? "From the hamlet." : "2 digits, after the village code."}
+                help={
+                  mpp?.hamlet
+                    ? "From the hamlet."
+                    : "2 digits, after the village code."
+                }
               >
                 <Input
                   id="hamlet_code"
@@ -292,7 +337,12 @@ function MasterForm({
             optional
             help="Used only to match with the ERP. Never shown elsewhere."
           >
-            <Input id="source_code" name="source_code" defaultValue={mpp?.source_code} className="font-mono" />
+            <Input
+              id="source_code"
+              name="source_code"
+              defaultValue={mpp?.source_code}
+              className="font-mono"
+            />
           </Field>
         </>
       ) : null}
@@ -307,36 +357,208 @@ function MasterForm({
   );
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  mcc: "MCC",
+  route: "Route",
+  village_code: "Village code",
+  village_name: "Village name",
+  erp_code: "ERP code",
+  state_code: "State code",
+  hamlet_code: "Hamlet code",
+  village: "Village",
+  hamlet: "Hamlet",
+  post_office: "Post office",
+  pincode: "PIN code",
+};
+
+type PreviewTab = "new" | "changed" | "missing";
+
+function sendMasters(file: File, preview: boolean) {
+  const form = new FormData();
+  form.append("file", file);
+  if (preview) form.append("preview", "true");
+  return api<MppImportResult>("hierarchy/mpps/import", {
+    method: "POST",
+    body: form,
+  });
+}
+
+function ProblemRows({ problems }: { problems: MppImportResult["problems"] }) {
+  return (
+    <div className="space-y-2">
+      <Alert variant="destructive">
+        <XCircle />
+        <AlertTitle>Nothing was imported</AlertTitle>
+        <AlertDescription>
+          Fix these rows in the file, then upload it again.
+        </AlertDescription>
+      </Alert>
+      <div className="max-h-64 overflow-y-auto border">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+            <tr>
+              <th className="w-16 px-3 py-1.5 font-medium">Row</th>
+              <th className="px-3 py-1.5 font-medium">Problem</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {problems.map((item) => (
+              <tr key={`${item.row}-${item.problem}`}>
+                <td className="px-3 py-1.5 tabular-nums">{item.row}</td>
+                <td className="px-3 py-1.5">{item.problem}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PreviewList({
+  entries,
+  total,
+  kind,
+}: {
+  entries: MppPreviewEntry[];
+  total: number;
+  kind: PreviewTab;
+}) {
+  if (!total)
+    return (
+      <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+        None.
+      </p>
+    );
+  return (
+    <div className="max-h-72 overflow-y-auto border">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="w-24 px-3 py-1.5 font-medium">MPP</th>
+            <th className="px-3 py-1.5 font-medium">Name</th>
+            {kind === "changed" ? (
+              <th className="px-3 py-1.5 font-medium">What changes</th>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {entries.map((entry) => (
+            <tr key={entry.code} className="align-top">
+              <td className="px-3 py-1.5 font-mono text-xs tabular-nums">
+                {entry.code}
+              </td>
+              <td className="px-3 py-1.5">{entry.name}</td>
+              {kind === "changed" ? (
+                <td className="space-y-0.5 px-3 py-1.5 text-xs">
+                  {Object.entries(entry.changes ?? {}).map(
+                    ([field, [before, after]]) => (
+                      <div key={field}>
+                        <span className="text-muted-foreground">
+                          {FIELD_LABELS[field] ?? field}:{" "}
+                        </span>
+                        <span className="line-through decoration-muted-foreground/60">
+                          {before || "blank"}
+                        </span>
+                        {" → "}
+                        <span className="font-medium">{after || "blank"}</span>
+                      </div>
+                    ),
+                  )}
+                </td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {entries.length < total ? (
+        <p className="border-t px-3 py-1.5 text-xs text-muted-foreground">
+          Showing {entries.length} of {total}.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Choose a file, see exactly what it would change, then import it. */
 function ImportMasters({ onClose }: { onClose: () => void }) {
   const client = useQueryClient();
+  const [file, setFile] = useState<File | null>(null);
+  const [tab, setTab] = useState<PreviewTab>("new");
+  const check = useMutation({
+    mutationFn: (chosen: File) => sendMasters(chosen, true),
+  });
   const upload = useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.append("file", file);
-      return api<MppImportResult>("hierarchy/mpps/import", { method: "POST", body: form });
-    },
+    mutationFn: (chosen: File) => sendMasters(chosen, false),
     onSuccess: () => refreshKeys(client),
   });
+  const preview = check.data?.preview;
   const result = upload.data;
-  const failed = !!result && result.problems.length > 0;
+  const problems =
+    (result?.problems.length ? result.problems : check.data?.problems) ?? [];
+  const done = !!result && result.problems.length === 0;
+  const ready = !!preview && problems.length === 0 && !done;
+  const alsoNew = preview
+    ? preview.new_plants +
+      preview.new_mccs +
+      preview.new_bmcs +
+      preview.new_routes
+    : 0;
+
+  function choose(chosen: File) {
+    setFile(chosen);
+    upload.reset();
+    check.mutate(chosen, {
+      onSuccess: (data) => {
+        const found = data.preview;
+        if (found)
+          setTab(
+            found.new_count
+              ? "new"
+              : found.changed_count
+                ? "changed"
+                : "missing",
+          );
+      },
+    });
+  }
 
   return (
     <FormDialog
       title="Import from Excel"
-      description="Existing MPPs are updated. A row with a district or tehsil code needs state, district and tehsil codes, and loads the place chain too. One bad row stops the whole file, so nothing is half done."
-      className="sm:max-w-2xl"
+      description="You see what the file changes before anything is saved. Existing MPPs are updated and MPPs missing from the file stay as they are. One bad row stops the whole file, so nothing is half done."
+      className="sm:max-w-3xl"
       onClose={onClose}
       footer={
-        <Button type="button" variant={result && !failed ? "default" : "ghost"} onClick={onClose}>
-          {result && !failed ? "Done" : "Close"}
-        </Button>
+        <>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {done ? "Done" : "Close"}
+          </Button>
+          {ready ? (
+            <Button
+              type="button"
+              disabled={upload.isPending}
+              onClick={() => file && upload.mutate(file)}
+            >
+              {upload.isPending
+                ? "Importing…"
+                : `Import ${preview.new_count + preview.changed_count} changes`}
+            </Button>
+          ) : null}
+        </>
       }
     >
       <div className="space-y-1.5">
-        <p className="text-sm font-medium">The first row must have these columns</p>
+        <p className="text-sm font-medium">
+          The first row must have these columns
+        </p>
         <div className="flex flex-wrap gap-1">
           {IMPORT_COLUMNS.map((name) => (
-            <code key={name} className="bg-muted px-1.5 py-0.5 font-mono text-xs">
+            <code
+              key={name}
+              className="bg-muted px-1.5 py-0.5 font-mono text-xs"
+            >
               {name}
             </code>
           ))}
@@ -346,11 +568,12 @@ function ImportMasters({ onClose }: { onClose: () => void }) {
         label="Excel file"
         accept={[".xlsx"]}
         maxBytes={10 * MB}
-        busy={upload.isPending}
-        onFile={(file) => upload.mutate(file)}
+        busy={check.isPending}
+        onFile={choose}
       />
-      <FormError error={upload.error} />
-      {result && !failed ? (
+      <FormError error={check.error ?? upload.error} />
+      {problems.length ? <ProblemRows problems={problems} /> : null}
+      {done ? (
         <Alert>
           <CheckCircle2 className="text-emerald-600" />
           <AlertTitle>Import finished</AlertTitle>
@@ -359,31 +582,44 @@ function ImportMasters({ onClose }: { onClose: () => void }) {
           </AlertDescription>
         </Alert>
       ) : null}
-      {failed ? (
-        <div className="space-y-2">
-          <Alert variant="destructive">
-            <XCircle />
-            <AlertTitle>Nothing was imported</AlertTitle>
-            <AlertDescription>Fix these rows in the file, then upload it again.</AlertDescription>
+      {ready ? (
+        <div className="space-y-3">
+          <Alert>
+            <AlertTitle>Nothing is saved yet</AlertTitle>
+            <AlertDescription>
+              {preview.new_count} new, {preview.changed_count} changed and{" "}
+              {preview.unchanged_count} unchanged MPPs.
+              {alsoNew
+                ? ` Also new: ${preview.new_plants} plants, ${preview.new_mccs} MCCs, ${preview.new_bmcs} BMCs, ${preview.new_routes} routes.`
+                : ""}{" "}
+              Check the lists, then import.
+            </AlertDescription>
           </Alert>
-          <div className="max-h-64 overflow-y-auto border">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="w-16 px-3 py-1.5 font-medium">Row</th>
-                  <th className="px-3 py-1.5 font-medium">Problem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {result.problems.map((item) => (
-                  <tr key={`${item.row}-${item.problem}`}>
-                    <td className="px-3 py-1.5 tabular-nums">{item.row}</td>
-                    <td className="px-3 py-1.5">{item.problem}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as PreviewTab)}
+          >
+            <TabsList>
+              <TabsTrigger value="new">New ({preview.new_count})</TabsTrigger>
+              <TabsTrigger value="changed">
+                Changed ({preview.changed_count})
+              </TabsTrigger>
+              <TabsTrigger value="missing">
+                Not in file ({preview.missing_count})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {tab === "missing" && preview.missing_count ? (
+            <p className="text-xs text-muted-foreground">
+              These active MPPs are not in the file. The import leaves them as
+              they are: switch one off by hand if it has closed.
+            </p>
+          ) : null}
+          <PreviewList
+            entries={preview[tab]}
+            total={preview[`${tab}_count`]}
+            kind={tab}
+          />
         </div>
       ) : null}
     </FormDialog>
@@ -396,7 +632,9 @@ const code = <T extends Plant>(): Column<T> => ({
   required: true,
   sortKey: "code",
   csv: (row) => row.code,
-  cell: (row) => <span className="font-mono text-xs tabular-nums">{row.code}</span>,
+  cell: (row) => (
+    <span className="font-mono text-xs tabular-nums">{row.code}</span>
+  ),
 });
 const name = <T extends Plant>(): Column<T> => ({
   id: "name",
@@ -416,7 +654,8 @@ export default function HierarchyPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = (TABS.find((entry) => entry.key === params.get("tab"))?.key ?? "plants") as Tab;
+  const tab = (TABS.find((entry) => entry.key === params.get("tab"))?.key ??
+    "plants") as Tab;
   const canManage = useCan("hierarchy.manage");
   const [editing, setEditing] = useState<{ item: Master | null } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -425,11 +664,17 @@ export default function HierarchyPage() {
   const mccs = useMasters<Mcc>("mccs").data?.results ?? [];
   const bmcs = useMasters<Bmc>("bmcs").data?.results ?? [];
   const routes = useMasters<Route>("routes").data?.results ?? [];
-  const nameOf = (list: Plant[], id: string | null) => list.find((entry) => entry.id === id)?.name ?? "—";
+  const nameOf = (list: Plant[], id: string | null) =>
+    list.find((entry) => entry.id === id)?.name ?? "—";
   const options = (list: Plant[]) =>
-    Object.fromEntries(list.map((entry) => [entry.id, `${entry.code} - ${entry.name}`]));
+    Object.fromEntries(
+      list.map((entry) => [entry.id, `${entry.code} - ${entry.name}`]),
+    );
 
-  const plantColumns = useMemo<Column<Plant>[]>(() => [code(), name(), status()], []);
+  const plantColumns = useMemo<Column<Plant>[]>(
+    () => [code(), name(), status()],
+    [],
+  );
   const mccColumns: Column<Mcc>[] = [
     code(),
     name(),
@@ -437,7 +682,11 @@ export default function HierarchyPage() {
       id: "plant",
       header: "Plant",
       csv: (row) => nameOf(plants, row.plant),
-      cell: (row) => <span className="text-muted-foreground">{nameOf(plants, row.plant)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {nameOf(plants, row.plant)}
+        </span>
+      ),
     },
     status(),
   ];
@@ -448,7 +697,9 @@ export default function HierarchyPage() {
       id: "mcc",
       header: "MCC",
       csv: (row) => nameOf(mccs, row.mcc),
-      cell: (row) => <span className="text-muted-foreground">{nameOf(mccs, row.mcc)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">{nameOf(mccs, row.mcc)}</span>
+      ),
     },
     status(),
   ];
@@ -459,7 +710,9 @@ export default function HierarchyPage() {
       id: "bmc",
       header: "BMC",
       csv: (row) => nameOf(bmcs, row.bmc),
-      cell: (row) => <span className="text-muted-foreground">{nameOf(bmcs, row.bmc)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">{nameOf(bmcs, row.bmc)}</span>
+      ),
     },
     status(),
   ];
@@ -471,7 +724,11 @@ export default function HierarchyPage() {
       header: "Village code",
       sortKey: "village_code",
       csv: (row) => row.village_code,
-      cell: (row) => <span className="font-mono text-xs tabular-nums">{row.village_code}</span>,
+      cell: (row) => (
+        <span className="font-mono text-xs tabular-nums">
+          {row.village_code}
+        </span>
+      ),
     },
     {
       id: "code_parts",
@@ -487,14 +744,21 @@ export default function HierarchyPage() {
       id: "place",
       header: "Place",
       hideBelow: "lg",
-      csv: (row) => [row.place.village_name, row.place.tehsil, row.place.district].filter(Boolean).join(", "),
+      csv: (row) =>
+        [row.place.village_name, row.place.tehsil, row.place.district]
+          .filter(Boolean)
+          .join(", "),
       cell: (row) =>
         row.village ? (
           <span className="text-muted-foreground">
-            {[row.place.village_name, row.place.tehsil, row.place.district].filter(Boolean).join(", ")}
+            {[row.place.village_name, row.place.tehsil, row.place.district]
+              .filter(Boolean)
+              .join(", ")}
           </span>
         ) : (
-          <span className="text-xs text-amber-700 dark:text-amber-400">Not linked</span>
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            Not linked
+          </span>
         ),
     },
     {
@@ -502,14 +766,20 @@ export default function HierarchyPage() {
       header: "MCC",
       hideBelow: "md",
       csv: (row) => nameOf(mccs, row.mcc),
-      cell: (row) => <span className="text-muted-foreground">{nameOf(mccs, row.mcc)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">{nameOf(mccs, row.mcc)}</span>
+      ),
     },
     {
       id: "route",
       header: "Route",
       hideBelow: "lg",
       csv: (row) => nameOf(routes, row.route),
-      cell: (row) => <span className="text-muted-foreground">{nameOf(routes, row.route)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {nameOf(routes, row.route)}
+        </span>
+      ),
     },
     status(),
   ];
@@ -523,7 +793,10 @@ export default function HierarchyPage() {
       description="Try another search, or import them from Excel."
     />
   );
-  const activeFilter = (filters: Record<string, string | undefined>, setFilter: (key: string, value: string | undefined) => void) => (
+  const activeFilter = (
+    filters: Record<string, string | undefined>,
+    setFilter: (key: string, value: string | undefined) => void,
+  ) => (
     <FilterSelect
       label="Status"
       value={filters.is_active}
@@ -551,7 +824,12 @@ export default function HierarchyPage() {
         }
       />
 
-      <Tabs value={tab} onValueChange={(next) => router.replace(`${pathname}?tab=${next}`, { scroll: false })}>
+      <Tabs
+        value={tab}
+        onValueChange={(next) =>
+          router.replace(`${pathname}?tab=${next}`, { scroll: false })
+        }
+      >
         <TabsList>
           {TABS.map((entry) => (
             <TabsTrigger key={entry.key} value={entry.key}>

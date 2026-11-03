@@ -273,6 +273,46 @@ def upload(client, file):
     return client.post(IMPORT, {"file": file}, format="multipart")
 
 
+def preview(client, file):
+    return client.post(IMPORT, {"file": file, "preview": "true"}, format="multipart")
+
+
+def test_a_preview_shows_new_changed_and_missing_mpps_and_saves_nothing(world, org_a):
+    renamed = ("P1", "Plant", "6", "Bhadohi", "1305", "", "Dudwa Khurd", "00209982")
+
+    response = preview(world.client(world.admin), workbook_file([row(), renamed]))
+
+    assert response.status_code == 200, response.content
+    found = response.data["preview"]
+    assert (response.data["created"], response.data["updated"]) == (1, 1)
+    assert [entry["code"] for entry in found["new"]] == ["2001"]
+    assert found["changed"] == [
+        {"code": "1305", "name": "Dudwa Khurd", "changes": {"name": ["Dudwa", "Dudwa Khurd"]}}
+    ]
+    # In the masters but not in the file: listed, never switched off.
+    assert [entry["code"] for entry in found["missing"]] == ["1152"]
+    assert (found["new_plants"], found["new_mccs"]) == (1, 1)
+    with organization_context(org_a.id):
+        assert not Mpp.objects.filter(code="2001").exists()
+        assert Mpp.objects.get(code="1305").name == "Dudwa"
+
+
+def test_a_preview_reports_the_same_problems_as_the_import(world):
+    bad = row(village="123")
+
+    previewed = preview(world.client(world.admin), workbook_file([bad])).data
+    imported = upload(world.client(world.admin), workbook_file([bad])).data
+
+    assert previewed["problems"] == imported["problems"] != []
+
+
+def test_a_preview_leaves_no_audit_trail(world, org_a):
+    preview(world.client(world.admin), workbook_file([row()]))
+
+    with organization_context(org_a.id):
+        assert not AuditEvent.objects.filter(action="hierarchy.imported").exists()
+
+
 def test_a_file_creates_the_whole_hierarchy(world, org_a):
     response = upload(world.client(world.admin), workbook_file([row()]))
 

@@ -22,7 +22,11 @@ export type Me = {
   permissions: string[];
 };
 
-export type Page<T> = { next: string | null; previous: string | null; results: T[] };
+export type Page<T> = {
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
 
 export type Role = {
   id: string;
@@ -49,7 +53,12 @@ export type Staff = {
   created_at: string;
 };
 
-export type Plant = { id: string; code: string; name: string; is_active: boolean };
+export type Plant = {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+};
 export type Bmc = Plant & { mcc: string };
 export type Route = Plant & { bmc: string; mcc: string };
 export type Mcc = Plant & {
@@ -215,7 +224,11 @@ export type ApplicationDetail = ApplicationSummary & {
   rejected_fields: string[];
   /** The reviewer's reason for each marked field, where one was given. */
   rejected_field_notes: Record<string, string>;
-  computed: { total_animals: number; total_in_milk: number; surplus_lpd: number };
+  computed: {
+    total_animals: number;
+    total_in_milk: number;
+    surplus_lpd: number;
+  };
   fee: {
     admission_fee: number;
     share_quantity: number;
@@ -305,7 +318,12 @@ export type FormList = {
   key: string;
   title: string;
   description: string;
-  options: { value: string; label: string; label_hi: string; active: boolean }[];
+  options: {
+    value: string;
+    label: string;
+    label_hi: string;
+    active: boolean;
+  }[];
 };
 
 export type BankBranch = {
@@ -366,7 +384,10 @@ export type TrustedIssuer = {
   is_active: boolean;
 };
 
-export type Dashboard = { by_status: Record<string, number>; waiting_for_me: number };
+export type Dashboard = {
+  by_status: Record<string, number>;
+  waiting_for_me: number;
+};
 
 export type BreakdownRow = {
   key: string;
@@ -396,7 +417,11 @@ export type Home = {
   by_mcc?: { code: string; name: string; waiting: number; overdue: number }[];
   trend?: { day: string; submitted: number; joined: number }[];
   fee?: { payment_missing: number; collected_month: number };
-  members?: { joined_month: number; joined_total: number; existing_active: number };
+  members?: {
+    joined_month: number;
+    joined_total: number;
+    existing_active: number;
+  };
   mine?: { approved_month: number; edited_by_me: number };
   setup?: {
     steps_without_role: number;
@@ -418,7 +443,10 @@ export type OpenWork = {
   }[];
 };
 
-export type ReportSummary = { total: number; by_status: Record<string, number> };
+export type ReportSummary = {
+  total: number;
+  by_status: Record<string, number>;
+};
 
 export type PdfBatch = {
   id: string;
@@ -452,13 +480,41 @@ export type PrintPreview = {
   ready: number;
   estimated_seconds: number;
   estimated_bytes: number;
-  rows: { id: string; form_number: string; full_name: string; tr_code: string; mpp: string; approved_at: string }[];
+  rows: {
+    id: string;
+    form_number: string;
+    full_name: string;
+    tr_code: string;
+    mpp: string;
+    approved_at: string;
+  }[];
+};
+
+export type MppPreviewEntry = {
+  code: string;
+  name: string;
+  changes?: Record<string, [string, string]>;
+};
+
+export type MppImportPreview = {
+  new: MppPreviewEntry[];
+  new_count: number;
+  changed: MppPreviewEntry[];
+  changed_count: number;
+  unchanged_count: number;
+  missing: MppPreviewEntry[];
+  missing_count: number;
+  new_plants: number;
+  new_mccs: number;
+  new_bmcs: number;
+  new_routes: number;
 };
 
 export type MppImportResult = {
   created: number;
   updated: number;
   problems: { row: number; problem: string }[];
+  preview?: MppImportPreview;
 };
 
 export type OrganizationProfile = {
@@ -513,7 +569,12 @@ export type FieldMark = {
 export type ReviewSettings = {
   overdue_days: number;
   reject_reasons: RejectReason[];
-  sections: { key: string; title: string; step: string; fields: { path: string; label: string }[] }[];
+  sections: {
+    key: string;
+    title: string;
+    step: string;
+    fields: { path: string; label: string }[];
+  }[];
   /** Each step's checklist, by step key. */
   checks: Record<string, string[]>;
   steps: { key: string; number: number; title: string }[];

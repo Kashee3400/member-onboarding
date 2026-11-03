@@ -6611,6 +6611,49 @@ components:
       - person
       - responsibility
       - started_at
+    MppImportPreview:
+      type: object
+      properties:
+        new:
+          type: array
+          items:
+            $ref: '#/components/schemas/MppPreviewEntry'
+        new_count:
+          type: integer
+        changed:
+          type: array
+          items:
+            $ref: '#/components/schemas/MppPreviewEntry'
+        changed_count:
+          type: integer
+        unchanged_count:
+          type: integer
+        missing:
+          type: array
+          items:
+            $ref: '#/components/schemas/MppPreviewEntry'
+        missing_count:
+          type: integer
+        new_plants:
+          type: integer
+        new_mccs:
+          type: integer
+        new_bmcs:
+          type: integer
+        new_routes:
+          type: integer
+      required:
+      - changed
+      - changed_count
+      - missing
+      - missing_count
+      - new
+      - new_bmcs
+      - new_count
+      - new_mccs
+      - new_plants
+      - new_routes
+      - unchanged_count
     MppImportProblem:
       type: object
       properties:
@@ -6627,6 +6670,10 @@ components:
         file:
           type: string
           format: binary
+        preview:
+          type: boolean
+          default: false
+          description: Report what the file would change, and change nothing.
       required:
       - file
     MppImportResult:
@@ -6640,6 +6687,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MppImportProblem'
+        preview:
+          $ref: '#/components/schemas/MppImportPreview'
       required:
       - created
       - problems
@@ -6689,6 +6738,22 @@ components:
       - tehsil_code
       - village_code
       - village_name
+    MppPreviewEntry:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        changes:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - code
+      - name
     MppRequest:
       type: object
       description: The unique constraint includes the organization, which clients

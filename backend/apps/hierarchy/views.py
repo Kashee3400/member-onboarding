@@ -16,7 +16,7 @@ from apps.rbac.catalog import APPROVAL_PERMISSIONS
 from apps.rbac.permissions import require_permission
 from apps.rbac.services import permissions_for
 
-from .imports import import_masters, read_rows
+from .imports import import_masters, preview_masters, read_rows
 from .models import (
     Bmc,
     District,
@@ -359,7 +359,10 @@ class MppImportView(APIView):
     def post(self, request):
         serializer = MppImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = import_masters(read_rows(serializer.validated_data["file"].read()))
+        records = read_rows(serializer.validated_data["file"].read())
+        if serializer.validated_data["preview"]:
+            return Response(preview_masters(records))
+        result = import_masters(records)
         if not result["problems"]:
             record_event(
                 "hierarchy.imported",

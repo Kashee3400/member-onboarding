@@ -265,6 +265,83 @@ def _place(record: dict, cache: dict):
     return village, hamlet
 
 
+# What a preview compares on each MPP, as people would name it.
+_COMPARED = {
+    "name": lambda mpp: mpp.name,
+    "mcc": lambda mpp: mpp.mcc.code,
+    "route": lambda mpp: mpp.route.code if mpp.route else "",
+    "village_code": lambda mpp: mpp.village_code,
+    "village_name": lambda mpp: mpp.village_name,
+    "erp_code": lambda mpp: mpp.source_code,
+    "state_code": lambda mpp: mpp.state_code,
+    "hamlet_code": lambda mpp: mpp.hamlet_code,
+    "village": lambda mpp: mpp.village.code if mpp.village else "",
+    "hamlet": lambda mpp: mpp.hamlet.code if mpp.hamlet else "",
+    "post_office": lambda mpp: mpp.post_office,
+    "pincode": lambda mpp: mpp.pincode,
+}
+# A preview lists this many of each kind; the counts are always complete.
+PREVIEW_LIMIT = 500
+
+
+def _snapshot() -> dict:
+    mpps = Mpp.objects.select_related("mcc", "route", "village", "hamlet")
+    return {
+        mpp.code: {"name": mpp.name, "active": mpp.is_active}
+        | {field: str(read(mpp) or "") for field, read in _COMPARED.items()}
+        for mpp in mpps
+    }
+
+
+def preview_masters(records) -> dict:
+    """
+    What importing this file would do, without doing it. The real import runs and is
+    rolled back, so the preview can never disagree with what the import does.
+    """
+    with transaction.atomic():
+        before = _snapshot()
+        counts = {model: model.objects.count() for model in (Plant, Mcc, Bmc, Route)}
+        result = import_masters(records)
+        after = _snapshot() if not result["problems"] else before
+        grown = {model: model.objects.count() - count for model, count in counts.items()}
+        transaction.set_rollback(True)
+
+    in_file = {record["mpp_code"] for record in records if not _has_no_mpp(record)}
+    new = [
+        {"code": code, "name": after[code]["name"]} for code in sorted(after.keys() - before.keys())
+    ]
+    changed = []
+    for code in sorted(before.keys() & after.keys()):
+        changes = {
+            field: [before[code][field], after[code][field]]
+            for field in _COMPARED
+            if before[code][field] != after[code][field]
+        }
+        if changes:
+            changed.append({"code": code, "name": after[code]["name"], "changes": changes})
+    missing = [
+        {"code": code, "name": state["name"]}
+        for code, state in sorted(before.items())
+        if code not in in_file and state["active"]
+    ]
+    return result | {
+        "preview": {
+            "new": new[:PREVIEW_LIMIT],
+            "new_count": len(new),
+            "changed": changed[:PREVIEW_LIMIT],
+            "changed_count": len(changed),
+            "unchanged_count": len(in_file) - len(new) - len(changed),
+            # The import never switches an MPP off: these simply stay as they are.
+            "missing": missing[:PREVIEW_LIMIT],
+            "missing_count": len(missing),
+            "new_plants": grown[Plant],
+            "new_mccs": grown[Mcc],
+            "new_bmcs": grown[Bmc],
+            "new_routes": grown[Route],
+        }
+    }
+
+
 @transaction.atomic
 def import_masters(records) -> dict:
     problems = _problems(records) or _conflicts(records)

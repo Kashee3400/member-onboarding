@@ -367,6 +367,9 @@ class AssignMppSerializer(serializers.Serializer):
 
 class MppImportSerializer(serializers.Serializer):
     file = serializers.FileField()
+    preview = serializers.BooleanField(
+        default=False, help_text="Report what the file would change, and change nothing."
+    )
 
 
 class MppImportProblemSerializer(serializers.Serializer):
@@ -374,7 +377,30 @@ class MppImportProblemSerializer(serializers.Serializer):
     problem = serializers.CharField()
 
 
+class MppPreviewEntrySerializer(serializers.Serializer):
+    code = serializers.CharField()
+    name = serializers.CharField()
+    changes = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()), required=False
+    )
+
+
+class MppImportPreviewSerializer(serializers.Serializer):
+    new = MppPreviewEntrySerializer(many=True)
+    new_count = serializers.IntegerField()
+    changed = MppPreviewEntrySerializer(many=True)
+    changed_count = serializers.IntegerField()
+    unchanged_count = serializers.IntegerField()
+    missing = MppPreviewEntrySerializer(many=True)
+    missing_count = serializers.IntegerField()
+    new_plants = serializers.IntegerField()
+    new_mccs = serializers.IntegerField()
+    new_bmcs = serializers.IntegerField()
+    new_routes = serializers.IntegerField()
+
+
 class MppImportResultSerializer(serializers.Serializer):
     created = serializers.IntegerField()
     updated = serializers.IntegerField()
     problems = MppImportProblemSerializer(many=True)
+    preview = MppImportPreviewSerializer(required=False)
