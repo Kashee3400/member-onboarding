@@ -10,7 +10,7 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.services import permissions_for, role_codes_for
 
-from .models import ApplicationStepApproval, ReviewStepAccess
+from .models import ApplicationDecision, ApplicationStepApproval, Decision, ReviewStepAccess
 
 
 @dataclass(frozen=True)
@@ -111,10 +111,43 @@ def actionable(application, membership) -> set[str]:
     return open_steps - set(approvals_of(application))
 
 
+def withdrawable(application, membership, approved=None) -> set[str]:
+    """
+    Approvals this person may take back: their own, or anyone's for the admin, and
+    only those given since the form reached its stage. Once a stage is passed, what
+    passed it stays, even an admin's step approved ahead of that stage.
+    """
+    permission = STAGE_PERMISSIONS.get(application.status)
+    if permission is None:
+        return set()
+    held = permissions_for(membership)
+    admin = APPROVE_ALL in held
+    if not admin and permission not in held:
+        return set()
+    reached = (
+        ApplicationDecision.objects.filter(
+            application=application, revision=application.revision, decision=Decision.APPROVED
+        )
+        .order_by("-decided_at")
+        .values_list("decided_at", flat=True)
+        .first()
+    )
+    approved = approvals_of(application) if approved is None else approved
+    return {
+        key
+        for key, row in approved.items()
+        if (admin or row.decided_by_id == membership.user_id)
+        and (reached is None or row.decided_at > reached)
+    }
+
+
 def steps_for(membership=None, application=None) -> list[dict]:
     mine = my_steps(membership) if membership else set()
     approved = approvals_of(application) if application else {}
     open_steps = actionable(application, membership) if membership and application else set()
+    takeback = (
+        withdrawable(application, membership, approved) if membership and application else set()
+    )
     return [
         {
             "key": step.key,
@@ -124,6 +157,7 @@ def steps_for(membership=None, application=None) -> list[dict]:
             "documents": list(step.documents),
             "mine": step.key in mine,
             "can_approve": step.key in open_steps,
+            "can_withdraw": step.key in takeback,
             "approved_by_name": approved[step.key].decided_by_name if step.key in approved else "",
             "approved_at": approved[step.key].decided_at if step.key in approved else None,
             "approved_checks": approved[step.key].checks if step.key in approved else [],

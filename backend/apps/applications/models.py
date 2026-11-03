@@ -60,6 +60,8 @@ class Application(OrganizationOwnedModel):
 
     rejection_reason = models.TextField(blank=True)
     rejected_fields = models.JSONField(default=list, blank=True)
+    # The reviewer's own words for each marked field, where they gave them.
+    rejected_field_notes = models.JSONField(default=dict, blank=True)
     payment = models.JSONField(default=dict, blank=True)
     # Set by a confirmed OTP, never by the form. Cleared when the number or address changes.
     mobile_verified_at = models.DateTimeField(null=True, blank=True)
@@ -128,6 +130,7 @@ class ApplicationDecision(OrganizationOwnedModel):
     reason = models.TextField(blank=True)
     # Kept here too, because the form forgets them once it is sent again.
     rejected_fields = models.JSONField(default=list, blank=True)
+    field_notes = models.JSONField(default=dict, blank=True)
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
     )
@@ -407,6 +410,35 @@ class StepCheckTick(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.application_id} {self.step}: {self.text}"
+
+
+class FieldMark(OrganizationOwnedModel):
+    """
+    A field a reviewer found wrong while reading, with why. Kept on the server so it
+    survives a reload and others on the stage see it; a rejection then carries it.
+    """
+
+    application = models.ForeignKey(Application, on_delete=models.CASCADE, related_name="marks")
+    revision = models.PositiveIntegerField()
+    path = models.CharField(max_length=100)
+    reason = models.CharField(max_length=300)
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    marked_by_name = models.CharField(max_length=200)
+
+    class Meta:
+        db_table = "application_field_mark"
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["application", "revision", "path", "marked_by"],
+                name="unique_field_mark",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.application_id} {self.path}"
 
 
 class Signatory(OrganizationOwnedModel):

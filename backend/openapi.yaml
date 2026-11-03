@@ -395,6 +395,320 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/applications/{id}/marks/:
+    get:
+      operationId: applications_marks_list
+      description: |-
+        Fields marked wrong on this submission, by everyone reviewing it. A PUT marks one
+        field, or changes the reason of this person's mark on it.
+      parameters:
+      - in: query
+        name: approved_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: approved_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_to
+        schema:
+          type: string
+          format: date
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: Only forms this person started.
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFieldMarkList'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    put:
+      operationId: applications_marks_update
+      description: |-
+        Fields marked wrong on this submission, by everyone reviewing it. A PUT marks one
+        field, or changes the reason of this person's mark on it.
+      parameters:
+      - in: query
+        name: approved_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: approved_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_to
+        schema:
+          type: string
+          format: date
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: Only forms this person started.
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldMarkRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFieldMarkList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/marks/{mark_id}/:
+    delete:
+      operationId: applications_marks_destroy
+      parameters:
+      - in: query
+        name: approved_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: approved_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_to
+        schema:
+          type: string
+          format: date
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: path
+        name: mark_id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]{36}$
+        required: true
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: Only forms this person started.
+      - in: query
+        name: mpp
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: q
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFieldMarkList'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/applications/{id}/numbers/:
     post:
       operationId: applications_numbers_create
@@ -542,6 +856,54 @@ paths:
                 format: binary
           description: ''
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/applications/{id}/steps/{step}/withdraw/:
+    post:
+      operationId: applications_steps_withdraw_create
+      description: Takes back a step approval given by mistake, while the form is
+        at that stage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this application.
+        required: true
+      - in: path
+        name: step
+        schema:
+          type: string
+          pattern: ^[a-z_]+$
+        required: true
+      tags:
+      - applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '404':
           content:
             application/json:
               schema:
@@ -4645,6 +5007,7 @@ components:
         rejection_reason:
           type: string
         rejected_fields: {}
+        rejected_field_notes: {}
         payment: {}
         computed:
           type: object
@@ -5213,6 +5576,12 @@ components:
             type: string
             minLength: 1
             maxLength: 20
+        field_notes:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 300
+          description: Each marked field with the reviewer's reason for it.
       required:
       - decision
     Decision:
@@ -5233,6 +5602,7 @@ components:
         reason:
           type: string
         rejected_fields: {}
+        field_notes: {}
         decided_by_name:
           type: string
           maxLength: 200
@@ -5391,6 +5761,62 @@ components:
       required:
       - access
       - expires_in
+    FieldMark:
+      type: object
+      description: A field marked wrong. Sent with a path and a reason; returned with
+        who marked it.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        path:
+          type: string
+          maxLength: 100
+        label:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          maxLength: 300
+        marked_by_name:
+          type: string
+          readOnly: true
+        marked_at:
+          type: string
+          format: date-time
+          readOnly: true
+        mine:
+          type: boolean
+          readOnly: true
+        can_remove:
+          type: boolean
+          readOnly: true
+      required:
+      - can_remove
+      - id
+      - label
+      - marked_at
+      - marked_by_name
+      - mine
+      - path
+      - reason
+    FieldMarkRequest:
+      type: object
+      description: A field marked wrong. Sent with a path and a reason; returned with
+        who marked it.
+      properties:
+        path:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required:
+      - path
+      - reason
     FormListRequest:
       type: object
       properties:
@@ -6468,6 +6894,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/District'
+    PaginatedFieldMarkList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldMark'
     PaginatedHamletList:
       type: object
       required:

@@ -204,3 +204,17 @@ def test_each_organization_has_its_own_checklists(world, org_b, admin_b):
     data = authenticated_client(org_b, admin_b).get(SETTINGS_URL).data
 
     assert data["checks"]["milk"] == list(DEFAULT_CHECKS["milk"])
+
+
+def test_a_withdrawn_step_must_be_checked_again(world, application):
+    for text in DEFAULT_CHECKS["milk"]:
+        tick(world, world.manager, application, "milk", text)
+    assert approve(world, world.manager, application, "milk").status_code == 200
+
+    withdrawn = world.client(world.manager).post(
+        f"{URL}{application['id']}/steps/milk/withdraw/", format="json"
+    )
+
+    assert withdrawn.status_code == 200, withdrawn.content
+    assert steps(world, world.manager, application)["milk"]["ticked"] == []
+    assert approve(world, world.manager, application, "milk").status_code == 400

@@ -73,10 +73,12 @@ import { APPROVE_ALL, STAGE_LABEL, STAGE_PERMISSION, STAGE_QUEUE } from "./const
 import { CopyButton } from "./copy-button";
 import { DecisionBar } from "./decision-bar";
 import { CheckedList, StepChecklist } from "./step-checklist";
+import { EXTRA_LABELS, FieldMarksProvider, MarkButton, MarkNotes, useFieldMarks, useMarksOn } from "./field-marks";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
 import { PaymentCard } from "./payment-card";
+import { WithdrawApproval } from "./withdraw-approval";
 
 type SchemaSection = FormSchema["sections"][number];
 type SchemaField = SchemaSection["fields"][number];
@@ -146,6 +148,8 @@ function Fact({
   icon,
   trailing,
   warning,
+  path,
+  note,
 }: {
   label: string;
   children: React.ReactNode;
@@ -158,12 +162,18 @@ function Fact({
   trailing?: React.ReactNode;
   /** A risk the server sees in this answer, shown under the box. */
   warning?: string;
+  /** The field's place in the form, for a reviewer to mark it wrong. */
+  path?: string;
+  /** Why a reviewer sent this field back. */
+  note?: string;
 }) {
+  const marks = useMarksOn(path);
+  const red = flagged || marks.length > 0;
   const found = iconIndex(label);
-  const Icon = flagged ? AlertTriangle : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
+  const Icon = red ? AlertTriangle : (icon ?? (found >= 0 ? FIELD_ICONS[found][1] : TextCursor));
   return (
     <div className="min-w-0 space-y-1.5">
-      <dt className={cn("text-xs font-medium", flagged ? "text-destructive" : "text-foreground/80")}>
+      <dt className={cn("text-xs font-medium", red ? "text-destructive" : "text-foreground/80")}>
         {label}
         {change ? (
           <span className="ml-1.5 font-medium text-amber-700 dark:text-amber-300">Changed</span>
@@ -174,15 +184,17 @@ function Fact({
         aria-readonly="true"
         className={cn(
           "flex min-h-10 items-center gap-2.5 border bg-muted/40 px-3 py-1.5 text-sm",
-          flagged && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
-          change && !flagged && "border-amber-500/60 bg-amber-500/10",
-          warning && !flagged && "border-amber-500/70 border-l-4 border-l-amber-500",
+          red && "border-destructive/60 bg-destructive/5 font-medium text-destructive",
+          change && !red && "border-amber-500/60 bg-amber-500/10",
+          warning && !red && "border-amber-500/70 border-l-4 border-l-amber-500",
         )}
       >
-        <Icon className={cn("size-4 shrink-0", flagged ? "text-destructive" : "text-muted-foreground/80")} />
+        <Icon className={cn("size-4 shrink-0", red ? "text-destructive" : "text-muted-foreground/80")} />
         <span className="min-w-0 flex-1 wrap-break-word">{children ?? <span className="text-muted-foreground">—</span>}</span>
         {trailing}
+        {path ? <MarkButton path={path} label={label} /> : null}
       </dd>
+      <MarkNotes marks={marks} note={note} />
       {change ? (
         <p className="text-xs text-muted-foreground">
           Was: <span className="line-through decoration-muted-foreground/50">{change.before || "empty"}</span>
@@ -326,6 +338,8 @@ function FormSection({
               key={path}
               label={field.label}
               flagged={application.rejected_fields.includes(path)}
+              note={application.rejected_field_notes?.[path]}
+              path={path}
               change={changes.byPath.get(path)}
               warning={application.field_warnings?.[path]}
               trailing={
@@ -571,11 +585,15 @@ function FamilySection({
   family,
   lists,
   change,
+  note,
 }: {
   family: NonNullable<Application["data"]["family"]>;
   lists: FormSchema["family"];
   change?: Change;
+  /** Why a reviewer sent the household back. */
+  note?: string;
 }) {
+  const marks = useMarksOn("family");
   return (
     <Section id="family" title={change ? "Household members (changed)" : "Household members"}>
       {change ? (
@@ -583,7 +601,7 @@ function FamilySection({
           Before: <span className="line-through">{change.before || "none"}</span>
         </p>
       ) : null}
-      <div className="overflow-x-auto border">
+      <div className={cn("overflow-x-auto border", (marks.length || note) && "border-destructive/60")}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -608,6 +626,10 @@ function FamilySection({
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex items-start justify-between gap-2 empty:hidden">
+        <MarkNotes marks={marks} note={note} />
+        <MarkButton path="family" label="Household members" />
       </div>
     </Section>
   );
@@ -711,6 +733,11 @@ export function ApplicationDetail({ id }: { id: string }) {
   // Every step, to read, in a dialog: the page itself shows only this person's steps.
   const [viewing, setViewing] = useState<string | null>(null);
   const hasPayment = !!data?.payment.amount || canPayAtFinance || (canPayAtAm && data?.status === "pending_am");
+  const atStage = !!STAGE_LABEL[data?.status ?? ""];
+  const fieldMarks = useFieldMarks(data, {
+    visible: canPreview && atStage,
+    reviewing: canDecide && atStage && !!data?.review_steps.some((step) => step.mine),
+  });
 
   if (application.error || schema.error) {
     return (
@@ -774,7 +801,7 @@ export function ApplicationDetail({ id }: { id: string }) {
     sections: schema.data.sections.filter((section) => mySteps.some((step) => step.sections.includes(section.key))),
   };
 
-  return (
+  const page = (
     <div className="space-y-4">
       <header className="space-y-3">
         <Link
@@ -867,6 +894,15 @@ export function ApplicationDetail({ id }: { id: string }) {
         <div className="border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Rejected</p>
           <p>{data.rejection_reason}</p>
+          {Object.keys(data.rejected_field_notes ?? {}).length ? (
+            <ul className="mt-1 space-y-0.5">
+              {Object.entries(data.rejected_field_notes).map(([path, note]) => (
+                <li key={path}>
+                  <span className="font-medium">{labels[path] ?? EXTRA_LABELS[path] ?? path}:</span> {note}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {data.rejected_fields.length ? (
             <p className="mt-1 text-xs text-muted-foreground">
               {data.rejected_fields.length === 1 ? "1 field is" : `${data.rejected_fields.length} fields are`} marked in
@@ -971,6 +1007,11 @@ export function ApplicationDetail({ id }: { id: string }) {
       />
     </div>
   );
+  return (
+    <FieldMarksProvider value={{ ...fieldMarks, open: (path) => openSection(path.split(".")[0]) }}>
+      {page}
+    </FieldMarksProvider>
+  );
 }
 
 /** One step's sections, and whether it is done, waiting for this person, or to read. */
@@ -1007,6 +1048,7 @@ function StepContent({
           </Fact>
           <Fact
             label="Aadhaar card No."
+            path="applicant.aadhaar_number"
             change={changes.byPath.get("applicant.aadhaar_number")}
             trailing={numbers.full ? <CopyButton value={numbers.aadhaar.replaceAll(" ", "")} label="Copy Aadhaar" /> : null}
           >
@@ -1019,6 +1061,7 @@ function StepContent({
         <Facts>
           <Fact
             label="Account number"
+            path="bank.account_number"
             change={changes.byPath.get("bank.account_number")}
             warning={application.field_warnings?.["bank.account_number"]}
             trailing={numbers.full ? <CopyButton value={numbers.account} label="Copy account number" /> : null}
@@ -1035,7 +1078,13 @@ function StepContent({
       if (key === "place") return <PlaceSection key={key} application={application} />;
       if (key === "family" && family.length) {
         return (
-          <FamilySection key={key} family={family} lists={schema.family} change={changes.byPath.get("family")} />
+          <FamilySection
+            key={key}
+            family={family}
+            lists={schema.family}
+            change={changes.byPath.get("family")}
+            note={application.rejected_field_notes?.family}
+          />
         );
       }
       if (key === "payment" && payment) return <div key={key}>{payment}</div>;
@@ -1050,7 +1099,10 @@ function StepContent({
           {step.title}
         </h2>
         {status === "approved" ? (
-          <StatusBadge status="approved" label={`Approved by ${step.approved_by_name}`} />
+          <span className="flex flex-wrap items-center gap-2">
+            <StatusBadge status="approved" label={`Approved by ${step.approved_by_name}`} />
+            {step.can_withdraw && !inDialog ? <WithdrawApproval application={application} step={step} /> : null}
+          </span>
         ) : status === "yours" ? (
           <StatusBadge status="pending" label="Waiting for your check" />
         ) : (

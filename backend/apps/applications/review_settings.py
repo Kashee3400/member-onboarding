@@ -46,6 +46,22 @@ FIELD_PATHS = frozenset(
     for field in section["fields"]
 )
 _STEP_OF = {section: step.key for step in review_steps.STEPS for section in step.sections}
+# What a reviewer can mark wrong: the form's fields, the two sealed numbers, the household.
+_LABELS = {
+    **{
+        f"{section['key']}.{field['key']}": field["label"]
+        for section in form.FORM_SCHEMA["sections"]
+        for field in section["fields"]
+    },
+    "applicant.aadhaar_number": "Aadhaar number",
+    "bank.account_number": "Account number",
+    "family": "Household members",
+}
+MARKABLE = frozenset(_LABELS)
+
+
+def field_label(path: str) -> str:
+    return _LABELS.get(path, path)
 
 
 def current() -> ReviewSettings:

@@ -412,6 +412,83 @@ void main() {
     expect(find.text(Strings.notCorrected), findsOneWidget);
   });
 
+  Draft returnedWithNotes() => Draft(
+    clientId: 'c1',
+    mppId: 'm1',
+    mppLabel: 'x',
+    rejectionReason: 'कुछ फ़ील्ड गलत हैं',
+    rejectedFields: ['applicant.full_name', 'applicant.gender'],
+    rejectedFieldNotes: {'applicant.full_name': 'आधार कार्ड से मेल नहीं खाता'},
+  );
+
+  wizardTest('a returned field shows the reviewer\'s own reason', (tester) async {
+    await pump(tester, newController(draft: returnedWithNotes()));
+
+    expect(
+      find.descendant(
+        of: boxFor('applicant.full_name'),
+        matching: find.text('${Strings.rejectedBecause}: आधार कार्ड से मेल नहीं खाता'),
+      ),
+      findsOneWidget,
+    );
+    // A field sent back without its own reason keeps the general words.
+    expect(
+      find.descendant(of: boxFor('applicant.gender'), matching: find.text(Strings.rejectedBecause)),
+      findsOneWidget,
+    );
+  });
+
+  wizardTest('review lists each field with the reason it was sent back', (tester) async {
+    await pump(tester, newController(draft: returnedWithNotes()));
+    await goToStep(tester, 9);
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('correction.applicant.full_name')),
+        matching: find.text('आधार कार्ड से मेल नहीं खाता · ${Strings.notCorrected}'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('correction.applicant.gender')),
+        matching: find.text(Strings.notCorrected),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  test('field reasons come from the server and survive the device store', () {
+    Map<String, dynamic> server({Object? notes}) => {
+      'id': 's1',
+      'client_id': 'c1',
+      'mpp': 'm1',
+      'mpp_code': '1305',
+      'mpp_name': 'Dudwa',
+      'version': 3,
+      'status': 'rejected',
+      'data': <String, dynamic>{},
+      'aadhaar_last4': '',
+      'account_last4': '',
+      'rejection_reason': 'x',
+      'rejected_fields': <String>['bank.ifsc', 'family'],
+      'rejected_field_notes': ?notes,
+    };
+
+    final draft = Draft.fromServer(
+      server(notes: {'bank.ifsc': ' Passbook says SBIN ', 'family': ''}),
+    );
+    expect(draft.noteFor('bank.ifsc'), 'Passbook says SBIN');
+    expect(draft.noteFor('family'), isNull);
+    expect(Draft.decode(draft.encode()).noteFor('bank.ifsc'), 'Passbook says SBIN');
+
+    // A form sent back before reasons per field, and a draft an older app stored.
+    final old = Draft.fromServer(server());
+    expect(old.rejectedFieldNotes, isEmpty);
+    final stored = old.toJson()..remove('rejected_field_notes');
+    expect(Draft.fromJson(stored).rejectedFieldNotes, isEmpty);
+  });
+
   wizardTest('review shows every step as done or with what is left', (tester) async {
     await pump(tester, newController());
     await goToStep(tester, 9);

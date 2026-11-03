@@ -121,7 +121,15 @@ class _FormWizardState extends State<FormWizard> {
   String? _errorFor(String path) {
     final server = _form.serverErrors[path];
     if (server != null) return server;
-    return _form.draft.rejectedFields.contains(path) ? Strings.rejectedBecause : null;
+    return _returnedBecause(path);
+  }
+
+  /// For a field sent back: the reviewer's own reason, or the general words when none was given.
+  String? _returnedBecause(String path) {
+    final draft = _form.draft;
+    if (!draft.rejectedFields.contains(path)) return null;
+    final note = draft.noteFor(path);
+    return note == null ? Strings.rejectedBecause : '${Strings.rejectedBecause}: $note';
   }
 
   /// The phone's own check of a typed answer, judged with the rest of the form.
@@ -277,7 +285,10 @@ class _FormWizardState extends State<FormWizard> {
         hint: draft.aadhaarLast4.isEmpty ? null : 'XXXX XXXX ${draft.aadhaarLast4}',
         keyboard: TextInputType.number,
         formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
-        error: _form.aadhaarError ?? _form.serverErrors['applicant.aadhaar_number'],
+        error:
+            _form.aadhaarError ??
+            _form.serverErrors['applicant.aadhaar_number'] ??
+            _returnedBecause('applicant.aadhaar_number'),
         check: checkAadhaar,
         completeLength: 12,
         onChanged: (value) {
@@ -368,7 +379,7 @@ class _FormWizardState extends State<FormWizard> {
         keyboard: TextInputType.number,
         obscure: true,
         formatters: [FilteringTextInputFormatter.digitsOnly],
-        error: _form.serverErrors['bank.account_number'],
+        error: _form.serverErrors['bank.account_number'] ?? _returnedBecause('bank.account_number'),
         check: checkAccount,
         onChanged: (value) {
           _changed.add('bank.account_number');
@@ -706,6 +717,7 @@ class _FormWizardState extends State<FormWizard> {
             const Text(Strings.toCorrect, style: TextStyle(fontWeight: FontWeight.w600)),
             for (final path in rejected)
               ListTile(
+                key: ValueKey('correction.$path'),
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
@@ -713,7 +725,13 @@ class _FormWizardState extends State<FormWizard> {
                   color: _changed.contains(path) ? Colors.green : Colors.red.shade700,
                 ),
                 title: Text(_labelOf(path)),
-                subtitle: Text(_changed.contains(path) ? Strings.corrected : Strings.notCorrected),
+                // The reviewer's reason first, so the facilitator knows what to fix.
+                subtitle: Text(
+                  [
+                    ?_form.draft.noteFor(path),
+                    _changed.contains(path) ? Strings.corrected : Strings.notCorrected,
+                  ].join(' · '),
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => setState(() => _index = _stepOf(path)),
               ),

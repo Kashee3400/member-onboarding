@@ -32,6 +32,14 @@ Map<String, String> placeFromJson(Object? json) => {
       entry.key as String: entry.value as String,
 };
 
+/// A reviewer's reason for each field sent back, keyed `section.field`. Empty for a
+/// form returned before reasons were given per field.
+Map<String, String> notesFromJson(Object? json) => {
+  for (final entry in ((json as Map?) ?? const {}).entries)
+    if (entry.value is String && (entry.value as String).trim().isNotEmpty)
+      entry.key as String: (entry.value as String).trim(),
+};
+
 class ApplicationSummary {
   const ApplicationSummary({
     required this.id,
