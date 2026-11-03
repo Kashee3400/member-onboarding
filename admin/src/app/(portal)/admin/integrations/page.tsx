@@ -56,6 +56,13 @@ const SPECS: Record<string, Spec> = {
     ],
     secrets: [{ name: "password", label: "Password" }],
   },
+  push: {
+    title: "Push notifications",
+    hint: "Notices on facilitators' phones",
+    note: "Facilitators get a notice on their phone when a form is sent back. Paste the service account key file of the facilitator app's Firebase project: Firebase console, Project settings, Service accounts, Generate new private key.",
+    config: [],
+    secrets: [{ name: "service_account", label: "Service account key file (JSON)", type: "long" }],
+  },
   whatsapp: {
     title: "WhatsApp",
     hint: "WhatsApp messages",
@@ -114,6 +121,11 @@ function IntegrationForm({
   const test = useMutation({
     mutationFn: () => api("settings/integrations/mail/test", { method: "POST" }),
     onSuccess: () => toast.success("Test mail sent to you. Check your inbox."),
+    onError: (error) => toast.error(messageOf(error)),
+  });
+  const testPush = useMutation({
+    mutationFn: () => api("settings/integrations/push/test", { method: "POST" }),
+    onSuccess: () => toast.success("Google accepted the key. Phones will get notices."),
     onError: (error) => toast.error(messageOf(error)),
   });
   const [testMobile, setTestMobile] = useState("");
@@ -213,14 +225,28 @@ function IntegrationForm({
                   label={field.label}
                   htmlFor={field.name}
                   help={isSet ? "Saved. Leave blank to keep it." : "Stored encrypted, and never shown again."}
+                  className={field.type === "long" ? "sm:col-span-2" : undefined}
                 >
-                  <SecretInput
-                    id={field.name}
-                    autoComplete="new-password"
-                    placeholder={isSet ? "••••••••" : ""}
-                    value={secrets[field.name] ?? ""}
-                    onChange={(event) => setSecrets({ ...secrets, [field.name]: event.target.value })}
-                  />
+                  {field.type === "long" ? (
+                    // A key file is pasted whole; once saved it is never shown again.
+                    <Textarea
+                      id={field.name}
+                      rows={6}
+                      spellCheck={false}
+                      className="font-mono text-xs"
+                      placeholder={isSet ? "Saved. Paste a new key file to replace it." : '{ "type": "service_account", … }'}
+                      value={secrets[field.name] ?? ""}
+                      onChange={(event) => setSecrets({ ...secrets, [field.name]: event.target.value })}
+                    />
+                  ) : (
+                    <SecretInput
+                      id={field.name}
+                      autoComplete="new-password"
+                      placeholder={isSet ? "••••••••" : ""}
+                      value={secrets[field.name] ?? ""}
+                      onChange={(event) => setSecrets({ ...secrets, [field.name]: event.target.value })}
+                    />
+                  )}
                 </Field>
               );
             })}
@@ -238,6 +264,25 @@ function IntegrationForm({
               </Button>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {dirty ? "Save first, then test." : integration.is_enabled ? "Goes to your own address." : "Turn mail on and save first."}
+              </p>
+            </div>
+          ) : null}
+          {integration.kind === "push" ? (
+            <div className="border-t pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={testPush.isPending || !integration.is_enabled || dirty}
+                onClick={() => testPush.mutate()}
+              >
+                <Send /> {testPush.isPending ? "Checking…" : "Check the key with Google"}
+              </Button>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {dirty
+                  ? "Save first, then check."
+                  : integration.is_enabled
+                    ? "Sends nothing to anyone: it only asks Google whether the key works."
+                    : "Turn push on and save first."}
               </p>
             </div>
           ) : null}

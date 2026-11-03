@@ -6,6 +6,7 @@ class MemberOnboardingConfig {
     required this.baseUrl,
     required this.assertionProvider,
     this.primaryColor = const Color(0xFF0F6CBD),
+    this.pushTokenProvider,
   });
 
   /// The onboarding service, for example `https://onboarding.example.com`.
@@ -18,4 +19,8 @@ class MemberOnboardingConfig {
   final Future<String> Function() assertionProvider;
 
   final Color primaryColor;
+
+  /// The phone's push token (FCM), so a form sent back reaches it as a notification.
+  /// Null when the host app has no push.
+  final Future<String?> Function()? pushTokenProvider;
 }

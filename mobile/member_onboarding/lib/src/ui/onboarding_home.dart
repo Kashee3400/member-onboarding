@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -27,8 +29,12 @@ class MemberOnboardingScreen extends StatefulWidget {
     this.api,
     this.device = const DeviceServices(),
     this.vault,
+    this.openApplicationId,
     super.key,
   });
+
+  /// A form to open at once, such as the one a push notification was about.
+  final String? openApplicationId;
 
   final MemberOnboardingConfig config;
   final DraftStore? store;
@@ -104,7 +110,8 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
         _rejected = rejected;
         _offline = false;
       });
-      _announceSentBack();
+      unawaited(_registerPush());
+      if (!await _openRequested()) _announceSentBack();
       await _sendPending();
       await _loadMonth();
     } on OfflineException {
@@ -161,6 +168,39 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   }
 
   bool _announced = false;
+  bool _pushRegistered = false;
+  bool _requestOpened = false;
+
+  /// Once per visit, so the server knows this phone; a failure only means no push.
+  Future<void> _registerPush() async {
+    final provider = widget.config.pushTokenProvider;
+    if (_pushRegistered || provider == null) return;
+    _pushRegistered = true;
+    try {
+      final token = await provider();
+      if (token != null && token.isNotEmpty) {
+        await _api.registerPushDevice(token, Platform.isIOS ? 'ios' : 'android');
+      }
+    } on Exception {
+      _pushRegistered = false;
+    }
+  }
+
+  /// The form a notification was about, opened straight away. True when one was.
+  Future<bool> _openRequested() async {
+    final id = widget.openApplicationId;
+    if (_requestOpened || id == null) return false;
+    _requestOpened = true;
+    for (final item in _rejected) {
+      if (item.id == id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openRejected(item);
+        });
+        return true;
+      }
+    }
+    return false;
+  }
 
   /// Once per visit: a form sent back waits on the facilitator, so it is said out loud.
   void _announceSentBack() {

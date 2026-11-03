@@ -40,6 +40,16 @@ class IntegrationWriteSerializer(serializers.Serializer):
         if unknown := set(attrs.get("secrets", {})) - schema.secret_fields:
             errors["secrets"] = [f"Unknown fields: {', '.join(sorted(unknown))}"]
 
+        key_file = attrs.get("secrets", {}).get("service_account")
+        if self.context["kind"] == "push" and key_file:
+            # Imported here: notifications reads integrations, not the other way round.
+            from apps.notifications.push import parse_service_account
+
+            try:
+                parse_service_account(key_file)
+            except ValueError as exc:
+                errors["secrets"] = [str(exc)]
+
         if errors:
             raise serializers.ValidationError(errors)
         return attrs

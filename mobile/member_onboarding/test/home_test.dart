@@ -71,6 +71,13 @@ class FakeApi extends OnboardingApi {
   bool online = true;
   int saves = 0;
   List<ApplicationSummary> sentBack = const [];
+  final pushTokens = <String>[];
+
+  @override
+  Future<void> registerPushDevice(String token, String platform) async {
+    _check();
+    pushTokens.add(token);
+  }
 
   void _check() {
     if (!online) throw const OfflineException();
@@ -266,5 +273,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('sent_back.alert')), findsNothing);
+  });
+
+  testWidgets('the phone tells the server where to send push notifications', (tester) async {
+    final api = FakeApi();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemberOnboardingScreen(
+          config: MemberOnboardingConfig(
+            baseUrl: 'https://x.test',
+            assertionProvider: () async => '',
+            pushTokenProvider: () async => 'fcm-token-1',
+          ),
+          api: api,
+          store: MemoryDraftStore(),
+          device: const FakeDevice(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(api.pushTokens, ['fcm-token-1']);
   });
 }

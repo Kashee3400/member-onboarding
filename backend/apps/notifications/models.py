@@ -103,3 +103,26 @@ class ContactOtp(OrganizationOwnedModel):
 
     def __str__(self):
         return f"{self.application_id} {self.channel}"
+
+
+class PushDevice(OrganizationOwnedModel):
+    """A phone that gets push notifications for one staff member, by its FCM token."""
+
+    membership = models.ForeignKey(
+        Membership, on_delete=models.CASCADE, related_name="push_devices"
+    )
+    token = models.CharField(max_length=512)
+    platform = models.CharField(max_length=20, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_seen_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "notification_push_device"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "token"], name="unique_push_token_per_organization"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.membership_id} {self.platform}"

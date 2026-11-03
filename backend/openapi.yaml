@@ -3337,6 +3337,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Preference'
           description: ''
+  /api/v1/notifications/push-devices/:
+    post:
+      operationId: notifications_push_devices_create
+      description: A phone says where to send this person's push notifications, or
+        stops them.
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushDeviceRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+    delete:
+      operationId: notifications_push_devices_destroy
+      description: A phone says where to send this person's push notifications, or
+        stops them.
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/notifications/read-all/:
     post:
       operationId: notifications_read_all_create
@@ -4205,6 +4234,7 @@ paths:
           type: string
           enum:
           - mail
+          - push
           - sms
           - whatsapp
         required: true
@@ -4234,6 +4264,7 @@ paths:
           type: string
           enum:
           - mail
+          - push
           - sms
           - whatsapp
         required: true
@@ -4270,6 +4301,18 @@ paths:
       operationId: settings_integrations_mail_test_create
       description: Tries the saved settings by sending to the person who pressed the
         button.
+      tags:
+      - settings
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/settings/integrations/push/test/:
+    post:
+      operationId: settings_integrations_push_test_create
+      description: Checks the saved Firebase key with Google, without sending anything
+        to anyone.
       tags:
       - settings
       security:
@@ -7977,6 +8020,18 @@ components:
       - id
       - mpp
       - tr_code
+    PushDeviceRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 512
+        platform:
+          type: string
+          maxLength: 20
+      required:
+      - token
     RefreshRequestRequest:
       type: object
       properties:

@@ -245,6 +245,10 @@ class OnboardingApi {
   Future<List<int>> fetchDocumentFile(String documentId) =>
       _client.getBytes('documents/$documentId/file/');
 
+  /// Tells the server where to send this person's push notifications.
+  Future<void> registerPushDevice(String token, String platform) async =>
+      await _client.post('notifications/push-devices/', {'token': token, 'platform': platform});
+
   /// Sends a code to the form's mobile number or email (`channel` is "mobile" or "email").
   Future<void> sendContactOtp(String id, String channel) async =>
       await _client.post('applications/$id/contact-otp/', {'channel': channel});

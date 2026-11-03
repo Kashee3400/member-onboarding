@@ -27,6 +27,11 @@ INTEGRATION_SCHEMAS = {
         ),
         secret_fields=frozenset({"password"}),
     ),
+    # Firebase Cloud Messaging for the host app's phones: the service account key file.
+    "push": IntegrationSchema(
+        config_fields=frozenset(),
+        secret_fields=frozenset({"service_account"}),
+    ),
     "whatsapp": IntegrationSchema(
         config_fields=frozenset({"provider", "base_url", "phone_number_id"}),
         secret_fields=frozenset({"api_key"}),

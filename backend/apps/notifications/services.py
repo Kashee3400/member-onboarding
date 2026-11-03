@@ -8,7 +8,7 @@ from apps.rbac.models import Role
 from apps.rbac.services import permissions_for
 
 from .models import Notification
-from .tasks import deliver_email
+from .tasks import deliver_email, deliver_push
 
 
 def assigned_to(mpp, responsibility) -> list[Membership]:
@@ -98,12 +98,34 @@ def application_awaits(application, permission: str) -> None:
     )
 
 
+def push(recipients, *, title: str, body: str, data: dict[str, str]) -> None:
+    """To the phones of these people, once the change that caused it is saved."""
+    if not recipients:
+        return
+    organization = str(recipients[0].organization_id)
+    people = [str(recipient.pk) for recipient in recipients]
+    transaction.on_commit(lambda: deliver_push.delay(organization, people, title, body, data))
+
+
 def application_rejected(application, reason: str) -> None:
+    facilitators = assigned_to(application.mpp, Responsibility.FACILITATOR)
     notify(
-        assigned_to(application.mpp, Responsibility.FACILITATOR),
+        facilitators,
         title=f"Application returned: {_label(application)}",
         body=f"Please correct and resubmit. Reason: {reason}",
         application=application,
+    )
+    # The facilitator is in the field: the phone is where they will see it.
+    name = application.data.get("applicant", {}).get("full_name", "")
+    push(
+        facilitators,
+        title=f"Form sent back: {name or application.form_number}",
+        body=f"{application.form_number} · {reason}"[:180],
+        data={
+            "source": "member_onboarding",
+            "type": "application_rejected",
+            "application_id": str(application.pk),
+        },
     )
 
 

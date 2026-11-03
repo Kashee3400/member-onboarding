@@ -12,8 +12,9 @@ from apps.audit.services import record_event
 from apps.rbac.permissions import require_permission
 
 from .mail import MailNotConfigured, send_mail
-from .models import ContactOtp, Notification, Preference
+from .models import ContactOtp, Notification, Preference, PushDevice
 from .otp import RESEND_AFTER, send_code, verify_code
+from .push import PushFailed, PushNotConfigured, check_credentials
 from .sms import SmsFailed, SmsNotConfigured, send_otp_sms
 
 
@@ -190,6 +191,64 @@ class SmsTestSerializer(serializers.Serializer):
     mobile = serializers.RegexField(
         r"^(\+?91)?[6-9]\d{9}$", error_messages={"invalid": "Enter a 10-digit mobile number."}
     )
+
+
+class PushDeviceSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512)
+    platform = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+
+class PushDeviceView(APIView):
+    """A phone says where to send this person's push notifications, or stops them."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=PushDeviceSerializer, responses={204: None})
+    def post(self, request):
+        serializer = PushDeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        membership = request.user.active_membership
+        # A phone handed to someone else follows its new user.
+        PushDevice.objects.update_or_create(
+            organization=membership.organization,
+            token=data["token"],
+            defaults={
+                "membership": membership,
+                "platform": data.get("platform", ""),
+                "is_active": True,
+                "last_seen_at": timezone.now(),
+            },
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=PushDeviceSerializer, responses={204: None})
+    def delete(self, request):
+        serializer = PushDeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        PushDevice.objects.filter(
+            membership=request.user.active_membership, token=serializer.validated_data["token"]
+        ).update(is_active=False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PushTestView(APIView):
+    """Checks the saved Firebase key with Google, without sending anything to anyone."""
+
+    permission_classes = [IsAuthenticated, require_permission("settings.manage")]
+
+    @extend_schema(request=None, responses={204: None})
+    def post(self, request):
+        try:
+            check_credentials()
+        except PushNotConfigured as exc:
+            raise exceptions.ValidationError(
+                {"detail": ["Paste the Firebase key file, turn push on, and save first."]}
+            ) from exc
+        except PushFailed as exc:
+            raise exceptions.ValidationError({"detail": [str(exc)]}) from exc
+        record_event("integration.push_tested", actor=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SmsTestView(APIView):

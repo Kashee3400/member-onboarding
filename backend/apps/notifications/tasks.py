@@ -37,6 +37,31 @@ def deliver_email(notification_id: str, organization_id: str) -> None:
 
 
 @shared_task
+def deliver_push(
+    organization_id: str, membership_ids: list[str], title: str, body: str, data: dict
+) -> int:
+    """Sends to every active phone of these people. Returns how many phones it tried."""
+    from .models import PushDevice
+    from .push import PushFailed, PushNotConfigured, send
+
+    with organization_context(organization_id):
+        devices = list(PushDevice.objects.filter(membership_id__in=membership_ids, is_active=True))
+        if not devices:
+            return 0
+        try:
+            gone = send([device.token for device in devices], title=title, body=body, data=data)
+        except PushNotConfigured:
+            return 0
+        except PushFailed as exc:
+            # The portal notice already exists, so a push outage loses nothing.
+            logger.warning("push_not_sent", reason=str(exc))
+            return 0
+        if gone:
+            PushDevice.objects.filter(token__in=gone).update(is_active=False)
+        return len(devices)
+
+
+@shared_task
 def send_invitation(
     organization_id: str, to: str, name: str, organization: str, inviter: str, link: str
 ) -> None:
