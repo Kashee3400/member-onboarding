@@ -36,7 +36,13 @@ class Strings {
   static const chooseMpp = 'Choose MPP';
   static const myDrafts = 'Unfinished forms';
   static const sentBack = 'Sent back for correction';
-  static const nothingHere = 'No forms yet';
+  static const startTitle = 'Start a new member form';
+  static const startHint = 'Fill it in the village. It saves on the phone even without network.';
+  static const mppsAssigned = 'MPPs assigned';
+  static const noDrafts = 'No unfinished forms';
+  static const noDraftsHint = 'Forms you start stay here until you submit them.';
+  static const waitingUpload = 'Waiting to upload';
+  static const correct = 'Correct';
   static const untitled = 'No name yet';
   static const loadFailed = 'Could not load. Check the internet and try again.';
   static const retry = 'Try again';

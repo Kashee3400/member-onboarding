@@ -94,10 +94,8 @@ FORM_SCHEMA = {
             "title": "Applicant",
             "fields": [
                 _field("full_name", "Full name"),
-                _field("full_name_hi", "Full name in Hindi", required=False),
                 _choice("relation_type", "Relation", "relation_type"),
                 _field("relation_name", "Father / husband name"),
-                _field("relation_name_hi", "Father / husband name in Hindi", required=False),
                 _choice("gender", "Gender", "gender"),
                 _field(
                     "date_of_birth",

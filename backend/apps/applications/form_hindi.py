@@ -12,10 +12,8 @@ SECTION_TITLES = {
 
 FIELD_LABELS = {
     "applicant.full_name": "पूरा नाम",
-    "applicant.full_name_hi": "पूरा नाम (हिन्दी में)",
     "applicant.relation_type": "संबंध",
     "applicant.relation_name": "पिता / पति का नाम",
-    "applicant.relation_name_hi": "पिता / पति का नाम (हिन्दी में)",
     "applicant.gender": "लिंग",
     "applicant.date_of_birth": "जन्म तिथि",
     "applicant.education": "शैक्षिक योग्यता",

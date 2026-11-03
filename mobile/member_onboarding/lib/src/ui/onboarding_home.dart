@@ -47,6 +47,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
   List<MppSummary> _mpps = const [];
   List<Draft> _drafts = const [];
   List<ApplicationSummary> _rejected = const [];
+  RecordSummary? _month;
   bool _offline = false;
 
   @override
@@ -90,12 +91,28 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
         _offline = false;
       });
       await _sendPending();
+      await _loadMonth();
     } on OfflineException {
       if (mounted) setState(() => _offline = true);
     } on ApiException {
       if (mounted) setState(() => _offline = true);
     }
   }
+
+  /// This month's counts, loaded on their own so a failure never hides the forms.
+  Future<void> _loadMonth() async {
+    final today = DateTime.now();
+    try {
+      final month = await _api.fetchSummary(from: DateTime(today.year, today.month), to: today);
+      if (mounted) setState(() => _month = month);
+    } on Exception {
+      // The counts are a convenience; the forms below matter more.
+    }
+  }
+
+  void _openRecords() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => MyRecordsScreen(api: _api, onOpen: _openRejected)),
+  );
 
   /// Forms finished in the field go up here, without being reopened.
   Future<void> _sendPending() async {
@@ -175,61 +192,420 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     final primary = widget.config.primaryColor;
     return Theme(
       data: ThemeData(colorSchemeSeed: primary, useMaterial3: true),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(Strings.title),
-          actions: [
-            IconButton(
-              tooltip: Strings.myRecords,
-              icon: const Icon(Icons.bar_chart),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => MyRecordsScreen(api: _api, onOpen: _openRejected),
+      child: Builder(
+        builder: (context) {
+          final scheme = Theme.of(context).colorScheme;
+          final month = _month;
+          return Scaffold(
+            backgroundColor: scheme.surfaceContainerLowest,
+            appBar: AppBar(
+              title: const Text(Strings.title, style: TextStyle(fontWeight: FontWeight.w700)),
+              backgroundColor: scheme.surfaceContainerLowest,
+              surfaceTintColor: Colors.transparent,
+              actions: [
+                IconButton(
+                  tooltip: Strings.myRecords,
+                  icon: const Icon(Icons.insights_rounded),
+                  onPressed: _openRecords,
                 ),
+              ],
+            ),
+            body: RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                children: [
+                  if (_offline) ...[
+                    _Banner(
+                      text: _schema == null ? Strings.firstRunNeedsNetwork : Strings.offlineReady,
+                      onRetry: _load,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _StartCard(
+                    mppCount: _mpps.length,
+                    onStart: _schema == null ? null : _startNew,
+                  ),
+                  if (month != null) ...[
+                    const SizedBox(height: 20),
+                    _SectionTitle(Strings.thisMonth, onTap: _openRecords),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _CountTile(label: Strings.sent, value: month.submitted, onTap: _openRecords),
+                        const SizedBox(width: 8),
+                        _CountTile(label: Strings.waiting, value: month.pending, onTap: _openRecords),
+                        const SizedBox(width: 8),
+                        _CountTile(
+                          label: Strings.approved,
+                          value: month.approved,
+                          color: Colors.green.shade700,
+                          onTap: _openRecords,
+                        ),
+                        const SizedBox(width: 8),
+                        _CountTile(
+                          label: Strings.returned,
+                          value: month.rejected,
+                          color: scheme.error,
+                          onTap: _openRecords,
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_rejected.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _SectionTitle(Strings.sentBack, count: _rejected.length),
+                    const SizedBox(height: 8),
+                    for (final item in _rejected)
+                      _FormCard(
+                        name: item.applicantName,
+                        detail: [item.mppCode, if (item.formNumber.isNotEmpty) item.formNumber]
+                            .join(' · '),
+                        accent: scheme.error,
+                        icon: Icons.assignment_return_rounded,
+                        trailing: Text(
+                          Strings.correct,
+                          style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
+                        ),
+                        onTap: () => _openRejected(item),
+                      ),
+                  ],
+                  const SizedBox(height: 20),
+                  _SectionTitle(Strings.myDrafts, count: _drafts.length),
+                  const SizedBox(height: 8),
+                  if (_drafts.isEmpty)
+                    const _Empty()
+                  else
+                    for (final draft in _drafts)
+                      _FormCard(
+                        name: draft.applicantName,
+                        detail: draft.mppLabel,
+                        accent: scheme.primary,
+                        trailing: draft.needsSync
+                            ? Tooltip(
+                                message: Strings.waitingUpload,
+                                child: Icon(Icons.cloud_upload_outlined, color: scheme.tertiary),
+                              )
+                            : Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+                        onTap: () => _open(draft),
+                      ),
+                ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, required this.onRetry});
+
+  final String text;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+        child: Row(
+          children: [
+            Icon(Icons.wifi_off_rounded, color: scheme.onTertiaryContainer),
+            const SizedBox(width: 12),
+            Expanded(child: Text(text, style: TextStyle(color: scheme.onTertiaryContainer))),
+            TextButton(onPressed: onRetry, child: const Text(Strings.retry)),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          shape: const RoundedRectangleBorder(),
-          onPressed: _schema == null ? null : _startNew,
-          icon: const Icon(Icons.add),
-          label: const Text(Strings.newForm),
+      ),
+    );
+  }
+}
+
+class _StartCard extends StatelessWidget {
+  const _StartCard({required this.mppCount, required this.onStart});
+
+  final int mppCount;
+  final VoidCallback? onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.55)!],
         ),
-        body: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 96),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              if (_offline)
-                ListTile(
-                  title: Text(
-                    _schema == null ? Strings.firstRunNeedsNetwork : Strings.offlineReady,
-                  ),
-                  trailing: TextButton(onPressed: _load, child: const Text(Strings.retry)),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.onPrimary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              if (_rejected.isNotEmpty) ...[
-                const ListTile(dense: true, title: Text(Strings.sentBack)),
-                for (final item in _rejected)
-                  ListTile(
-                    leading: const Icon(Icons.error_outline, color: Colors.red),
-                    title: Text(item.applicantName.isEmpty ? Strings.untitled : item.applicantName),
-                    subtitle: Text(item.mppCode),
-                    onTap: () => _openRejected(item),
+                child: Icon(Icons.person_add_alt_1_rounded, color: scheme.onPrimary),
+              ),
+              const Spacer(),
+              if (mppCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: scheme.onPrimary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-              ],
-              const ListTile(dense: true, title: Text(Strings.myDrafts)),
-              if (_drafts.isEmpty) const ListTile(title: Text(Strings.nothingHere)),
-              for (final draft in _drafts)
-                ListTile(
-                  title: Text(draft.applicantName.isEmpty ? Strings.untitled : draft.applicantName),
-                  subtitle: Text(draft.mppLabel),
-                  trailing: draft.needsSync ? const Icon(Icons.cloud_upload_outlined) : null,
-                  onTap: () => _open(draft),
+                  child: Text(
+                    '$mppCount ${Strings.mppsAssigned}',
+                    style: theme.textTheme.labelSmall?.copyWith(color: scheme.onPrimary),
+                  ),
                 ),
             ],
           ),
+          const SizedBox(height: 14),
+          Text(
+            Strings.startTitle,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: scheme.onPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            Strings.startHint,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onPrimary.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.onPrimary,
+              foregroundColor: scheme.primary,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: onStart,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text(Strings.newForm, style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text, {this.count, this.onTap});
+
+  final String text;
+  final int? count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Row(
+      children: [
+        Text(text, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        if (count != null && count! > 0) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+            decoration: BoxDecoration(
+              color: scheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSecondaryContainer),
+            ),
+          ),
+        ],
+        const Spacer(),
+        if (onTap != null)
+          InkWell(
+            onTap: onTap,
+            child: Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+          ),
+      ],
+    );
+  }
+}
+
+class _CountTile extends StatelessWidget {
+  const _CountTile({required this.label, required this.value, required this.onTap, this.color});
+
+  final String label;
+  final int value;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Expanded(
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color ?? scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 2,
+                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _FormCard extends StatelessWidget {
+  const _FormCard({
+    required this.name,
+    required this.detail,
+    required this.accent,
+    required this.trailing,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String name;
+  final String detail;
+  final Color accent;
+  final Widget trailing;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  String get _initials {
+    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    if (parts.isEmpty) return '';
+    return parts.take(2).map((part) => part[0].toUpperCase()).join();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: accent.withValues(alpha: 0.12),
+                  child: _initials.isEmpty || icon != null
+                      ? Icon(icon ?? Icons.description_outlined, color: accent, size: 22)
+                      : Text(
+                          _initials,
+                          style: TextStyle(color: accent, fontWeight: FontWeight.w700),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name.isEmpty ? Strings.untitled : name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                trailing,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 36, color: scheme.onSurfaceVariant),
+          const SizedBox(height: 8),
+          Text(Strings.noDrafts, style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            Strings.noDraftsHint,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
