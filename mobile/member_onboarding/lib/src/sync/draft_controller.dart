@@ -76,7 +76,29 @@ class DraftController extends ChangeNotifier {
   void attachDocument(String type, String path) {
     draft.pendingDocuments[type] = path;
     draft.uploadedDocuments.remove(type);
+    _shown.remove(type);
     _changed();
+  }
+
+  /// Photos already uploaded, fetched to show again. Kept in memory only: the phone
+  /// deletes its copy after upload, and Aadhaar images must not be stored again.
+  final Map<String, Uint8List> _shown = {};
+
+  /// The uploaded photo of [type], or null when it is still on the phone or cannot load.
+  Future<Uint8List?> uploadedImage(String type) async {
+    final cached = _shown[type];
+    if (cached != null) return cached;
+    final id = draft.serverId;
+    if (id == null || !draft.uploadedDocuments.contains(type)) return null;
+    try {
+      final ids = await _api.fetchDocumentIds(id);
+      final documentId = ids[type];
+      if (documentId == null) return null;
+      final bytes = Uint8List.fromList(await _api.fetchDocumentFile(documentId));
+      return _shown[type] = bytes;
+    } on Exception {
+      return null;
+    }
   }
 
   /// One sync at a time. Changes made meanwhile are picked up straight after.

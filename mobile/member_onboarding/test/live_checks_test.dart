@@ -5,7 +5,8 @@ import 'package:member_onboarding/src/models/form_schema.dart';
 import 'package:member_onboarding/src/ui/fields.dart';
 import 'package:member_onboarding/src/ui/strings.dart';
 
-import 'wizard_test.dart' show boxFor, newController, pump, schema, section, text, wizardTest;
+import 'wizard_test.dart'
+    show boxFor, goToStep, newController, pump, schema, section, text, wizardTest;
 
 /// The test form, with the fields the phone checks while typing.
 final checkedSchema = FormSchema(
@@ -41,18 +42,10 @@ Future<void> leaveField(WidgetTester tester) async {
   await tester.pump();
 }
 
-Future<void> goToStep(WidgetTester tester, int step) async {
-  for (var at = 1; at < step; at++) {
-    await tester.ensureVisible(find.text(Strings.next));
-    await tester.tap(find.text(Strings.next));
-    await tester.pump();
-  }
-}
-
 void main() {
   wizardTest('a half-typed mobile number is not judged until the box is left', (tester) async {
     await pump(tester, newController(), withSchema: checkedSchema);
-    await goToStep(tester, 2);
+    await goToStep(tester, 3);
 
     await tester.enterText(input('address.mobile'), '98765');
     await tester.pump();
@@ -66,7 +59,7 @@ void main() {
 
   wizardTest('a complete but wrong mobile number is pointed out at once', (tester) async {
     await pump(tester, newController(), withSchema: checkedSchema);
-    await goToStep(tester, 2);
+    await goToStep(tester, 3);
 
     await tester.enterText(input('address.mobile'), '5876543210');
     await tester.pump();
@@ -76,7 +69,7 @@ void main() {
 
   wizardTest('a right number shows nothing', (tester) async {
     await pump(tester, newController(), withSchema: checkedSchema);
-    await goToStep(tester, 2);
+    await goToStep(tester, 3);
 
     await tester.enterText(input('address.mobile'), '9876543210');
     await leaveField(tester);
@@ -87,6 +80,7 @@ void main() {
   wizardTest('an Aadhaar number that fails the checksum is caught and not sent', (tester) async {
     final controller = newController();
     await pump(tester, controller, withSchema: checkedSchema);
+    await goToStep(tester, 2);
 
     await tester.enterText(input('aadhaar_number'), '234123412345');
     await tester.pump();
@@ -106,6 +100,7 @@ void main() {
       },
     );
     await pump(tester, newController(draft: draft), withSchema: checkedSchema);
+    await goToStep(tester, 2);
 
     expect(find.text(Strings.applicantTooYoung), findsOneWidget);
   });
@@ -120,7 +115,7 @@ void main() {
       },
     );
     await pump(tester, newController(draft: draft), withSchema: checkedSchema);
-    await goToStep(tester, 3);
+    await goToStep(tester, 4);
 
     expect(find.text(Strings.consumptionTooHigh), findsOneWidget);
   });
@@ -152,6 +147,6 @@ void main() {
     await tester.tap(problem);
     await tester.pump();
 
-    expect(find.text('${Strings.step} 2 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 3 / 9'), findsOneWidget);
   });
 }

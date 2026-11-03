@@ -179,6 +179,46 @@ class Strings {
   static const guardianNotNeeded = 'The nominee is an adult. Leave the guardian empty';
   static const familyAgeInvalid = 'Enter an age from 0 to 120';
 
+  // The step screens.
+  static const documentsIntro = 'Take each photo clearly. Tap a photo to see it full size.';
+  static const photoHint = 'Face clearly visible, plain background';
+  static const cardHint = 'Whole card inside the frame';
+  static const passbookHint = 'The page with the account number';
+  static const checkPhoto = 'Check photo';
+  static const uploaded = 'Uploaded';
+  static const onPhone = 'On phone';
+  static const tapToZoom = 'Tap to see it full size';
+  static const years = 'years';
+  static const fromQr = 'From Aadhaar QR';
+  static const memberDetails = 'Member details';
+  static const fromMppTitle = 'From the MPP';
+  static const addressTitle = 'Address';
+  static const contactTitle = 'Contact';
+  static const locationTitle = 'Location of the form';
+  static const locationAgain = 'Take the location again';
+  static const animalsTitle = 'Animals';
+  static const milkTitle = 'Milk';
+  static const milkToSell = 'Milk to sell';
+  static const litresPerDay = 'litres a day';
+  static const findingBranch = 'Finding the bank and branch';
+  static const branchNotFound = 'Bank not found for this IFSC. Type the bank and branch.';
+  static const accountsMatch = 'Both account numbers match';
+  static const bankTitle = 'Bank';
+  static const sameAsMember = "Same as member's name";
+  static const cancel = 'Cancel';
+  static const familyIntro = 'Everyone who lives with the member.';
+  static const noFamily = 'No household members added yet';
+  static const editPerson = 'Edit person';
+  static const savePerson = 'Save';
+  static const chooseFromFamily = 'Choose from the household';
+  static const nomineeTitle = 'Nominee';
+  static const yearOnlyHint = 'Only the age known? The date is set to 1 January of that year.';
+  static const sameAddress = "Same as the member's address";
+  static const signLast = 'The member signs last, after the whole form has been read to them.';
+  static const signAgain = 'Sign again';
+  static const thumbprintAgain = 'Take the thumbprint again';
+  static const submittedHint = 'It now goes to the Area Manager for checking.';
+
   // The animal count grid, laid out like the printed form.
   static const heifer = 'Heifer';
   static const dry = 'Dry';

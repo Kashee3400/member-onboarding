@@ -210,6 +210,18 @@ class OnboardingApi {
     await _client.upload('applications/$id/documents/', {'document_type': documentType}, file);
   }
 
+  /// Document type to id, for the photos already uploaded to a form.
+  Future<Map<String, String>> fetchDocumentIds(String id) async {
+    final body = await _client.get('applications/$id/documents/') as List<dynamic>;
+    return {
+      for (final item in body.cast<Map<String, dynamic>>())
+        '${item['document_type']}': '${item['id']}',
+    };
+  }
+
+  Future<List<int>> fetchDocumentFile(String documentId) =>
+      _client.getBytes('documents/$documentId/file/');
+
   /// Sends a code to the form's mobile number or email (`channel` is "mobile" or "email").
   Future<void> sendContactOtp(String id, String channel) async =>
       await _client.post('applications/$id/contact-otp/', {'channel': channel});

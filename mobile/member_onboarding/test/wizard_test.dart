@@ -149,22 +149,34 @@ String secureQr(List<String> fields) {
 
 Finder boxFor(String key) => find.byKey(ValueKey(key));
 
+/// Jumps by the step chips; steps count from 1, as the screen shows them.
+Future<void> goToStep(WidgetTester tester, int step) async {
+  await tester.tap(find.byKey(ValueKey('stepchip.${step - 1}')));
+  await tester.pump();
+}
+
+/// The member's own details are the second step, after the documents.
+Future<void> pumpOnMember(WidgetTester tester, DraftController controller) async {
+  await pump(tester, controller);
+  await goToStep(tester, 2);
+}
+
 void main() {
   wizardTest('labels come from the server, in Hindi', (tester) async {
-    await pump(tester, newController());
+    await pumpOnMember(tester, newController());
 
     expect(find.text('आवेदक'), findsOneWidget);
     expect(find.textContaining('पूरा नाम'), findsOneWidget);
   });
 
   wizardTest('optional fields say so', (tester) async {
-    await pump(tester, newController());
+    await pumpOnMember(tester, newController());
     expect(find.textContaining(Strings.optional), findsOneWidget);
   });
 
   wizardTest('typing saves into the draft', (tester) async {
     final controller = newController();
-    await pump(tester, controller);
+    await pumpOnMember(tester, controller);
 
     await tester.enterText(
       find.descendant(of: boxFor('applicant.full_name'), matching: find.byType(TextField)),
@@ -180,7 +192,7 @@ void main() {
     await tester.tap(find.text(Strings.next));
     await tester.pump();
 
-    expect(find.text('पता'), findsOneWidget);
+    expect(find.text('आवेदक'), findsOneWidget);
   });
 
   wizardTest('the form has nine short steps', (tester) async {
@@ -189,7 +201,7 @@ void main() {
   });
 
   wizardTest('an active field lifts and an idle one stays flat', (tester) async {
-    await pump(tester, newController());
+    await pumpOnMember(tester, newController());
     final field = find.descendant(
       of: boxFor('applicant.full_name'),
       matching: find.byType(LiftBox),
@@ -204,17 +216,17 @@ void main() {
     expect(tester.widget<LiftBox>(field).active, isTrue);
   });
 
-  wizardTest('a corner is square', (tester) async {
-    await pump(tester, newController());
+  wizardTest('a field box has softly rounded corners', (tester) async {
+    await pumpOnMember(tester, newController());
     final box = tester.widget<AnimatedContainer>(
       find.descendant(of: boxFor('applicant.full_name'), matching: find.byType(AnimatedContainer)),
     );
-    expect((box.decoration! as BoxDecoration).borderRadius, isNull);
+    expect((box.decoration! as BoxDecoration).borderRadius, isNotNull);
   });
 
   wizardTest('the Aadhaar box takes only digits, twelve at most', (tester) async {
     final controller = newController();
-    await pump(tester, controller);
+    await pumpOnMember(tester, controller);
 
     await tester.enterText(
       find.descendant(of: boxFor('aadhaar_number'), matching: find.byType(TextField)),
@@ -224,31 +236,20 @@ void main() {
     expect(controller.draft.pendingAadhaar, '234123412346');
   });
 
-  wizardTest('choices open in a sheet and save', (tester) async {
+  wizardTest('a short list of choices is one tap on a chip', (tester) async {
     final controller = newController();
-    await pump(tester, controller);
-    await tester.ensureVisible(boxFor('applicant.gender'));
+    await pumpOnMember(tester, controller);
 
-    await tester.tap(boxFor('applicant.gender'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('महिला'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'महिला'));
     await tester.pumpAndSettle();
 
     expect(controller.draft.section('applicant')['gender'], 'female');
   });
 
-  Future<void> goToStep(WidgetTester tester, int step) async {
-    for (var at = 1; at < step; at++) {
-      await tester.ensureVisible(find.text(Strings.next));
-      await tester.tap(find.text(Strings.next));
-      await tester.pump();
-    }
-  }
-
   wizardTest('the bank number must match when typed twice', (tester) async {
     final controller = newController();
     await pump(tester, controller);
-    await goToStep(tester, 4);
+    await goToStep(tester, 5);
 
     await tester.enterText(
       find.descendant(of: boxFor('account_number'), matching: find.byType(TextField)),
@@ -276,7 +277,7 @@ void main() {
     final controller = newController();
     controller.draft.data['animals'] = {'buffalo_dry': 2};
     await pump(tester, controller);
-    await goToStep(tester, 3);
+    await goToStep(tester, 4);
 
     for (final label in [Strings.heifer, Strings.dry, Strings.inMilk, Strings.buffalo, Strings.total]) {
       expect(find.text(label), findsOneWidget);
@@ -288,22 +289,36 @@ void main() {
     await tester.pump();
 
     expect(controller.draft.section('animals')['crossbred_dry'], '3');
-    expect(find.text('5'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const ValueKey('animals.total.dry'))).data, '5');
   });
 
   wizardTest('family stops at the limit of the printed form', (tester) async {
     final controller = newController();
     await pump(tester, controller);
-    await goToStep(tester, 5);
+    await goToStep(tester, 6);
 
-    await tester.tap(find.text(Strings.addPerson));
-    await tester.pump();
-    await tester.ensureVisible(find.text(Strings.addPerson));
-    await tester.tap(find.text(Strings.addPerson));
-    await tester.pump();
+    for (final name in ['राम', 'श्याम']) {
+      await tester.ensureVisible(find.widgetWithText(OutlinedButton, Strings.addPerson));
+      await tester.tap(find.widgetWithText(OutlinedButton, Strings.addPerson));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(of: boxFor('person.name'), matching: find.byType(TextField)),
+        name,
+      );
+      await tester.tap(find.widgetWithText(ChoiceChip, 'पति'));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'पुरुष'));
+      await tester.enterText(
+        find.descendant(of: boxFor('person.age'), matching: find.byType(TextField)),
+        '40',
+      );
+      await tester.pump();
+      await tester.tap(find.text(Strings.savePerson));
+      await tester.pumpAndSettle();
+    }
 
     expect(controller.draft.family, hasLength(2));
-    expect(find.text(Strings.addPerson), findsNothing);
+    expect(controller.draft.family.first['name'], 'राम');
+    expect(find.widgetWithText(OutlinedButton, Strings.addPerson), findsNothing);
   });
 
   wizardTest('review lists what is missing and blocks submit', (tester) async {
@@ -347,7 +362,7 @@ void main() {
     await tester.tap(find.text(Strings.accountNumber));
     await tester.pump();
 
-    expect(find.text('${Strings.step} 4 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 5 / 9'), findsOneWidget);
   });
 
   wizardTest('a returned form shows why, and marks the field', (tester) async {
@@ -394,7 +409,6 @@ void main() {
   wizardTest('a blurred photo is caught, and can be retaken or kept', (tester) async {
     final controller = newController();
     await pumpWith(tester, controller, const _FakeDevice(problem: PhotoProblem.blurry));
-    await goToStep(tester, 7);
 
     await tester.tap(find.text(Strings.aadhaarFront));
     await tester.pumpAndSettle();
@@ -405,13 +419,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.draft.hasDocument('aadhaar_front'), isTrue);
-    expect(find.text(Strings.photoDoubt), findsOneWidget);
+    expect(find.text(Strings.checkPhoto), findsOneWidget);
   });
 
   wizardTest('a clear photo is kept without asking', (tester) async {
     final controller = newController();
     await pumpWith(tester, controller, const _FakeDevice());
-    await goToStep(tester, 7);
 
     await tester.tap(find.text(Strings.passbook));
     await tester.pumpAndSettle();
@@ -430,7 +443,7 @@ void main() {
     );
     await pump(tester, newController(draft: draft));
 
-    expect(find.text('${Strings.step} 4 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 5 / 9'), findsOneWidget);
   });
 
   wizardTest('review shows each marked field, and whether it was changed', (tester) async {
@@ -548,7 +561,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await goToStep(tester, 4);
+    await goToStep(tester, 5);
 
     await tester.enterText(
       find.descendant(of: boxFor('bank.ifsc'), matching: find.byType(TextField)),
@@ -561,22 +574,20 @@ void main() {
     expect(controller.draft.section('bank')['branch_name'], 'Siyarha');
   });
 
-  wizardTest("the MPP's place shows filled, locked and marked as from the MPP", (tester) async {
+  wizardTest("the MPP's place shows filled and locked, in one card", (tester) async {
     await pump(tester, newController(draft: placedDraft()), withSchema: placeSchema);
-    await goToStep(tester, 2);
+    await goToStep(tester, 3);
 
-    final tehsil = boxFor('address.tehsil');
-    expect(find.descendant(of: tehsil, matching: find.text('Gyanpur')), findsOneWidget);
-    expect(find.descendant(of: tehsil, matching: find.byType(TextField)), findsNothing);
-    expect(find.descendant(of: tehsil, matching: find.byIcon(Icons.lock_outline)), findsOneWidget);
-    expect(find.descendant(of: tehsil, matching: find.text(Strings.fromMpp)), findsOneWidget);
-    expect(find.byType(LockedBox), findsNWidgets(2));
+    expect(find.text(Strings.fromMppTitle), findsOneWidget);
+    expect(find.text('Gyanpur'), findsOneWidget);
+    expect(find.text('221406'), findsOneWidget);
+    expect(find.descendant(of: boxFor('address.tehsil'), matching: find.byType(TextField)), findsNothing);
   });
 
   wizardTest('what the MPP does not know is typed as usual', (tester) async {
     final controller = newController(draft: placedDraft());
     await pump(tester, controller, withSchema: placeSchema);
-    await goToStep(tester, 2);
+    await goToStep(tester, 3);
 
     await tester.enterText(
       find.descendant(of: boxFor('address.post_office'), matching: find.byType(TextField)),
@@ -614,6 +625,7 @@ void main() {
       withSchema: placeSchema,
       device: _FakeDevice(qr: qr),
     );
+    await goToStep(tester, 2);
 
     await tester.tap(find.text(Strings.scanAadhaar));
     await tester.pumpAndSettle();
@@ -673,7 +685,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await goToStep(tester, 4);
+    await goToStep(tester, 5);
 
     await tester.enterText(
       find.descendant(of: boxFor('bank.ifsc'), matching: find.byType(TextField)),
@@ -713,17 +725,16 @@ void main() {
       ),
     );
     await tester.pump();
+    await goToStep(tester, 2);
 
-    expect(find.text('अन्य'), findsOneWidget);
-
-    await tester.ensureVisible(boxFor('applicant.gender'));
-    await tester.tap(boxFor('applicant.gender'));
-    await tester.pumpAndSettle();
-
-    // The sheet offers today's choices only; the old one shows just in the box.
-    expect(find.widgetWithText(ListTile, 'महिला'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'अन्य'), findsNothing);
+    // Today's choice is offered; the old one shows, chosen, and cannot be picked again.
+    expect(find.widgetWithText(ChoiceChip, 'महिला'), findsOneWidget);
+    final old = tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'अन्य'));
+    expect(old.selected, isTrue);
+    expect(old.onSelected, isNull);
   });
+
+  nomineeTests();
 
   wizardTest('a relation typed before it was a list shows as typed', (tester) async {
     final controller = newController();
@@ -731,9 +742,96 @@ void main() {
       {'name': 'राम', 'gender': 'male', 'age': 40, 'relation': 'Grandson'},
     ];
     await pump(tester, controller);
-    await goToStep(tester, 5);
+    await goToStep(tester, 6);
 
-    expect(find.text('Grandson'), findsOneWidget);
+    expect(find.textContaining('Grandson'), findsOneWidget);
+  });
+}
+
+
+/// The test form with a nominee who has a relation and a date of birth.
+final nomineeSchema = FormSchema(
+  version: 1,
+  maxFamilyMembers: 6,
+  familyGenders: schema.familyGenders,
+  familyRelations: schema.familyRelations,
+  sections: [
+    for (final item in schema.sections)
+      if (item.key == 'nominee')
+        section('nominee', 'नामित', const [
+          FormFieldSpec(key: 'name', label: 'नामित का नाम', type: 'text', required: true),
+          FormFieldSpec(
+            key: 'relation',
+            label: 'संबंध',
+            type: 'choice',
+            required: true,
+            options: [ChoiceOption(value: 'husband', label: 'पति')],
+          ),
+          FormFieldSpec(key: 'date_of_birth', label: 'जन्म तिथि', type: 'date', required: true),
+        ])
+      else
+        item,
+  ],
+);
+
+DraftController familyController() => newController()
+  ..draft.data['family'] = [
+    {'name': 'Ram', 'gender': 'male', 'age': '40', 'relation': 'husband'},
+  ];
+
+void nomineeTests() {
+  wizardTest('a nominee chosen from the household fills in, born 1 January', (tester) async {
+    final controller = familyController();
+    await pump(tester, controller, withSchema: nomineeSchema);
+    await goToStep(tester, 7);
+
+    await tester.tap(find.byKey(const ValueKey('nominee.from.0')));
+    await tester.pump();
+
+    final nominee = controller.draft.section('nominee');
+    expect(nominee['name'], 'Ram');
+    expect(nominee['relation'], 'husband');
+    expect(nominee['date_of_birth'], '${DateTime.now().year - 40}-01-01');
+  });
+
+  wizardTest("a household member's new age moves the nominee's year of birth", (tester) async {
+    final controller = familyController()
+      ..draft.data['nominee'] = {'name': 'Ram', 'date_of_birth': '${DateTime.now().year - 40}-01-01'};
+    await pump(tester, controller, withSchema: nomineeSchema);
+    await goToStep(tester, 6);
+
+    await tester.tap(find.byKey(const ValueKey('family.0')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(of: boxFor('person.age'), matching: find.byType(TextField)),
+      '45',
+    );
+    await tester.pump();
+    await tester.tap(find.text(Strings.savePerson));
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.family.single['age'], '45');
+    expect(controller.draft.section('nominee')['date_of_birth'], '${DateTime.now().year - 45}-01-01');
+  });
+
+  wizardTest('the member signs on the review, not with the photos', (tester) async {
+    await pump(tester, newController());
+    expect(find.byKey(const ValueKey('review.signature')), findsNothing);
+
+    await goToStep(tester, 9);
+
+    expect(find.byKey(const ValueKey('review.signature')), findsOneWidget);
+    expect(find.text(Strings.signHere), findsOneWidget);
+  });
+
+  wizardTest('the documents come first, as photo tiles', (tester) async {
+    await pump(tester, newController());
+
+    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    for (final type in ['photo', 'aadhaar_front', 'aadhaar_back', 'passbook']) {
+      expect(find.byKey(ValueKey('document.$type')), findsOneWidget);
+    }
+    expect(find.text('0 / 4'), findsOneWidget);
   });
 }
 

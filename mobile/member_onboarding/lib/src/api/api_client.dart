@@ -134,6 +134,14 @@ class ApiClient {
     return _decode(response);
   }
 
+  /// A file's raw bytes, such as a document photo already on the server.
+  Future<List<int>> getBytes(String path) async {
+    final response = await _authorized((headers) => _client.get(_uri(path), headers: headers));
+    if (response.statusCode >= 200 && response.statusCode < 300) return response.bodyBytes;
+    _decode(response);
+    return const [];
+  }
+
   Future<Object?> post(String path, [Map<String, dynamic>? body]) async {
     final response = await _authorized(
       (headers) => _client.post(
