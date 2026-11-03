@@ -218,6 +218,8 @@ class Strings {
   static const signAgain = 'Sign again';
   static const thumbprintAgain = 'Take the thumbprint again';
   static const submittedHint = 'It now goes to the Area Manager for checking.';
+  static const finishStepFirst = 'Complete this step before going on.';
+  static const completeToContinue = 'Complete these to continue';
 
   // The animal count grid, laid out like the printed form.
   static const heifer = 'Heifer';

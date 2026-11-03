@@ -93,10 +93,16 @@ Future<void> pump(
   DraftController controller, {
   FormSchema? withSchema,
   DeviceServices device = const DeviceServices(),
+  bool inOrder = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: FormWizard(schema: withSchema ?? schema, controller: controller, device: device),
+      home: FormWizard(
+        schema: withSchema ?? schema,
+        controller: controller,
+        device: device,
+        stepsInOrder: inOrder,
+      ),
     ),
   );
   await tester.pump();
@@ -186,13 +192,48 @@ void main() {
     expect(controller.draft.section('applicant')['full_name'], 'सीता');
   });
 
-  wizardTest('moving on needs no complete step, so nobody gets stuck', (tester) async {
-    await pump(tester, newController());
+  wizardTest('Next stays on an unfinished step and says what is missing', (tester) async {
+    await pump(tester, newController(), inOrder: true);
 
     await tester.tap(find.text(Strings.next));
     await tester.pump();
 
+    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step.still_to_fill')), findsOneWidget);
+    expect(find.text('• ${Strings.photo}'), findsOneWidget);
+  });
+
+  wizardTest('a step chip cannot skip past an unfinished step', (tester) async {
+    await pump(tester, newController(), inOrder: true);
+
+    await goToStep(tester, 5);
+
+    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+  });
+
+  wizardTest('a finished step lets Next go on, and empty fields say they are needed', (tester) async {
+    final controller = newController();
+    for (final type in ['photo', 'aadhaar_front', 'aadhaar_back', 'passbook']) {
+      controller.draft.uploadedDocuments.add(type);
+    }
+    await pump(tester, controller, inOrder: true);
+
+    await tester.tap(find.text(Strings.next));
+    await tester.pump();
     expect(find.text('आवेदक'), findsOneWidget);
+
+    await tester.tap(find.text(Strings.next));
+    await tester.pump();
+    expect(find.text('${Strings.step} 2 / 9'), findsOneWidget);
+    expect(
+      find.descendant(of: boxFor('applicant.full_name'), matching: find.text(Strings.required)),
+      findsOneWidget,
+    );
+
+    // Back is always open.
+    await tester.tap(find.text(Strings.back));
+    await tester.pump();
+    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
   });
 
   wizardTest('the form has nine short steps', (tester) async {
@@ -400,7 +441,12 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: FormWizard(schema: schema, controller: controller, device: device),
+        home: FormWizard(
+          schema: schema,
+          controller: controller,
+          device: device,
+          stepsInOrder: false,
+        ),
       ),
     );
     await tester.pump();
@@ -557,7 +603,12 @@ void main() {
     final controller = newController();
     await tester.pumpWidget(
       MaterialApp(
-        home: FormWizard(schema: schema, controller: controller, device: const _FakeDevice()),
+        home: FormWizard(
+          schema: schema,
+          controller: controller,
+          device: const _FakeDevice(),
+          stepsInOrder: false,
+        ),
       ),
     );
     await tester.pump();
@@ -677,6 +728,7 @@ void main() {
           schema: schema,
           controller: controller,
           device: const _FakeDevice(),
+          stepsInOrder: false,
           findBranch: (ifsc) async {
             asked.add(ifsc);
             return ('State Bank of India', 'Bhadohi');
@@ -721,7 +773,7 @@ void main() {
     final controller = newController()..setValue('applicant', 'gender', 'other');
     await tester.pumpWidget(
       MaterialApp(
-        home: FormWizard(schema: withRetired, controller: controller),
+        home: FormWizard(schema: withRetired, controller: controller, stepsInOrder: false),
       ),
     );
     await tester.pump();

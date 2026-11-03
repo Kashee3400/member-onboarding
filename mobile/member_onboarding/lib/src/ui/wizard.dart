@@ -19,6 +19,7 @@ class FormWizard extends StatefulWidget {
     required this.controller,
     this.device = const DeviceServices(),
     this.findBranch,
+    this.stepsInOrder = true,
     super.key,
   });
 
@@ -28,6 +29,10 @@ class FormWizard extends StatefulWidget {
 
   /// Bank and branch for an IFSC, from the bank master; the online lookup when absent.
   final Future<(String, String)?> Function(String ifsc)? findBranch;
+
+  /// A step opens only once the ones before it are complete. Off only in tests that
+  /// look at a later step without filling the form first.
+  final bool stepsInOrder;
 
   @override
   State<FormWizard> createState() => _FormWizardState();
@@ -113,6 +118,9 @@ class _FormWizardState extends State<FormWizard> {
 
   _Lookup _lookup = _Lookup.idle;
 
+  /// Steps someone tried to leave unfinished: their empty required fields now say so.
+  final Set<int> _tried = {};
+
   int _stepOf(String path) {
     final parts = path.split('.');
     if (parts.first == 'documents' && parts.length > 1 && _signatures.contains(parts[1])) {
@@ -143,6 +151,33 @@ class _FormWizardState extends State<FormWizard> {
   }
 
   void _go(int step) => setState(() => _index = step);
+
+  /// What keeps a step from being complete. The OTPs are left out: they need a network
+  /// the village may not have, so they hold back only the submit, not the next step.
+  List<String> _blocking(int step) => [
+    for (final (label, at) in _missing())
+      if (at == step && label != Strings.mobileNotVerified && label != Strings.emailNotVerified) label,
+    for (final (path, _, at) in _problems())
+      if (at == step) _problemLabel(path),
+  ];
+
+  /// Forward only past complete steps; back, any time.
+  void _tryGo(int step) {
+    if (!widget.stepsInOrder || step <= _index) return _go(step);
+    for (var at = _index; at < step; at++) {
+      if (_blocking(at).isNotEmpty) {
+        setState(() {
+          _tried.add(at);
+          _index = at;
+        });
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text(Strings.finishStepFirst)));
+        return;
+      }
+    }
+    _go(step);
+  }
 
   String? _errorFor(String path) {
     final server = _form.serverErrors[path];
@@ -185,7 +220,10 @@ class _FormWizardState extends State<FormWizard> {
       return LockedBox(key: ValueKey(path), label: spec.label, value: fixed, compact: compact);
     }
     final value = _form.draft.section(section)[spec.key];
-    final error = _errorFor(path);
+    final empty = value == null || '$value'.trim().isEmpty || value == false;
+    final error =
+        _errorFor(path) ??
+        (spec.required && empty && _tried.contains(_stepOf(section)) ? Strings.required : null);
     void save(Object? next) {
       _changed.add(path);
       _fromQr.remove(path);
@@ -393,7 +431,9 @@ class _FormWizardState extends State<FormWizard> {
               taken: draft.hasDocument(type),
               uploaded: draft.uploadedDocuments.contains(type),
               doubtful: _doubtful.containsKey(type),
-              error: _errorFor('documents.$type'),
+              error:
+                  _errorFor('documents.$type') ??
+                  (_tried.contains(0) && !draft.hasDocument(type) ? Strings.required : null),
               image: _image(type),
               onTake: () => _capture(type),
               onOpen: () => _view(type),
@@ -465,7 +505,8 @@ class _FormWizardState extends State<FormWizard> {
             error:
                 _form.aadhaarError ??
                 _form.serverErrors['applicant.aadhaar_number'] ??
-                _returnedBecause('applicant.aadhaar_number'),
+                _returnedBecause('applicant.aadhaar_number') ??
+                (_tried.contains(1) && !draft.hasAadhaar ? Strings.required : null),
             check: checkAadhaar,
             completeLength: 12,
             onChanged: (value) {
@@ -593,7 +634,9 @@ class _FormWizardState extends State<FormWizard> {
   Widget _animalGrid(Map<String, dynamic> animals) {
     final theme = Theme.of(context);
     final muted = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    final error = _errorFor('animals.indigenous_heifer');
+    final error =
+        _errorFor('animals.indigenous_heifer') ??
+        (_tried.contains(3) ? _checks.all(_form.draft.data)['animals.indigenous_heifer'] : null);
     int count(String key) => int.tryParse('${animals[key] ?? ''}') ?? 0;
 
     Widget row(String label, List<Widget> cells, {TextStyle? style}) => Padding(
@@ -766,7 +809,10 @@ class _FormWizardState extends State<FormWizard> {
             keyboard: TextInputType.number,
             obscure: true,
             formatters: [FilteringTextInputFormatter.digitsOnly],
-            error: _form.serverErrors['bank.account_number'] ?? _returnedBecause('bank.account_number'),
+            error:
+                _form.serverErrors['bank.account_number'] ??
+                _returnedBecause('bank.account_number') ??
+                (_tried.contains(4) && !draft.hasAccount ? Strings.required : null),
             check: checkAccount,
             onChanged: (value) {
               _changed.add('bank.account_number');
@@ -1458,7 +1504,7 @@ class _FormWizardState extends State<FormWizard> {
           return InkWell(
             key: ValueKey('stepchip.$step'),
             borderRadius: BorderRadius.circular(16),
-            onTap: () => _go(step),
+            onTap: () => _tryGo(step),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
@@ -1536,7 +1582,13 @@ class _FormWizardState extends State<FormWizard> {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                children: [_currentStep()],
+                children: [
+                  if (_tried.contains(_index) && _blocking(_index).isNotEmpty) ...[
+                    _StillToFill(items: _blocking(_index)),
+                    const SizedBox(height: 12),
+                  ],
+                  _currentStep(),
+                ],
               ),
             ),
             Container(
@@ -1563,7 +1615,7 @@ class _FormWizardState extends State<FormWizard> {
                           minimumSize: const Size.fromHeight(50),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: () => _go(_index + 1),
+                        onPressed: () => _tryGo(_index + 1),
                         child: const Text(Strings.next),
                       ),
                     ),
@@ -1572,6 +1624,47 @@ class _FormWizardState extends State<FormWizard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Why Next did not move on: what this step still needs.
+class _StillToFill extends StatelessWidget {
+  const _StillToFill({required this.items});
+
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('step.still_to_fill'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline, color: scheme.onErrorContainer, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                Strings.completeToContinue,
+                style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onErrorContainer),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(left: 28, top: 2),
+              child: Text('• $item', style: TextStyle(color: scheme.onErrorContainer)),
+            ),
+        ],
       ),
     );
   }
