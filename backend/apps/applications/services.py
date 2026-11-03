@@ -355,7 +355,7 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
 
 
 def unverified_contacts(application) -> dict[str, str]:
-    """The mobile number, and the email when one is given, must be confirmed by OTP."""
+    """The mobile number and the email must both be confirmed by OTP."""
     address = application.data.get("address", {})
     errors = {}
     if str(address.get("mobile") or "").strip() and not application.mobile_verified_at:

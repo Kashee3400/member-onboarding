@@ -77,6 +77,7 @@ def complete_form():
             "state": "Uttar Pradesh",
             "pincode": "221406",
             "mobile": "9123412346",  # The one filled() gives AADHAAR.
+            "email": "m412346@example.com",  # Likewise.
         },
         "location": {"latitude": 25.41507, "longitude": 82.51469},
         "family": [{"name": "Test Husband", "gender": "male", "age": 44, "relation": "husband"}],
@@ -205,6 +206,7 @@ class World:
         data = complete_form()
         # Each member needs her own mobile number and bank account, so they follow the Aadhaar.
         data["address"]["mobile"] = f"9{aadhaar[-9:]}"
+        data["address"]["email"] = f"m{aadhaar[-6:]}@example.com"
         account = ACCOUNT if aadhaar == AADHAAR else f"6563{aadhaar[-11:]}"
         response = client.patch(
             f"{URL}{application['id']}/",

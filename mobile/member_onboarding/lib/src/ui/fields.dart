@@ -189,6 +189,68 @@ class _TextBoxState extends State<TextBox> {
   }
 }
 
+/// One small box of the animal grid: a whole count of a few digits, centred.
+class CountCell extends StatefulWidget {
+  const CountCell({required this.value, required this.onChanged, this.hasError = false, super.key});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final bool hasError;
+
+  @override
+  State<CountCell> createState() => _CountCellState();
+}
+
+class _CountCellState extends State<CountCell> {
+  late final _controller = TextEditingController(text: widget.value);
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(CountCell old) {
+    super.didUpdateWidget(old);
+    if (!_focus.hasFocus && widget.value != _controller.text) _controller.text = widget.value;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: LiftBox(
+        active: _focus.hasFocus,
+        hasError: widget.hasError,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focus,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
+          onChanged: widget.onChanged,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          decoration: const InputDecoration(
+            isDense: true,
+            hintText: '0',
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Tapped rather than typed, so the whole box behaves as one large target.
 class _TapBox extends StatelessWidget {
   const _TapBox({

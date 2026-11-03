@@ -178,4 +178,13 @@ class Strings {
   static const guardianNeeded = "The nominee is under 18. Enter a guardian's name";
   static const guardianNotNeeded = 'The nominee is an adult. Leave the guardian empty';
   static const familyAgeInvalid = 'Enter an age from 0 to 120';
+
+  // The animal count grid, laid out like the printed form.
+  static const heifer = 'Heifer';
+  static const dry = 'Dry';
+  static const inMilk = 'In milk';
+  static const indigenous = 'Indigenous';
+  static const crossbred = 'Crossbred';
+  static const buffalo = 'Buffalo';
+  static const total = 'Total';
 }

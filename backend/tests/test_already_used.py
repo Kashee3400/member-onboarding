@@ -43,7 +43,9 @@ def submit_with(world, aadhaar, **address):
     client = world.client(world.facilitator)
     application = world.filled(aadhaar)
     data = complete_form()
-    data["address"].update({"mobile": f"9{aadhaar[-9:]}", **address})
+    data["address"].update(
+        {"mobile": f"9{aadhaar[-9:]}", "email": f"m{aadhaar[-6:]}@example.com", **address}
+    )
     client.patch(f"{URL}{application['id']}/", {"data": data})
     world.verify_contacts(application["id"])
     return client.post(f"{URL}{application['id']}/submit/")
@@ -53,7 +55,9 @@ def save_with(world, aadhaar, **address):
     client = world.client(world.facilitator)
     application = world.filled(aadhaar)
     data = complete_form()
-    data["address"].update({"mobile": f"9{aadhaar[-9:]}", **address})
+    data["address"].update(
+        {"mobile": f"9{aadhaar[-9:]}", "email": f"m{aadhaar[-6:]}@example.com", **address}
+    )
     return client.patch(f"{URL}{application['id']}/", {"data": data})
 
 

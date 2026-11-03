@@ -272,6 +272,25 @@ void main() {
     expect(controller.draft.pendingAccount, '656302010000644');
   });
 
+  wizardTest('animals are a grid with a total per column', (tester) async {
+    final controller = newController();
+    controller.draft.data['animals'] = {'buffalo_dry': 2};
+    await pump(tester, controller);
+    await goToStep(tester, 3);
+
+    for (final label in [Strings.heifer, Strings.dry, Strings.inMilk, Strings.buffalo, Strings.total]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.enterText(
+      find.descendant(of: find.byKey(const ValueKey('animals.crossbred_dry')), matching: find.byType(TextField)),
+      '3',
+    );
+    await tester.pump();
+
+    expect(controller.draft.section('animals')['crossbred_dry'], '3');
+    expect(find.text('5'), findsOneWidget);
+  });
+
   wizardTest('family stops at the limit of the printed form', (tester) async {
     final controller = newController();
     await pump(tester, controller);

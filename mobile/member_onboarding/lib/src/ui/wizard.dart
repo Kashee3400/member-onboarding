@@ -318,11 +318,12 @@ class _FormWizardState extends State<FormWizard> {
     final location = _form.draft.section('location');
     final captured = location['latitude'] != null;
     return _spaced([
-      _section('address'),
-      // The member's own number and email, proven by an OTP while she is here.
-      ContactVerify(controller: _form, channel: 'mobile'),
-      if ('${_form.draft.section('address')['email'] ?? ''}'.trim().isNotEmpty)
-        ContactVerify(controller: _form, channel: 'email'),
+      // The member's own number and email, each proven by an OTP right under its field.
+      for (final spec in _schema.section('address').fields) ...[
+        _field('address', spec),
+        if (spec.key == 'mobile' || spec.key == 'email')
+          ContactVerify(controller: _form, channel: spec.key),
+      ],
       OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           shape: const RoundedRectangleBorder(),
@@ -349,19 +350,79 @@ class _FormWizardState extends State<FormWizard> {
     final consumption = double.tryParse('${animals['consumption_lpd']}') ?? 0;
 
     return _spaced([
-      for (var at = 0; at < counts.length; at += 3)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final spec in counts.skip(at).take(3)) ...[
-              Expanded(child: _field('animals', spec)),
-              if (spec != counts.skip(at).take(3).last) const SizedBox(width: 8),
-            ],
-          ],
-        ),
+      if (counts.isNotEmpty) _animalGrid(animals),
       for (final spec in amounts) _field('animals', spec),
       Text('Milk to sell: ${(production - consumption).toStringAsFixed(1)} litres per day'),
     ]);
+  }
+
+  static const _animalRows = [
+    ('indigenous', Strings.indigenous),
+    ('crossbred', Strings.crossbred),
+    ('buffalo', Strings.buffalo),
+  ];
+  static const _countColumns = [
+    ('heifer', Strings.heifer),
+    ('dry', Strings.dry),
+    ('in_milk', Strings.inMilk),
+  ];
+
+  /// Animals down the side and heifer / dry / in milk across, as on the printed form.
+  Widget _animalGrid(Map<String, dynamic> animals) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final error = _errorFor('animals.indigenous_heifer');
+    int count(String key) => int.tryParse('${animals[key] ?? ''}') ?? 0;
+
+    Widget row(String label, List<Widget> cells, {TextStyle? style}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(width: 92, child: Text(label, style: style ?? theme.textTheme.bodyMedium)),
+          for (final cell in cells) ...[
+            const SizedBox(width: 8),
+            Expanded(child: cell),
+          ],
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row('', [
+          for (final (_, label) in _countColumns)
+            Text(label, textAlign: TextAlign.center, style: muted),
+        ]),
+        for (final (animal, label) in _animalRows)
+          row(label, [
+            for (final (column, _) in _countColumns)
+              CountCell(
+                key: ValueKey('animals.${animal}_$column'),
+                value: animals['${animal}_$column']?.toString() ?? '',
+                hasError: error != null,
+                onChanged: (text) {
+                  _changed.add('animals.${animal}_$column');
+                  _form.setValue('animals', '${animal}_$column', text);
+                },
+              ),
+          ]),
+        row(
+          Strings.total,
+          [
+            for (final (column, _) in _countColumns)
+              Text(
+                '${_animalRows.fold(0, (sum, item) => sum + count('${item.$1}_$column'))}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall,
+              ),
+          ],
+          style: theme.textTheme.titleSmall,
+        ),
+        if (error != null)
+          Text(error, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+      ],
+    );
   }
 
   String _accountAgain = '';
@@ -605,7 +666,7 @@ class _FormWizardState extends State<FormWizard> {
     }
     if (!draft.hasAadhaar) missing.add((Strings.aadhaarNumber, 0));
     if (!draft.hasAccount) missing.add((Strings.accountNumber, 3));
-    // A mobile number, and an email when given, go in only once confirmed by OTP.
+    // The mobile number and the email go in only once confirmed by OTP.
     final address = draft.section('address');
     if ('${address['mobile'] ?? ''}'.trim().isNotEmpty && !draft.mobileVerified) {
       missing.add((Strings.mobileNotVerified, 1));

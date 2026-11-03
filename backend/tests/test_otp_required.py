@@ -45,8 +45,13 @@ def test_an_unverified_email_stops_the_submit(world):
     assert "address.email" in response.data["error"]["details"]
 
 
-def test_no_email_needs_no_email_otp(world):
+def test_an_email_is_required(world):
     application = world.filled()
-    unverify(world, application["id"], email_verified_at=None)
+    world.client(world.facilitator).patch(
+        f"{URL}{application['id']}/", {"data": {"address": {"email": ""}}}, format="json"
+    )
 
-    assert submit(world, application).status_code == 200
+    response = submit(world, application)
+
+    assert response.status_code == 400
+    assert "address.email" in response.data["error"]["details"]

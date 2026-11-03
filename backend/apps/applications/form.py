@@ -128,7 +128,7 @@ FORM_SCHEMA = {
                 _field("pincode", "PIN code", pattern=PINCODE_PATTERN, **FROM_MPP),
                 _field("mobile", "Mobile number", pattern=MOBILE_PATTERN),
                 _field("landline", "Landline", required=False),
-                _field("email", "Email", required=False, pattern=EMAIL_PATTERN),
+                _field("email", "Email", pattern=EMAIL_PATTERN),
             ],
         },
         {
