@@ -59,8 +59,8 @@ const SECTIONS: { title: string; keys: [string[], string][] }[] = [
     keys: [
       [["A"], "Approve the step on screen, after asking"],
       [["R"], "Reject, with a reason"],
-      [["J"], "Next form in the queue"],
-      [["K"], "Previous form in the queue"],
+      [["J"], "Previous form in the queue"],
+      [["K"], "Next form in the queue"],
       [["1-8"], "Open that step's tab"],
     ],
   },

@@ -13,7 +13,7 @@ import type { ApplicationSummary } from "@/lib/types";
 
 /**
  * Moves through the queue this form sits in, oldest first, as the queue page does:
- * J for the next form, K for the one before. 1 to 8 jump to that review step.
+ * J for the form before, K for the next: J sits left of K, as the buttons do. 1 to 8 jump to that review step.
  */
 export function FormNav({
   id,
@@ -49,8 +49,8 @@ export function FormNav({
       if (isTyping(event) || event.metaKey || event.ctrlKey || event.altKey) return;
       if (document.querySelector("[role=dialog]")) return;
       const key = event.key.toLowerCase();
-      if (key === "j" && next) router.push(`/applications/${next}`);
-      else if (key === "k" && previous) router.push(`/applications/${previous}`);
+      if (key === "k" && next) router.push(`/applications/${next}`);
+      else if (key === "j" && previous) router.push(`/applications/${previous}`);
       else if (/^[1-9]$/.test(key)) {
         const step = steps.find((item) => item.number === Number(key));
         if (!step) return;
@@ -73,18 +73,18 @@ export function FormNav({
         size="sm"
         disabled={!previous}
         onClick={() => previous && router.push(`/applications/${previous}`)}
-        aria-label="Previous form (K)"
+        aria-label="Previous form (J)"
       >
-        <ChevronLeft /> <Kbd className="hidden sm:inline-flex">K</Kbd>
+        <ChevronLeft /> <Kbd className="hidden sm:inline-flex">J</Kbd>
       </Button>
       <Button
         variant="outline"
         size="sm"
         disabled={!next}
         onClick={() => next && router.push(`/applications/${next}`)}
-        aria-label="Next form (J)"
+        aria-label="Next form (K)"
       >
-        <Kbd className="hidden sm:inline-flex">J</Kbd> <ChevronRight />
+        <Kbd className="hidden sm:inline-flex">K</Kbd> <ChevronRight />
       </Button>
     </div>
   );
