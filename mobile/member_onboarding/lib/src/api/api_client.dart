@@ -53,10 +53,26 @@ class ApiClient {
     return Uri.parse('$base/api/v1/$path').replace(queryParameters: query);
   }
 
+  /// Set when the service refused the token, so the host renews it.
+  bool _renew = false;
+
   Future<void> _signIn() async {
+    final tokenProvider = config.accessTokenProvider;
+    if (tokenProvider != null) {
+      try {
+        _accessToken = await tokenProvider(renew: _renew);
+      } catch (_) {
+        throw const OfflineException();
+      }
+      _renew = false;
+      // The host keeps the token fresh; ask it again often rather than guess its expiry.
+      _expiresAt = DateTime.now().add(const Duration(minutes: 1));
+      return;
+    }
+
     final String assertion;
     try {
-      assertion = await config.assertionProvider();
+      assertion = await config.assertionProvider!();
     } catch (_) {
       // Whatever the host app threw, the form work simply waits for a later try.
       throw const OfflineException();
@@ -106,6 +122,8 @@ class ApiClient {
     if (response.statusCode == 401) {
       // The token ended early, for instance after a role change: ask the host again.
       _accessToken = null;
+      _expiresAt = null;
+      _renew = true;
       await _ensureSignedIn();
       response = await _guard(() => call({'Authorization': 'Bearer $_accessToken'}));
     }

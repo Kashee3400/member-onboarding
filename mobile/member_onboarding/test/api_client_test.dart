@@ -153,4 +153,49 @@ void main() {
 
     await expectLater(client.get('a/'), throwsA(isA<OfflineException>()));
   });
+
+  group('with an access token from the host', () {
+    test('calls with the token from the host and never exchanges', () async {
+      final asked = <bool>[];
+      final client = ApiClient(
+        MemberOnboardingConfig(
+          baseUrl: 'https://service.test',
+          accessTokenProvider: ({required renew}) async {
+            asked.add(renew);
+            return 'own-token';
+          },
+        ),
+        client: MockClient((request) async {
+          expect(request.url.path.endsWith('auth/exchange/'), isFalse);
+          expect(request.headers['Authorization'], 'Bearer own-token');
+          return http.Response('{}', 200);
+        }),
+      );
+
+      await client.get('applications/form/');
+
+      expect(asked, [false]);
+    });
+
+    test('a refused token asks the host to renew it', () async {
+      final asked = <bool>[];
+      final client = ApiClient(
+        MemberOnboardingConfig(
+          baseUrl: 'https://service.test',
+          accessTokenProvider: ({required renew}) async {
+            asked.add(renew);
+            return renew ? 'fresh' : 'stale';
+          },
+        ),
+        client: MockClient((request) async {
+          final fresh = request.headers['Authorization'] == 'Bearer fresh';
+          return http.Response('{}', fresh ? 200 : 401);
+        }),
+      );
+
+      await client.get('applications/form/');
+
+      expect(asked, [false, true]);
+    });
+  });
 }
