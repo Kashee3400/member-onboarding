@@ -203,7 +203,28 @@ export type ReviewStep = {
   approved_checks: string[];
 };
 
+export type AadhaarCheck = {
+  status: "verified" | "unsigned" | "invalid";
+  source: "scan" | "photo";
+  certificate: string;
+  checked_at: string;
+  checked_by_name: string;
+  consent: boolean;
+  has_photo: boolean;
+  fields: {
+    field: string;
+    label: string;
+    form: string;
+    aadhaar: string;
+    match: boolean | null;
+  }[];
+  /** A UIDAI-signed QR that agrees with every detail it holds. */
+  full_match: boolean;
+};
+
 export type ApplicationDetail = ApplicationSummary & {
+  /** Null when the details were typed in, not read from the Aadhaar QR. */
+  aadhaar_check: AadhaarCheck | null;
   version: number;
   revision: number;
   data: Record<string, Record<string, unknown>> & {

@@ -70,6 +70,7 @@ const PERSONAL_DATA = [
   "application.pdf_downloaded",
   "application.pdf_previewed",
   "application.data_exported",
+  "application.aadhaar_photo_viewed",
   "report.exported",
   "report.pdf_batch_downloaded",
 ].join(",");

@@ -98,6 +98,7 @@ import {
   useFieldMarks,
   useMarksOn,
 } from "./field-marks";
+import { AadhaarCheckCard } from "./aadhaar-check";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
@@ -1288,32 +1289,35 @@ function StepContent({
   // The numbers the old portal showed inside the step, to check against the photos below.
   const extra =
     step.key === "member" ? (
-      <Card className="gap-4 p-5">
-        <Facts>
-          <Fact label="Form No.">
-            <span className="font-mono tabular-nums">
-              {application.form_number || "—"}
-            </span>
-          </Fact>
-          <Fact
-            label="Aadhaar card No."
-            path="applicant.aadhaar_number"
-            change={changes.byPath.get("applicant.aadhaar_number")}
-            trailing={
-              numbers.full ? (
-                <CopyButton
-                  value={numbers.aadhaar.replaceAll(" ", "")}
-                  label="Copy Aadhaar"
-                />
-              ) : null
-            }
-          >
-            <span className="font-mono tabular-nums">
-              {numbers.aadhaar || null}
-            </span>
-          </Fact>
-        </Facts>
-      </Card>
+      <>
+        <AadhaarCheckCard application={application} documents={documents} />
+        <Card className="gap-4 p-5">
+          <Facts>
+            <Fact label="Form No.">
+              <span className="font-mono tabular-nums">
+                {application.form_number || "—"}
+              </span>
+            </Fact>
+            <Fact
+              label="Aadhaar card No."
+              path="applicant.aadhaar_number"
+              change={changes.byPath.get("applicant.aadhaar_number")}
+              trailing={
+                numbers.full ? (
+                  <CopyButton
+                    value={numbers.aadhaar.replaceAll(" ", "")}
+                    label="Copy Aadhaar"
+                  />
+                ) : null
+              }
+            >
+              <span className="font-mono tabular-nums">
+                {numbers.aadhaar || null}
+              </span>
+            </Fact>
+          </Facts>
+        </Card>
+      </>
     ) : step.key === "bank" ? (
       <Card className="gap-4 p-5">
         <Facts>
