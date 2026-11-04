@@ -312,24 +312,19 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     await _load();
   }
 
+  /// The MPP picked on the start card. With only one, it is picked already.
+  String? _chosenMppId;
+
+  MppSummary? get _chosenMpp {
+    if (_mpps.length == 1) return _mpps.single;
+    for (final mpp in _mpps) {
+      if (mpp.id == _chosenMppId) return mpp;
+    }
+    return null;
+  }
+
   Future<void> _startNew() async {
-    final mpp = await showModalBottomSheet<MppSummary>(
-      context: context,
-      shape: const RoundedRectangleBorder(),
-      builder: (sheet) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(title: Text(Strings.chooseMpp)),
-            for (final item in _mpps)
-              ListTile(
-                title: Text('${item.code} ${item.name}'),
-                onTap: () => Navigator.pop(sheet, item),
-              ),
-          ],
-        ),
-      ),
-    );
+    final mpp = _chosenMpp;
     if (mpp == null || !mounted) return;
 
     // Filled now, not on the first sync, so a form started offline shows it too.
@@ -399,8 +394,10 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                     const SizedBox(height: 12),
                   ],
                   _StartCard(
-                    mppCount: _mpps.length,
-                    onStart: _schema == null ? null : _startNew,
+                    mpps: _mpps,
+                    chosen: _chosenMpp,
+                    onChoose: (mpp) => setState(() => _chosenMppId = mpp?.id),
+                    onStart: _schema == null || _chosenMpp == null ? null : _startNew,
                   ),
                   if (month != null) ...[
                     const SizedBox(height: 20),
@@ -511,10 +508,19 @@ class _Banner extends StatelessWidget {
 }
 
 class _StartCard extends StatelessWidget {
-  const _StartCard({required this.mppCount, required this.onStart});
+  const _StartCard({
+    required this.mpps,
+    required this.chosen,
+    required this.onChoose,
+    required this.onStart,
+  });
 
-  final int mppCount;
+  final List<MppSummary> mpps;
+  final MppSummary? chosen;
+  final ValueChanged<MppSummary?> onChoose;
   final VoidCallback? onStart;
+
+  int get mppCount => mpps.length;
 
   @override
   Widget build(BuildContext context) {
@@ -574,6 +580,8 @@ class _StartCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          _MppField(mpps: mpps, chosen: chosen, onChoose: onChoose),
+          const SizedBox(height: 10),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: scheme.onPrimary,
@@ -586,6 +594,53 @@ class _StartCard extends StatelessWidget {
             label: const Text(Strings.newForm, style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Search for MPP": type part of the code or the name, and the list under the
+/// field narrows as you type. The same kind of field the facilitator app uses.
+class _MppField extends StatelessWidget {
+  const _MppField({required this.mpps, required this.chosen, required this.onChoose});
+
+  final List<MppSummary> mpps;
+  final MppSummary? chosen;
+  final ValueChanged<MppSummary?> onChoose;
+
+  static String label(MppSummary mpp) => '${mpp.code} ${mpp.name}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, box) => DropdownMenu<MppSummary>(
+        // A new key per choice, so the field shows what was chosen, also after a reload.
+        key: ValueKey('mpp-field-${chosen?.id}'),
+        width: box.maxWidth,
+        menuHeight: 320,
+        initialSelection: chosen,
+        enabled: mpps.isNotEmpty,
+        enableFilter: true,
+        enableSearch: true,
+        requestFocusOnTap: true,
+        hintText: Strings.searchMpp,
+        leadingIcon: const Icon(Icons.meeting_room_outlined, color: Color(0xFF10B981)),
+        textStyle: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: scheme.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        dropdownMenuEntries: [
+          for (final mpp in mpps)
+            DropdownMenuEntry<MppSummary>(value: mpp, label: label(mpp)),
+        ],
+        onSelected: onChoose,
       ),
     );
   }

@@ -34,6 +34,7 @@ class Strings {
   static const title = 'Member Forms';
   static const newForm = 'New form';
   static const chooseMpp = 'Choose MPP';
+  static const searchMpp = 'Search for MPP...';
   static const myDrafts = 'Unfinished forms';
   static const sentBack = 'Sent back for correction';
   static const startTitle = 'Start a new member form';

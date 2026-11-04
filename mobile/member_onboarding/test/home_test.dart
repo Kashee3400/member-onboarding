@@ -72,6 +72,7 @@ class FakeApi extends OnboardingApi {
   int saves = 0;
   List<ApplicationSummary> sentBack = const [];
   List<ApplicationSummary> serverDrafts = const [];
+  List<Map<String, dynamic>> moreMpps = const [];
   final pushTokens = <String>[];
 
   @override
@@ -100,6 +101,7 @@ class FakeApi extends OnboardingApi {
         'name': 'Dudwa',
         'place': {'tehsil': 'Gyanpur', 'tehsil_code': '00951', 'post_office': ''},
       },
+      ...moreMpps,
     ];
   }
 
@@ -185,9 +187,8 @@ void main() {
 
     expect(find.text(Strings.offlineReady), findsOneWidget);
 
+    // The only MPP is chosen already.
     await tester.tap(find.text(Strings.newForm));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('1305 Dudwa'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('${Strings.step} 1 / 9'), findsOneWidget);
@@ -197,14 +198,41 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
   });
 
+  testWidgets('with several MPPs, one is searched for and chosen before a new form', (tester) async {
+    final store = MemoryDraftStore();
+    final api = FakeApi()
+      ..moreMpps = const [
+        {'id': 'm2', 'code': '1152', 'name': 'Tilthi', 'place': <String, String>{}},
+      ];
+    await tester.pumpWidget(app(api, store));
+    await tester.pumpAndSettle();
+
+    final start = find.widgetWithText(FilledButton, Strings.newForm);
+    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+
+    await tester.tap(find.byType(DropdownMenu<MppSummary>));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Til');
+    await tester.pumpAndSettle();
+    // Typing narrows the list to the MPPs that match.
+    expect(find.widgetWithText(MenuItemButton, '1305 Dudwa'), findsNothing);
+    await tester.tap(find.widgetWithText(MenuItemButton, '1152 Tilthi'));
+    await tester.pumpAndSettle();
+    await tester.tap(start);
+    await tester.pumpAndSettle();
+
+    expect((await store.all()).single.mppLabel, '1152 Tilthi');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 3));
+  });
+
   testWidgets('a new form starts with the place its MPP knows', (tester) async {
     final store = MemoryDraftStore();
     await tester.pumpWidget(app(FakeApi(), store));
     await tester.pumpAndSettle();
 
+    // The only MPP is chosen already.
     await tester.tap(find.text(Strings.newForm));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('1305 Dudwa'));
     await tester.pumpAndSettle();
 
     final draft = (await store.all()).single;
