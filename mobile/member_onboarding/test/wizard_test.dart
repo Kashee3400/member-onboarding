@@ -486,8 +486,7 @@ void main() {
   });
 
   wizardTest('every photo is cut to its document before it is checked', (tester) async {
-    crops.clear();
-    checked.clear();
+    forgetDevice();
     final controller = newController();
     await pumpWith(tester, controller, const _FakeDevice());
 
@@ -499,6 +498,95 @@ void main() {
     expect(crops, [('passbook', '/tmp/gallery.jpg')]);
     expect(checked, ['/tmp/gallery.jpg']);
     expect(controller.draft.hasDocument('passbook'), isTrue);
+  });
+
+  Future<void> takeWithCamera(WidgetTester tester, String label) async {
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source.camera')));
+    await tester.pumpAndSettle();
+  }
+
+  wizardTest('a passbook from the camera is scanned, flattened and made smaller', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    await pumpWith(tester, controller, const _FakeDevice());
+
+    await takeWithCamera(tester, Strings.passbook);
+
+    expect(scans, ['scan']);
+    expect(crops, isEmpty);
+    expect(checked, ['/tmp/scan.jpg.small']);
+    expect(photosRead, isEmpty);
+    // The full-size scan does not stay on the phone.
+    expect(discarded, ['/tmp/scan.jpg']);
+    expect(controller.draft.hasDocument('passbook'), isTrue);
+  });
+
+  wizardTest('a phone that cannot scan uses the camera and the cropper', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    await pumpWith(tester, controller, const _FakeDevice(scannerWorks: false));
+
+    await takeWithCamera(tester, Strings.passbook);
+
+    expect(crops, [('passbook', '/tmp/photo.jpg')]);
+    expect(controller.draft.hasDocument('passbook'), isTrue);
+  });
+
+  wizardTest('a profile photo is never scanned as a document', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    await pumpWith(tester, controller, const _FakeDevice());
+
+    await takeWithCamera(tester, Strings.photo);
+
+    expect(scans, isEmpty);
+    expect(crops, [('photo', '/tmp/photo.jpg')]);
+  });
+
+  wizardTest('the Aadhaar QR in a photo fills the form once the member agrees', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    const qr = '<PrintLetterBarcodeData name="Photo Applicant" gender="F" yob="1984"/>';
+    await pumpWith(tester, controller, const _FakeDevice(qrInPhoto: qr));
+
+    await takeWithCamera(tester, Strings.aadhaarBack);
+    // The full-size scan is read, before it is made smaller.
+    expect(photosRead, ['/tmp/scan.jpg']);
+    await tester.tap(find.byKey(const ValueKey('scan.consent')));
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.section('applicant')['full_name'], 'Photo Applicant');
+    expect(controller.draft.pendingAadhaarQr, qr);
+    expect(controller.draft.hasDocument('aadhaar_back'), isTrue);
+  });
+
+  wizardTest('without consent the photo is kept but the QR is not used', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    const qr = '<PrintLetterBarcodeData name="Photo Applicant" gender="F" yob="1984"/>';
+    await pumpWith(tester, controller, const _FakeDevice(qrInPhoto: qr));
+
+    await takeWithCamera(tester, Strings.aadhaarFront);
+    await tester.tap(find.text(Strings.scanConsentNo));
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.section('applicant')['full_name'], isNull);
+    expect(controller.draft.pendingAadhaarQr, isNull);
+    expect(controller.draft.hasDocument('aadhaar_front'), isTrue);
+  });
+
+  wizardTest('once a QR is in hand, the other side of the card is not read again', (tester) async {
+    forgetDevice();
+    final controller = newController();
+    controller.setAadhaarQr('123');
+    await pumpWith(tester, controller, const _FakeDevice(qrInPhoto: 'anything'));
+
+    await takeWithCamera(tester, Strings.aadhaarBack);
+
+    expect(photosRead, isEmpty);
+    expect(find.text(Strings.scanConsent), findsNothing);
   });
 
   test('each document has the shape it is printed in', () {
@@ -970,10 +1058,31 @@ void nomineeTests() {
 }
 
 class _FakeDevice extends DeviceServices {
-  const _FakeDevice({this.problem, this.qr});
+  const _FakeDevice({this.problem, this.qr, this.scannerWorks = true, this.qrInPhoto});
 
   final PhotoProblem? problem;
   final String? qr;
+  final bool scannerWorks;
+  final String? qrInPhoto;
+
+  @override
+  Future<String?> scanDocument() async {
+    if (!scannerWorks) throw const ScannerUnavailable('no scanner');
+    scans.add('scan');
+    return '/tmp/scan.jpg';
+  }
+
+  @override
+  Future<String> shrink(String path) async => '$path.small';
+
+  @override
+  Future<void> discard(String path) async => discarded.add(path);
+
+  @override
+  Future<String?> readQrInPhoto(String path) async {
+    photosRead.add(path);
+    return qrInPhoto;
+  }
 
   @override
   Future<String?> scanQr(BuildContext context) async => qr;
@@ -1005,6 +1114,17 @@ class _FakeDevice extends DeviceServices {
   }
 }
 
-/// What the fake device was asked to crop and check, in order.
+/// What the fake device was asked to scan, crop, check and read, in order.
+final scans = <String>[];
 final crops = <(String, String)>[];
 final checked = <String>[];
+final photosRead = <String>[];
+final discarded = <String>[];
+
+void forgetDevice() {
+  scans.clear();
+  crops.clear();
+  checked.clear();
+  photosRead.clear();
+  discarded.clear();
+}

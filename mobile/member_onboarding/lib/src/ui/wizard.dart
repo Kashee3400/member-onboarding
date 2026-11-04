@@ -409,20 +409,58 @@ class _FormWizardState extends State<FormWizard> {
     ),
   );
 
+  /// A scanned page for a card or passbook from the camera, otherwise a photo cut to
+  /// the document's shape. Null when the facilitator went back.
+  Future<String?> _takeDocument(String type, {required bool camera}) async {
+    if (camera && DeviceServices.scannable.contains(type)) {
+      try {
+        final scanned = await widget.device.scanDocument();
+        if (scanned == null) return null;
+        // The full-size scan reads a dense Aadhaar QR best, so it is looked at first.
+        if (type.startsWith('aadhaar_')) await _qrFromPhoto(scanned);
+        final small = await widget.device.shrink(scanned);
+        if (small != scanned) await widget.device.discard(scanned);
+        return small;
+      } on ScannerUnavailable {
+        // This phone cannot scan: the plain camera and the cropper below.
+      }
+    }
+    final taken = await (camera ? widget.device.takePhoto() : widget.device.choosePhoto());
+    if (taken == null || !mounted) return null;
+    // Cut to the document's shape before anything looks at it.
+    final path = await widget.device.cropPhoto(
+      taken,
+      type: type,
+      title: _documentLabels[type] ?? type,
+      color: Theme.of(context).colorScheme.primary,
+    );
+    if (path != taken) await widget.device.discard(taken);
+    if (type.startsWith('aadhaar_')) await _qrFromPhoto(path);
+    return path;
+  }
+
+  /// One photo of the Aadhaar can also fill the form: when its QR can be read and
+  /// none was scanned yet, the member is asked, and it is used as a scan would be.
+  Future<void> _qrFromPhoto(String path) async {
+    final draft = _form.draft;
+    if (draft.pendingAadhaarQr != null || draft.aadhaarCheck != null) return;
+    final raw = await widget.device.readQrInPhoto(path);
+    if (raw == null || !mounted) return;
+    final details = parseAadhaarQr(raw);
+    if (details == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await _askConsent() || !mounted) return;
+    _applyScan(details);
+    _form.setAadhaarQr(raw);
+    messenger.showSnackBar(const SnackBar(content: Text(Strings.filledFromPhoto)));
+  }
+
   Future<void> _capture(String type) async {
     final camera = await _askSource(type);
     if (camera == null || !mounted) return;
     while (true) {
-      final taken = await (camera ? widget.device.takePhoto() : widget.device.choosePhoto());
-      if (taken == null || !mounted) return;
-      // Cut to the document's shape before anything looks at it.
-      final path = await widget.device.cropPhoto(
-        taken,
-        type: type,
-        title: _documentLabels[type] ?? type,
-        color: Theme.of(context).colorScheme.primary,
-      );
-      if (!mounted) return;
+      final path = await _takeDocument(type, camera: camera);
+      if (path == null || !mounted) return;
       final problem = await widget.device.checkPhoto(path);
       if (!mounted) return;
       if (problem == null) {

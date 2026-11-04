@@ -9,11 +9,13 @@ environment:
 
 dependencies:
   cryptography: ^2.9.0
+  cunning_document_scanner: ^3.0.4
   flutter:
     sdk: flutter
   flutter_secure_storage: ">=10.0.0 <12.0.0"
   geolocator: ">=14.0.2 <15.0.0"
   http: ">=1.2.0 <2.0.0"
+  image: ">=4.1.7 <5.0.0"
   image_cropper: ">=8.0.0 <14.0.0"
   image_picker: ">=1.2.0 <2.0.0"
   mobile_scanner: ^7.4.3

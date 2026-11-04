@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -38,6 +40,66 @@ class DeviceServices {
       imageQuality: _imageQuality,
     );
     return photo?.path;
+  }
+
+  /// Documents the scanner can find the edges of and flatten, like a scanning app.
+  static const scannable = {'aadhaar_front', 'aadhaar_back', 'passbook'};
+
+  /// The document scanner: it finds the page's edges, straightens a tilted shot and
+  /// crops it, and has its own gallery import. Returns the scanned picture, or null
+  /// when the facilitator went back. Throws [ScannerUnavailable] when this phone
+  /// cannot scan, so the plain camera and the cropper are used instead.
+  Future<String?> scanDocument() async {
+    final List<String>? pages;
+    try {
+      pages = await CunningDocumentScanner.getPictures(
+        noOfPages: 1,
+        scannerSource: ScannerSource.cameraAndGallery,
+        // No automatic filters: a black-and-white "enhance" can wash out a faded card.
+        androidScannerMode: AndroidScannerMode.base,
+      );
+    } catch (error) {
+      throw ScannerUnavailable(error);
+    }
+    if (pages == null || pages.isEmpty) return null;
+    return pages.first;
+  }
+
+  /// Scans come at the camera's full size. Kept at the same width as other photos,
+  /// so they upload on a weak village network. Gives the path of the smaller copy.
+  Future<String> shrink(String path) async {
+    try {
+      final output = '$path.small.jpg';
+      final done = await compute(_shrinkJpeg, (path, output, _maxImageWidth.toInt()));
+      return done ? output : path;
+    } catch (_) {
+      return path;
+    }
+  }
+
+  /// Deletes a picture the app made on the way, such as the full-size scan of an
+  /// Aadhaar, so no copy outside the encrypted vault is left on the phone.
+  Future<void> discard(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  /// The text of a QR code in a photo, such as the Aadhaar's, or null.
+  Future<String?> readQrInPhoto(String path) async {
+    final controller = MobileScannerController(autoStart: false);
+    try {
+      final capture = await controller.analyzeImage(path, formats: const [BarcodeFormat.qrCode]);
+      for (final barcode in capture?.barcodes ?? const <Barcode>[]) {
+        if (barcode.rawValue case final value? when value.isNotEmpty) return value;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      await controller.dispose();
+    }
   }
 
   /// The shape each document is cut to. Null lets the facilitator choose.
@@ -150,6 +212,20 @@ class DeviceServices {
       context,
     ).push<String>(MaterialPageRoute(builder: (_) => const _QrScannerScreen()));
   }
+}
+
+class ScannerUnavailable implements Exception {
+  const ScannerUnavailable(this.cause);
+  final Object cause;
+}
+
+bool _shrinkJpeg((String, String, int) job) {
+  final (source, target, width) = job;
+  final image = img.decodeImage(File(source).readAsBytesSync());
+  if (image == null) return false;
+  final small = image.width > width ? img.copyResize(image, width: width) : image;
+  File(target).writeAsBytesSync(img.encodeJpg(small, quality: 80));
+  return true;
 }
 
 enum PhotoProblem { dark, blurry }

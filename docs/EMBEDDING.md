@@ -43,7 +43,8 @@ dependencies:
       ref: main        # or a tag the operator gives you
 ```
 
-It needs Flutter 3.32 or later and Android 6 (minSdk 23) or later. Add these
+It needs Flutter 3.32 or later and Android 7 (minSdk 24) or later: the document
+scanner, which finds a card's edges and straightens it, needs Android 7. Add these
 Android permissions, used for document photos, the Aadhaar QR and the visit's
 location:
 

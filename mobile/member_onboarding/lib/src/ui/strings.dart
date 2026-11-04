@@ -112,6 +112,8 @@ class Strings {
   static const scanFailed =
       'Could not read the QR. If the card is old or worn, scan the QR in the member\'s '
       'mAadhaar app or on her e-Aadhaar instead, or fill it in by hand';
+  static const filledFromPhoto =
+      'The Aadhaar QR in the photo filled in her details. Check them on the next steps';
   static const scanConsentTitle = 'Ask the member first';
   static const scanConsent =
       'Her Aadhaar QR will be read to fill in and verify her details with UIDAI\'s '
