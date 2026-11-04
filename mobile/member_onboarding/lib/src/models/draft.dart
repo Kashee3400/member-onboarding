@@ -15,6 +15,8 @@ class Draft {
     Map<String, dynamic>? data,
     this.pendingAadhaar,
     this.pendingAccount,
+    this.pendingAadhaarQr,
+    this.aadhaarCheck,
     this.aadhaarLast4 = '',
     this.accountLast4 = '',
     Map<String, String>? pendingDocuments,
@@ -44,6 +46,8 @@ class Draft {
     data: (json['data'] as Map).cast<String, dynamic>(),
     pendingAadhaar: json['pending_aadhaar'] as String?,
     pendingAccount: json['pending_account'] as String?,
+    pendingAadhaarQr: json['pending_aadhaar_qr'] as String?,
+    aadhaarCheck: json['aadhaar_check'] as String?,
     aadhaarLast4: json['aadhaar_last4'] as String,
     accountLast4: json['account_last4'] as String,
     pendingDocuments: (json['pending_documents'] as Map).cast<String, String>(),
@@ -98,6 +102,13 @@ class Draft {
   /// Sensitive numbers stay here only until the server has them.
   String? pendingAadhaar;
   String? pendingAccount;
+
+  /// The Aadhaar QR as scanned, with the member's consent, until the server has
+  /// checked its UIDAI signature. Never kept after that.
+  String? pendingAadhaarQr;
+
+  /// What the server found: verified, unsigned or invalid. Null before any scan.
+  String? aadhaarCheck;
   String aadhaarLast4;
   String accountLast4;
 
@@ -154,6 +165,8 @@ class Draft {
     'data': data,
     'pending_aadhaar': pendingAadhaar,
     'pending_account': pendingAccount,
+    'pending_aadhaar_qr': pendingAadhaarQr,
+    'aadhaar_check': aadhaarCheck,
     'aadhaar_last4': aadhaarLast4,
     'account_last4': accountLast4,
     'pending_documents': pendingDocuments,

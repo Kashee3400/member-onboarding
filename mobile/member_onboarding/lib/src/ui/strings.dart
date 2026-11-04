@@ -109,7 +109,19 @@ class Strings {
   static const aadhaarInvalid = 'Enter a valid 12-digit Aadhaar number';
   static const scanAadhaar = 'Scan Aadhaar QR';
   static const scanHint = 'Keep the QR code inside the box';
-  static const scanFailed = 'Could not read the QR. Please fill it in by hand';
+  static const scanFailed =
+      'Could not read the QR. If the card is old or worn, scan the QR in the member\'s '
+      'mAadhaar app or on her e-Aadhaar instead, or fill it in by hand';
+  static const scanConsentTitle = 'Ask the member first';
+  static const scanConsent =
+      'Her Aadhaar QR will be read to fill in and verify her details with UIDAI\'s '
+      'signature. Does she agree?';
+  static const scanConsentYes = 'She agrees';
+  static const scanConsentNo = 'Not now';
+  static const aadhaarVerified = 'Verified with UIDAI\'s signature';
+  static const aadhaarUnsigned = 'Older QR, not signed: the office checks by eye';
+  static const aadhaarNotUidai = 'This QR is not signed by UIDAI. Check the card';
+  static const aadhaarWaiting = 'Scanned. Verified when the form is next saved';
   static const scanCheck = 'Check the details the scan filled in';
 
   static const useLocation = 'Use current location';

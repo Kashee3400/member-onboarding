@@ -60,9 +60,10 @@ class FakeApi extends OnboardingApi {
     required Map<String, dynamic> data,
     String? aadhaarNumber,
     String? accountNumber,
+    String? aadhaarQr,
   }) async {
     _maybeFail();
-    saves.add({'version': version, 'data': data, 'aadhaar': aadhaarNumber});
+    saves.add({'version': version, 'data': data, 'aadhaar': aadhaarNumber, 'qr': aadhaarQr});
     this.version++;
     return _server('draft');
   }
@@ -184,6 +185,15 @@ void main() {
     expect(controller.draft.pendingAadhaar, isNull);
     expect((await store.all()).single.encode(), isNot(contains('234123412346')));
     expect(controller.draft.hasAadhaar, isTrue);
+  });
+
+  test('a scanned Aadhaar QR goes to the server once and leaves the phone', () async {
+    controller.setAadhaarQr('123456789');
+    await controller.sync();
+
+    expect(api.saves.single['qr'], '123456789');
+    expect(controller.draft.pendingAadhaarQr, isNull);
+    expect((await store.all()).single.encode(), isNot(contains('123456789')));
   });
 
   test('a sensitive number survives while offline', () async {

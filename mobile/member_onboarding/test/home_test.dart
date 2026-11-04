@@ -132,6 +132,7 @@ class FakeApi extends OnboardingApi {
     required Map<String, dynamic> data,
     String? aadhaarNumber,
     String? accountNumber,
+    String? aadhaarQr,
   }) async {
     saves++;
     return {

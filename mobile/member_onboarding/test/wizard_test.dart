@@ -712,6 +712,8 @@ void main() {
 
     await tester.tap(find.text(Strings.scanAadhaar));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('scan.consent')));
+    await tester.pumpAndSettle();
 
     final address = controller.draft.section('address');
     expect(controller.draft.section('applicant')['full_name'], 'Test Applicant');
@@ -719,6 +721,29 @@ void main() {
     expect(address['tehsil'], 'Gyanpur');
     expect(address['house_number'], '12');
     expect(address['post_office'], 'Mondh');
+    // Kept for the server to check UIDAI's signature, and shown as waiting for it.
+    expect(controller.draft.pendingAadhaarQr, qr);
+    expect(find.text(Strings.aadhaarWaiting), findsOneWidget);
+  });
+
+  wizardTest('no scan without the member agreeing', (tester) async {
+    final controller = newController(draft: placedDraft());
+    await pump(
+      tester,
+      controller,
+      withSchema: placeSchema,
+      device: _FakeDevice(qr: '<PrintLetterBarcodeData name="Test Applicant"/>'),
+    );
+    await goToStep(tester, 2);
+
+    await tester.tap(find.text(Strings.scanAadhaar));
+    await tester.pumpAndSettle();
+    expect(find.text(Strings.scanConsent), findsOneWidget);
+    await tester.tap(find.text(Strings.scanConsentNo));
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.section('applicant')['full_name'], isNull);
+    expect(controller.draft.pendingAadhaarQr, isNull);
   });
 
   wizardTest('a place from the MPP never shows as still needed', (tester) async {

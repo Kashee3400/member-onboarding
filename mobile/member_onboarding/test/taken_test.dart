@@ -38,6 +38,7 @@ class TakenApi extends OnboardingApi {
     required Map<String, dynamic> data,
     String? aadhaarNumber,
     String? accountNumber,
+    String? aadhaarQr,
   }) async => _form(version + 1, {
     'address.mobile': 'Another form already uses this mobile number.',
     if (accountNumber != null)

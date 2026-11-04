@@ -528,15 +528,54 @@ class _FormWizardState extends State<FormWizard> {
     if (details.number != null) _form.setAadhaar(details.number!);
   }
 
+  Future<bool> _askConsent() async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text(Strings.scanConsentTitle),
+          content: const Text(Strings.scanConsent),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text(Strings.scanConsentNo),
+            ),
+            FilledButton(
+              key: const ValueKey('scan.consent'),
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text(Strings.scanConsentYes),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
   Future<void> _scanAadhaar() async {
     final messenger = ScaffoldMessenger.of(context);
+    if (!await _askConsent() || !mounted) return;
     final raw = await widget.device.scanQr(context);
     if (raw == null) return;
     final details = parseAadhaarQr(raw);
-    if (details != null) _applyScan(details);
+    if (details != null) {
+      _applyScan(details);
+      // The server checks UIDAI's signature; the phone only reads.
+      _form.setAadhaarQr(raw);
+    }
     messenger.showSnackBar(
       SnackBar(content: Text(details == null ? Strings.scanFailed : Strings.scanCheck)),
     );
+  }
+
+  (String, Color, IconData)? _aadhaarStatus() {
+    final draft = _form.draft;
+    if (draft.pendingAadhaarQr != null) {
+      return (Strings.aadhaarWaiting, Colors.grey.shade700, Icons.schedule);
+    }
+    return switch (draft.aadhaarCheck) {
+      'verified' => (Strings.aadhaarVerified, Colors.green.shade700, Icons.verified),
+      'unsigned' => (Strings.aadhaarUnsigned, Colors.orange.shade800, Icons.info_outline),
+      'invalid' => (Strings.aadhaarNotUidai, Colors.red.shade700, Icons.gpp_bad_outlined),
+      _ => null,
+    };
   }
 
   Widget _applicantStep() {
@@ -555,6 +594,16 @@ class _FormWizardState extends State<FormWizard> {
             icon: const Icon(Icons.qr_code_scanner),
             label: const Text(Strings.scanAadhaar),
           ),
+          if (_aadhaarStatus() case (final text, final color, final icon))
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(text, style: TextStyle(color: color, fontSize: 13)),
+                ),
+              ],
+            ),
           TextBox(
             key: const ValueKey('aadhaar_number'),
             label: Strings.aadhaarNumber,

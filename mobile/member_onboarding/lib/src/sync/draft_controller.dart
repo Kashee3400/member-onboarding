@@ -70,6 +70,12 @@ class DraftController extends ChangeNotifier {
     _changed();
   }
 
+  /// Only called after the member agreed: the consent travels with the QR.
+  void setAadhaarQr(String raw) {
+    draft.pendingAadhaarQr = raw;
+    _changed();
+  }
+
   void setAccount(String number) {
     draft.pendingAccount = number;
     serverErrors = Map.of(serverErrors)..remove('bank.account_number');
@@ -144,6 +150,8 @@ class DraftController extends ChangeNotifier {
         ..mobileVerified = verified['mobile'] != null
         ..emailVerified = verified['email'] != null;
     }
+    final check = server['aadhaar_check'];
+    draft.aadhaarCheck = check is Map ? check['status'] as String? : null;
     // The server knows the MPP's latest place, even for a form started before it was set.
     if (server['mpp_place'] != null) draft.place = placeFromJson(server['mpp_place']);
   }
@@ -214,17 +222,20 @@ class DraftController extends ChangeNotifier {
 
       final aadhaar = draft.pendingAadhaar;
       final account = draft.pendingAccount;
+      final qr = draft.pendingAadhaarQr;
       final saved = await _api.saveApplication(
         draft.serverId!,
         version: draft.version!,
         data: draft.data,
         aadhaarNumber: aadhaar,
         accountNumber: account,
+        aadhaarQr: qr,
       );
       _apply(saved);
       // The server holds them now, so they must not stay on the phone.
       if (draft.pendingAadhaar == aadhaar) draft.pendingAadhaar = null;
       if (draft.pendingAccount == account) draft.pendingAccount = null;
+      if (draft.pendingAadhaarQr == qr) draft.pendingAadhaarQr = null;
       _refuseTaken(saved['duplicate_fields']);
 
       for (final entry in Map.of(draft.pendingDocuments).entries) {

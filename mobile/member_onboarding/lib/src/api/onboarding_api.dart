@@ -210,12 +210,14 @@ class OnboardingApi {
     required Map<String, dynamic> data,
     String? aadhaarNumber,
     String? accountNumber,
+    String? aadhaarQr,
   }) async =>
       await _client.patch('applications/$id/', {
             'version': version,
             'data': data,
             'aadhaar_number': ?aadhaarNumber,
             'account_number': ?accountNumber,
+            if (aadhaarQr != null) ...{'aadhaar_qr': aadhaarQr, 'aadhaar_qr_consent': true},
           })
           as Map<String, dynamic>;
 
