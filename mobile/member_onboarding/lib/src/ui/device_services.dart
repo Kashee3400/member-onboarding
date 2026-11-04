@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -37,6 +38,59 @@ class DeviceServices {
       imageQuality: _imageQuality,
     );
     return photo?.path;
+  }
+
+  /// The shape each document is cut to. Null lets the facilitator choose.
+  static const cropRatios = <String, CropAspectRatio?>{
+    // An Aadhaar card is ID-1 size, 85.6 x 54 mm.
+    'aadhaar_front': CropAspectRatio(ratioX: 85.6, ratioY: 54),
+    'aadhaar_back': CropAspectRatio(ratioX: 85.6, ratioY: 54),
+    // Passport style, the shape of the photo box on the printed form.
+    'photo': CropAspectRatio(ratioX: 3, ratioY: 4),
+    'member_signature': CropAspectRatio(ratioX: 3, ratioY: 1),
+    'member_thumbprint': CropAspectRatio(ratioX: 1, ratioY: 1),
+    // First pages differ from bank to bank.
+    'passbook': null,
+  };
+
+  /// Opens the photo to cut it to the document's shape, with rotate and zoom. Gives
+  /// back the cropped picture, or the photo as it was when the crop is cancelled
+  /// or the phone cannot crop: a photo is never lost here.
+  Future<String> cropPhoto(
+    String path, {
+    required String type,
+    required String title,
+    required Color color,
+  }) async {
+    final ratio = cropRatios[type];
+    final locked = ratio != null;
+    try {
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: path,
+        aspectRatio: ratio,
+        maxWidth: _maxImageWidth.toInt(),
+        compressQuality: 85,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: title,
+            toolbarColor: color,
+            toolbarWidgetColor: Colors.white,
+            activeControlsWidgetColor: color,
+            lockAspectRatio: locked,
+            showCropGrid: true,
+          ),
+          IOSUiSettings(
+            title: title,
+            aspectRatioLockEnabled: locked,
+            resetAspectRatioEnabled: !locked,
+            aspectRatioPickerButtonHidden: locked,
+          ),
+        ],
+      );
+      return cropped?.path ?? path;
+    } catch (_) {
+      return path;
+    }
   }
 
   /// Looked at on the phone, so a bad photo is retaken while the member is still there.

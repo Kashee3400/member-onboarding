@@ -413,8 +413,16 @@ class _FormWizardState extends State<FormWizard> {
     final camera = await _askSource(type);
     if (camera == null || !mounted) return;
     while (true) {
-      final path = await (camera ? widget.device.takePhoto() : widget.device.choosePhoto());
-      if (path == null) return;
+      final taken = await (camera ? widget.device.takePhoto() : widget.device.choosePhoto());
+      if (taken == null || !mounted) return;
+      // Cut to the document's shape before anything looks at it.
+      final path = await widget.device.cropPhoto(
+        taken,
+        type: type,
+        title: _documentLabels[type] ?? type,
+        color: Theme.of(context).colorScheme.primary,
+      );
+      if (!mounted) return;
       final problem = await widget.device.checkPhoto(path);
       if (!mounted) return;
       if (problem == null) {

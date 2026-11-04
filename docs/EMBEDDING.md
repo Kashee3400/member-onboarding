@@ -54,6 +54,16 @@ location:
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 ```
 
+Document photos are cropped to each document's shape, so also register the crop
+screen inside `<application>`:
+
+```xml
+<activity
+    android:name="com.yalantis.ucrop.UCropActivity"
+    android:screenOrientation="portrait"
+    android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+```
+
 On iOS, add `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`
 and `NSPhotoLibraryUsageDescription` to `Info.plist`.
 

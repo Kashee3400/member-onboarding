@@ -485,6 +485,31 @@ void main() {
     expect(controller.draft.hasDocument('passbook'), isTrue);
   });
 
+  wizardTest('every photo is cut to its document before it is checked', (tester) async {
+    crops.clear();
+    checked.clear();
+    final controller = newController();
+    await pumpWith(tester, controller, const _FakeDevice());
+
+    await tester.tap(find.text(Strings.passbook));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('source.gallery')));
+    await tester.pumpAndSettle();
+
+    expect(crops, [('passbook', '/tmp/gallery.jpg')]);
+    expect(checked, ['/tmp/gallery.jpg']);
+    expect(controller.draft.hasDocument('passbook'), isTrue);
+  });
+
+  test('each document has the shape it is printed in', () {
+    final aadhaar = DeviceServices.cropRatios['aadhaar_front']!;
+    expect(aadhaar.ratioX / aadhaar.ratioY, closeTo(1.585, 0.001));
+    expect(DeviceServices.cropRatios['aadhaar_back'], DeviceServices.cropRatios['aadhaar_front']);
+    final photo = DeviceServices.cropRatios['photo']!;
+    expect(photo.ratioX / photo.ratioY, 0.75);
+    expect(DeviceServices.cropRatios['passbook'], isNull);
+  });
+
   wizardTest('a document can come from the gallery too', (tester) async {
     final controller = newController();
     await pumpWith(tester, controller, const _FakeDevice());
@@ -963,5 +988,23 @@ class _FakeDevice extends DeviceServices {
   Future<String?> choosePhoto() async => '/tmp/gallery.jpg';
 
   @override
-  Future<PhotoProblem?> checkPhoto(String path) async => problem;
+  Future<String> cropPhoto(
+    String path, {
+    required String type,
+    required String title,
+    required Color color,
+  }) async {
+    crops.add((type, path));
+    return path;
+  }
+
+  @override
+  Future<PhotoProblem?> checkPhoto(String path) async {
+    checked.add(path);
+    return problem;
+  }
 }
+
+/// What the fake device was asked to crop and check, in order.
+final crops = <(String, String)>[];
+final checked = <String>[];
