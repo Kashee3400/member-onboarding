@@ -133,7 +133,7 @@ void main() {
       },
     );
     await pump(tester, newController(draft: draft), withSchema: checkedSchema);
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.pleaseCheck), findsOneWidget);
     final problem = find.byKey(const ValueKey('problem.address.mobile'));
@@ -147,6 +147,6 @@ void main() {
     await tester.tap(problem);
     await tester.pump();
 
-    expect(find.text('${Strings.step} 3 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 3 / 8'), findsOneWidget);
   });
 }

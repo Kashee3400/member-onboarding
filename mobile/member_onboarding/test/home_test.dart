@@ -191,7 +191,7 @@ void main() {
     await tester.tap(find.text(Strings.newForm));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.textContaining('${Strings.step} 1 / 8'), findsOneWidget);
     expect((await store.all()).single.mppLabel, '1305 Dudwa');
 
     await tester.pumpWidget(const SizedBox());

@@ -200,7 +200,7 @@ void main() {
     await tester.tap(find.text(Strings.next));
     await tester.pump();
 
-    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
     expect(find.byKey(const ValueKey('step.still_to_fill')), findsOneWidget);
     expect(find.text('• ${Strings.photo}'), findsOneWidget);
   });
@@ -210,7 +210,7 @@ void main() {
 
     await goToStep(tester, 5);
 
-    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
   });
 
   wizardTest('a finished step lets Next go on, and empty fields say they are needed', (tester) async {
@@ -226,7 +226,7 @@ void main() {
 
     await tester.tap(find.text(Strings.next));
     await tester.pump();
-    expect(find.text('${Strings.step} 2 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 2 / 8'), findsOneWidget);
     expect(
       find.descendant(of: boxFor('applicant.full_name'), matching: find.text(Strings.required)),
       findsOneWidget,
@@ -235,12 +235,12 @@ void main() {
     // Back is always open.
     await tester.tap(find.text(Strings.back));
     await tester.pump();
-    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
   });
 
   wizardTest('the form has nine short steps', (tester) async {
     await pump(tester, newController());
-    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
   });
 
   wizardTest('an active field lifts and an idle one stays flat', (tester) async {
@@ -366,7 +366,7 @@ void main() {
 
   wizardTest('review lists what is missing and blocks submit', (tester) async {
     await pump(tester, newController());
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.stillNeeded), findsOneWidget);
     expect(find.text(Strings.aadhaarNumber), findsOneWidget);
@@ -379,7 +379,7 @@ void main() {
     final controller = newController();
     controller.draft.data['address'] = {'mobile': '9876543210', 'email': 'a@b.in'};
     await pump(tester, controller);
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.mobileNotVerified), findsOneWidget);
     expect(find.text(Strings.emailNotVerified), findsOneWidget);
@@ -391,7 +391,7 @@ void main() {
       ..emailVerified = true;
     await tester.pumpWidget(const SizedBox());
     await pump(tester, confirmed);
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.mobileNotVerified), findsNothing);
     expect(find.text(Strings.emailNotVerified), findsNothing);
@@ -399,13 +399,13 @@ void main() {
 
   wizardTest('tapping a missing item jumps to its step', (tester) async {
     await pump(tester, newController());
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     await tester.ensureVisible(find.text(Strings.accountNumber));
     await tester.tap(find.text(Strings.accountNumber));
     await tester.pump();
 
-    expect(find.text('${Strings.step} 5 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 5 / 8'), findsOneWidget);
   });
 
   wizardTest('a returned form shows why, and marks the field', (tester) async {
@@ -621,7 +621,7 @@ void main() {
     );
     await pump(tester, newController(draft: draft));
 
-    expect(find.text('${Strings.step} 5 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 5 / 8'), findsOneWidget);
   });
 
   wizardTest('review shows each marked field, and whether it was changed', (tester) async {
@@ -637,7 +637,7 @@ void main() {
       find.descendant(of: boxFor('applicant.full_name'), matching: find.byType(TextField)),
       'सीता देवी',
     );
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.toCorrect), findsOneWidget);
     expect(find.text(Strings.corrected), findsOneWidget);
@@ -672,7 +672,7 @@ void main() {
 
   wizardTest('review lists each field with the reason it was sent back', (tester) async {
     await pump(tester, newController(draft: returnedWithNotes()));
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(
       find.descendant(
@@ -731,7 +731,7 @@ void main() {
       fee: const MemberFee(admissionFee: 50, shareCount: 5, sharePrice: 100, total: 550),
     );
     await pump(tester, newController(), withSchema: withFee);
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.byKey(const ValueKey('checklist.0')), findsNothing);
     // Only the admission fee is paid now; the shares come out of the milk money.
@@ -861,7 +861,7 @@ void main() {
 
   wizardTest('a place from the MPP never shows as still needed', (tester) async {
     await pump(tester, newController(draft: placedDraft()), withSchema: placeSchema);
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.text(Strings.stillNeeded), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'तहसील'), findsNothing);
@@ -1040,16 +1040,47 @@ void nomineeTests() {
     await pump(tester, newController());
     expect(find.byKey(const ValueKey('review.signature')), findsNothing);
 
-    await goToStep(tester, 9);
+    await goToStep(tester, 8);
 
     expect(find.byKey(const ValueKey('review.signature')), findsOneWidget);
     expect(find.text(Strings.signHere), findsOneWidget);
   });
 
+  wizardTest('the declaration has no step: it is said above the signature', (tester) async {
+    await pump(tester, newController());
+
+    expect(find.byKey(const ValueKey('stepchip.8')), findsNothing);
+    await goToStep(tester, 8);
+
+    expect(find.text('${Strings.step} 8 / 8'), findsOneWidget);
+    expect(find.byKey(const ValueKey('review.declaration')), findsOneWidget);
+    expect(find.text(Strings.signingDeclares), findsOneWidget);
+  });
+
+  wizardTest('a thumbprint makes the declaration, as a signature does', (tester) async {
+    final controller = newController();
+    await pump(tester, controller, device: const _FakeDevice());
+    await goToStep(tester, 8);
+    expect(controller.draft.section('declaration'), isEmpty);
+
+    await tester.ensureVisible(find.text(Strings.cannotWrite));
+    await tester.tap(find.text(Strings.cannotWrite));
+    await tester.pumpAndSettle();
+    if (find.byKey(const ValueKey('source.camera')).evaluate().isNotEmpty) {
+      await tester.tap(find.byKey(const ValueKey('source.camera')));
+      await tester.pumpAndSettle();
+    }
+
+    expect(controller.draft.hasDocument('member_thumbprint'), isTrue);
+    final declared = controller.draft.section('declaration');
+    expect(declared.values, isNotEmpty);
+    expect(declared.values.every((value) => value == true), isTrue);
+  });
+
   wizardTest('the documents come first, as photo tiles', (tester) async {
     await pump(tester, newController());
 
-    expect(find.text('${Strings.step} 1 / 9'), findsOneWidget);
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
     for (final type in ['photo', 'aadhaar_front', 'aadhaar_back', 'passbook']) {
       expect(find.byKey(ValueKey('document.$type')), findsOneWidget);
     }

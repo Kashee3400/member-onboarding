@@ -64,6 +64,7 @@ class _FormWizardState extends State<FormWizard> {
 
   // Documents first: they are taken in one go, and the rest is typed from them.
   // The member signs last, on the review, once the whole form has been read to them.
+  // Her signature there also makes the declaration, so it has no step of its own.
   late final List<_Step> _steps = [
     const _Step('documents', Strings.documents, Icons.photo_library_outlined),
     _Step('applicant', _schema.section('applicant').title, Icons.person_outline),
@@ -72,7 +73,6 @@ class _FormWizardState extends State<FormWizard> {
     _Step('bank', _schema.section('bank').title, Icons.account_balance_outlined),
     const _Step('family', Strings.family, Icons.groups_outlined),
     _Step('nominee', _schema.section('nominee').title, Icons.volunteer_activism_outlined),
-    _Step('declaration', _schema.section('declaration').title, Icons.fact_check_outlined),
     const _Step('review', Strings.review, Icons.draw_outlined),
   ];
 
@@ -86,9 +86,10 @@ class _FormWizardState extends State<FormWizard> {
     'bank': 4,
     'family': 5,
     'nominee': 6,
+    // Made by signing, on the review.
     'declaration': 7,
   };
-  static const _reviewIndex = 8;
+  static const _reviewIndex = 7;
   static const _signatures = {'member_signature', 'member_thumbprint'};
 
   static const _photos = [
@@ -373,6 +374,15 @@ class _FormWizardState extends State<FormWizard> {
   Future<void> _attach(String type, String path) async {
     _changed.add('documents.$type');
     await _form.attachDocument(type, path);
+    if (_signatures.contains(type)) _declare();
+  }
+
+  /// The member signs under the declaration on the review: her signature (or thumb)
+  /// is her agreement to every line of it.
+  void _declare() {
+    for (final spec in _schema.section('declaration').fields) {
+      _form.setValue('declaration', spec.key, true);
+    }
   }
 
   /// A dark or blurred photo is caught now, not days later by the reviewer.
@@ -1312,12 +1322,6 @@ class _FormWizardState extends State<FormWizard> {
     ]);
   }
 
-  Widget _declarationStep() => SectionCard(
-    title: _schema.section('declaration').title,
-    icon: Icons.fact_check_outlined,
-    children: [for (final spec in _schema.section('declaration').fields) _field('declaration', spec)],
-  );
-
   // Review and signature ----------------------------------------------------------------
 
   Future<void> _sign() async {
@@ -1390,6 +1394,39 @@ class _FormWizardState extends State<FormWizard> {
       icon: Icons.draw_outlined,
       children: [
         Text(Strings.signLast, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Container(
+          key: const ValueKey('review.declaration'),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(Strings.signingDeclares, style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              for (final spec in _schema.section('declaration').fields)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _form.draft.section('declaration')[spec.key] == true
+                            ? Icons.check_circle
+                            : Icons.circle_outlined,
+                        size: 18,
+                        color: Colors.green.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(spec.label)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
         if (signed || thumb)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -1654,7 +1691,6 @@ class _FormWizardState extends State<FormWizard> {
     'bank' => _bankStep(),
     'family' => _familyStep(),
     'nominee' => _nomineeStep(),
-    'declaration' => _declarationStep(),
     _ => _reviewStep(),
   };
 
