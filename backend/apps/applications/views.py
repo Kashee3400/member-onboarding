@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from apps.audit.services import record_event
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
+from apps.documents import storage
 from apps.documents.models import Document
 from apps.documents.services import current_signature
 from apps.hierarchy.models import Mpp
@@ -281,6 +282,8 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             aadhaar=data.get("aadhaar_number"),
             account=data.get("account_number"),
             version=data.get("version"),
+            aadhaar_qr=data.get("aadhaar_qr"),
+            aadhaar_qr_consent=data.get("aadhaar_qr_consent", False),
         )
         return self._detail(application)
 
@@ -508,6 +511,21 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             metadata={"variant": variant, "status": application.status},
         )
         return _pdf_response(content, f"{application.form_number}-draft.pdf")
+
+    @extend_schema(
+        responses={(200, "image/jpeg"): OpenApiTypes.BINARY, 404: ErrorResponseSerializer}
+    )
+    @action(detail=True, methods=["get"], url_path="aadhaar-photo")
+    def aadhaar_photo(self, request, pk=None):
+        """The member's photo from her Aadhaar QR, to compare with the profile photo."""
+        application = self.get_object()
+        check = getattr(application, "aadhaar_check", None)
+        if check is None or not check.photo_path:
+            raise exceptions.NotFound("No photo was read from the Aadhaar QR.")
+        record_event("application.aadhaar_photo_viewed", actor=request.user, target=application)
+        response = HttpResponse(storage.read(check.photo_path), content_type="image/jpeg")
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     @extend_schema(responses={(200, "application/zip"): OpenApiTypes.BINARY})
     @action(detail=True, methods=["get"], url_path="data-export")

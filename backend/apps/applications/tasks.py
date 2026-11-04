@@ -44,3 +44,22 @@ def discard_stale_drafts() -> int:
     if total:
         logger.info("stale_drafts_discarded", count=total)
     return total
+
+
+@shared_task
+def read_aadhaar_qr(application_id: str, organization_id: str, document_id: str) -> None:
+    """Reads the QR from an uploaded Aadhaar photo. A failure only means none was read."""
+    from apps.documents import storage
+    from apps.documents.models import Document
+
+    from . import aadhaar_check
+
+    try:
+        with organization_context(organization_id):
+            document = Document.objects.get(pk=document_id)
+            application = Application.objects.get(pk=application_id)
+            aadhaar_check.read_from_photo(
+                application, storage.read(document.relative_path), user=document.uploaded_by
+            )
+    except Exception:
+        logger.exception("aadhaar_qr_from_photo_failed", application=application_id)

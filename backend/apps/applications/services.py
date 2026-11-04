@@ -311,7 +311,17 @@ def _ensure_current(application, version: int | None) -> None:
         raise StaleVersion()
 
 
-def save_draft(application, *, user, data=None, aadhaar=None, account=None, version=None):
+def save_draft(
+    application,
+    *,
+    user,
+    data=None,
+    aadhaar=None,
+    account=None,
+    version=None,
+    aadhaar_qr=None,
+    aadhaar_qr_consent=False,
+):
     """Autosave. Accepts partial answers: completeness is only checked on submit."""
     _ensure_editable(application)
     _ensure_current(application, version)
@@ -356,6 +366,16 @@ def save_draft(application, *, user, data=None, aadhaar=None, account=None, vers
     application.last_edited_by = user
     application.last_edited_by_name = display_name(user)
     application.save()
+    if aadhaar_qr:
+        from . import aadhaar_check
+
+        aadhaar_check.record(
+            application,
+            aadhaar_qr,
+            source="scan",
+            user=user,
+            consent=aadhaar_qr_consent,
+        )
     return application
 
 

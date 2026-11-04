@@ -5,6 +5,8 @@ from apps.audit.services import record_event
 from . import images, storage
 from .models import REQUIRED_DOCUMENTS, SIGNATURE_DOCUMENTS, Document, StaffSignature
 
+AADHAAR_PHOTOS = ("aadhaar_front", "aadhaar_back")
+
 
 def attach_document(application, *, document_type, raw, user, user_name) -> Document:
     content, content_type = images.normalize_document(raw)
@@ -35,6 +37,14 @@ def attach_document(application, *, document_type, raw, user, user_name) -> Docu
         target=document,
         metadata={"application": str(application.id), "type": document_type},
     )
+    if document_type in AADHAAR_PHOTOS:
+        from apps.applications.tasks import read_aadhaar_qr
+
+        transaction.on_commit(
+            lambda: read_aadhaar_qr.delay(
+                str(application.id), str(application.organization_id), str(document.id)
+            )
+        )
     return document
 
 

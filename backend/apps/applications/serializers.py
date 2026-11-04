@@ -7,7 +7,17 @@ from rest_framework import serializers
 from apps.hierarchy.models import Mpp
 from apps.hierarchy.services import mpp_place
 
-from . import banks, form, place, review_checks, review_settings, review_steps, services, warnings
+from . import (
+    aadhaar_check,
+    banks,
+    form,
+    place,
+    review_checks,
+    review_settings,
+    review_steps,
+    services,
+    warnings,
+)
 from .models import (
     Application,
     ApplicationDecision,
@@ -128,6 +138,26 @@ class RevisionSerializer(serializers.ModelSerializer):
         ]
 
 
+class AadhaarFieldSerializer(serializers.Serializer):
+    field = serializers.CharField()
+    label = serializers.CharField()
+    form = serializers.CharField(allow_blank=True)
+    aadhaar = serializers.CharField(allow_blank=True)
+    match = serializers.BooleanField(allow_null=True)
+
+
+class AadhaarCheckSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["verified", "unsigned", "invalid"])
+    source = serializers.ChoiceField(choices=["scan", "photo"])
+    certificate = serializers.CharField(allow_blank=True)
+    checked_at = serializers.DateTimeField()
+    checked_by_name = serializers.CharField(allow_blank=True)
+    consent = serializers.BooleanField()
+    has_photo = serializers.BooleanField()
+    fields = AadhaarFieldSerializer(many=True)
+    full_match = serializers.BooleanField()
+
+
 class ApplicationDetailSerializer(ApplicationListSerializer):
     """Sensitive numbers appear only as their last four digits."""
 
@@ -144,11 +174,13 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
     decisions = DecisionSerializer(many=True, read_only=True)
     revisions = RevisionSerializer(many=True, read_only=True)
     stages = serializers.SerializerMethodField()
+    aadhaar_check = serializers.SerializerMethodField()
 
     class Meta(ApplicationListSerializer.Meta):
         fields = [
             *ApplicationListSerializer.Meta.fields,
             "stages",
+            "aadhaar_check",
             "client_id",
             "form_version",
             "version",
@@ -174,6 +206,11 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "decisions",
             "revisions",
         ]
+
+    @staticmethod
+    @extend_schema_field(AadhaarCheckSerializer(allow_null=True))
+    def get_aadhaar_check(application):
+        return aadhaar_check.comparison(application)
 
     @staticmethod
     def get_duplicate_fields(application) -> dict[str, str]:
@@ -323,11 +360,25 @@ class ApplicationSaveSerializer(serializers.Serializer):
     data = serializers.JSONField(required=False)
     aadhaar_number = serializers.CharField(required=False, write_only=True, max_length=12)
     account_number = serializers.CharField(required=False, write_only=True, max_length=18)
+    aadhaar_qr = serializers.CharField(
+        required=False,
+        write_only=True,
+        max_length=20000,
+        help_text="The Aadhaar QR as scanned. Checked against UIDAI's signature, then dropped.",
+    )
+    aadhaar_qr_consent = serializers.BooleanField(required=False, default=False)
 
     def validate_data(self, value):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Must be an object.")
         return value
+
+    def validate(self, attrs):
+        if attrs.get("aadhaar_qr") and not attrs.get("aadhaar_qr_consent"):
+            raise serializers.ValidationError(
+                {"aadhaar_qr_consent": ["The member must agree to her Aadhaar QR being read."]}
+            )
+        return attrs
 
 
 class SubmitSerializer(serializers.Serializer):

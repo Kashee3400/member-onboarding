@@ -493,6 +493,41 @@ class OrganizationProfile(OrganizationOwnedModel):
         return self.company_name_hi or str(self.organization_id)
 
 
+class AadhaarCheck(OrganizationOwnedModel):
+    """
+    What the member's Aadhaar QR said, and whether UIDAI signed it. One per form;
+    a new scan replaces it. The reviewer compares the form with it at a glance.
+    """
+
+    class Source(models.TextChoices):
+        SCAN = "scan", "Scanned by the facilitator"
+        PHOTO = "photo", "Read from the Aadhaar photo"
+
+    application = models.OneToOneField(
+        "Application", on_delete=models.CASCADE, related_name="aadhaar_check"
+    )
+    # verified, unsigned or invalid: see aadhaar_qr.Status.
+    status = models.CharField(max_length=10)
+    source = models.CharField(max_length=10, choices=Source.choices)
+    certificate = models.CharField(max_length=60, blank=True)
+    details = models.JSONField(default=dict)
+    aadhaar_last4 = models.CharField(max_length=4, blank=True)
+    # The holder's photo from the QR, sealed like any document.
+    photo_path = models.CharField(max_length=300, blank=True)
+    # The member agreed to her Aadhaar QR being read, as the offline verification rules ask.
+    consent_at = models.DateTimeField(null=True, blank=True)
+    checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="+"
+    )
+    checked_by_name = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        db_table = "application_aadhaar_check"
+
+    def __str__(self):
+        return f"{self.application_id} {self.status}"
+
+
 class GeneratedPdf(OrganizationOwnedModel):
     """A printed form, kept so that every reprint is identical to the first."""
 
