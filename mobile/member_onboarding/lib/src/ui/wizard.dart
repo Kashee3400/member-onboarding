@@ -526,6 +526,37 @@ class _FormWizardState extends State<FormWizard> {
     final draft = _form.draft;
     final taken = _photos.where((item) => draft.hasDocument(item.$1)).length;
     return _spaced([
+      // First thing in the form: the QR fills in the member's details for every later step.
+      SectionCard(
+        key: const ValueKey('documents.scan'),
+        title: Strings.scanAadhaar,
+        icon: Icons.qr_code_scanner,
+        children: [
+          Text(
+            Strings.scanFirst,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _scanAadhaar,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text(Strings.scanAadhaar),
+          ),
+          if (_aadhaarStatus() case (final text, final color, final icon))
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(text, style: TextStyle(color: color, fontSize: 13)),
+                ),
+              ],
+            ),
+        ],
+      ),
       _StepIntro(
         text: Strings.documentsIntro,
         trailing: '$taken / ${_photos.length}',
@@ -641,25 +672,6 @@ class _FormWizardState extends State<FormWizard> {
         title: Strings.aadhaarNumber,
         icon: Icons.badge_outlined,
         children: [
-          FilledButton.tonalIcon(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: _scanAadhaar,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text(Strings.scanAadhaar),
-          ),
-          if (_aadhaarStatus() case (final text, final color, final icon))
-            Row(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(text, style: TextStyle(color: color, fontSize: 13)),
-                ),
-              ],
-            ),
           TextBox(
             key: const ValueKey('aadhaar_number'),
             label: Strings.aadhaarNumber,

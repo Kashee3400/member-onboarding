@@ -109,6 +109,8 @@ class Strings {
   static const aadhaarNumber = 'Aadhaar number';
   static const aadhaarInvalid = 'Enter a valid 12-digit Aadhaar number';
   static const scanAadhaar = 'Scan Aadhaar QR';
+  static const scanFirst =
+      'Start here: the QR fills in her name, birth date, relation and address for the next steps.';
   static const scanHint = 'Keep the QR code inside the box';
   static const scanFailed =
       'Could not read the QR. If the card is old or worn, scan the QR in the member\'s '

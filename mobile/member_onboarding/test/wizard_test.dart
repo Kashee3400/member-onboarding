@@ -821,9 +821,8 @@ void main() {
       withSchema: placeSchema,
       device: _FakeDevice(qr: qr),
     );
-    await goToStep(tester, 2);
-
-    await tester.tap(find.text(Strings.scanAadhaar));
+    // The scan is the first thing on the first step.
+    await tester.tap(find.widgetWithText(FilledButton, Strings.scanAadhaar));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('scan.consent')));
     await tester.pumpAndSettle();
@@ -839,6 +838,17 @@ void main() {
     expect(find.text(Strings.aadhaarWaiting), findsOneWidget);
   });
 
+  wizardTest('the Aadhaar scan starts the form, on the documents step', (tester) async {
+    await pump(tester, newController());
+
+    expect(find.text('${Strings.step} 1 / 8'), findsOneWidget);
+    final scan = tester.getTopLeft(find.byKey(const ValueKey('documents.scan'))).dy;
+    expect(scan, lessThan(tester.getTopLeft(find.byKey(const ValueKey('document.photo'))).dy));
+
+    await goToStep(tester, 2);
+    expect(find.widgetWithText(FilledButton, Strings.scanAadhaar), findsNothing);
+  });
+
   wizardTest('no scan without the member agreeing', (tester) async {
     final controller = newController(draft: placedDraft());
     await pump(
@@ -847,9 +857,8 @@ void main() {
       withSchema: placeSchema,
       device: _FakeDevice(qr: '<PrintLetterBarcodeData name="Test Applicant"/>'),
     );
-    await goToStep(tester, 2);
-
-    await tester.tap(find.text(Strings.scanAadhaar));
+    // The scan is the first thing on the first step.
+    await tester.tap(find.widgetWithText(FilledButton, Strings.scanAadhaar));
     await tester.pumpAndSettle();
     expect(find.text(Strings.scanConsent), findsOneWidget);
     await tester.tap(find.text(Strings.scanConsentNo));
