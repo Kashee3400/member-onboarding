@@ -11,7 +11,7 @@ needed.
 
 ## How it fits together
 
-```
+```text
  Your app ──(1) "who is this?"──▶ Your backend
     │                                 │ signs a short-lived token (RS256)
     │◀────────(2) assertion ──────────┘
@@ -98,7 +98,7 @@ Add an endpoint that only a signed-in field user can call and that returns
 `{"assertion": "<token>"}`. The token is a JWT signed with **RS256**:
 
 | Claim | Value |
-|---|---|
+| --- | --- |
 | `iss` | Your app's issuer name, exactly as registered in step 4, e.g. `acme-app` |
 | `aud` | `member-onboarding`, unless the operator tells you otherwise |
 | `sub` | Your user's permanent id. Never reuse one for another person |
@@ -223,7 +223,7 @@ Every refusal looks the same to the app, on purpose. The platform operator can
 see the reason in the service log. The usual ones:
 
 | Reason in the log | Fix |
-|---|---|
+| --- | --- |
 | `unknown_issuer` | `iss` differs from the Connected Apps entry, or the entry is off |
 | `InvalidSignatureError` | The public key in the portal does not match your private key |
 | `InvalidAudienceError` | `aud` differs from the Connected Apps entry |

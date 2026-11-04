@@ -1401,22 +1401,34 @@ function StepContent({
         <StepChecklist application={application} step={step} />
       ) : null}
       {extra}
-      {parts.length ? (
-        parts
-      ) : (
-        <Card className="p-5 text-sm text-muted-foreground">
-          Nothing was filled in for this step.
-        </Card>
-      )}
-      {step.documents.length ? (
-        <StepDocuments
-          types={step.documents}
-          documents={documents}
-          numbers={numbers}
-          application={application}
-          floats={!inDialog}
-        />
-      ) : null}
+      {/* On a wide screen the documents sit beside the fields, to compare without scrolling. */}
+      <div
+        className={cn(
+          "space-y-4",
+          step.documents.length &&
+            !inDialog &&
+            "2xl:grid 2xl:grid-cols-[minmax(0,1fr)_minmax(24rem,32rem)] 2xl:items-start 2xl:gap-4 2xl:space-y-0",
+        )}
+      >
+        <div className="min-w-0 space-y-4">
+          {parts.length ? (
+            parts
+          ) : (
+            <Card className="p-5 text-sm text-muted-foreground">
+              Nothing was filled in for this step.
+            </Card>
+          )}
+        </div>
+        {step.documents.length ? (
+          <StepDocuments
+            types={step.documents}
+            documents={documents}
+            numbers={numbers}
+            application={application}
+            floats={!inDialog}
+          />
+        ) : null}
+      </div>
     </>
   );
 }
