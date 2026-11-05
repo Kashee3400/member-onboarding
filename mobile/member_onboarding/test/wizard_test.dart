@@ -50,6 +50,17 @@ final schema = FormSchema(
     ]),
     section('bank', 'बैंक', [text('ifsc', 'IFSC')]),
     section('nominee', 'नामित', [text('name', 'नामित का नाम')]),
+    section('fee', 'शुल्क', const [
+      FormFieldSpec(
+        key: 'payment_mode',
+        label: 'Payment mode',
+        type: 'choice',
+        required: true,
+        options: [ChoiceOption(value: 'cash', label: 'Cash')],
+      ),
+      FormFieldSpec(key: 'amount_received', label: 'Amount received', type: 'number', required: true),
+      FormFieldSpec(key: 'transaction_id', label: 'Transaction ID', type: 'text', required: false),
+    ]),
     section('declaration', 'घोषणा', const [
       FormFieldSpec(key: 'accepted_terms', label: 'सहमत', type: 'boolean', required: true),
     ]),
@@ -1053,6 +1064,25 @@ void nomineeTests() {
 
     expect(find.byKey(const ValueKey('review.signature')), findsOneWidget);
     expect(find.text(Strings.signHere), findsOneWidget);
+  });
+
+  wizardTest('the fee is collected on the review: cash only, and how much', (tester) async {
+    final controller = newController();
+    await pump(tester, controller);
+    await goToStep(tester, 8);
+
+    final card = find.byKey(const ValueKey('review.fee'));
+    expect(find.descendant(of: card, matching: find.text('Payment mode')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('Amount received')), findsOneWidget);
+    // Only for an online payment, which is not open yet.
+    expect(find.descendant(of: card, matching: find.text('Transaction ID')), findsNothing);
+
+    final cash = find.descendant(of: card, matching: find.text('Cash'));
+    await tester.ensureVisible(cash);
+    await tester.tap(cash);
+    await tester.pump();
+
+    expect(controller.draft.section('fee')['payment_mode'], 'cash');
   });
 
   wizardTest('the declaration has no step: it is said above the signature', (tester) async {

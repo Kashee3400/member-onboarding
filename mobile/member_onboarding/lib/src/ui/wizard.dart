@@ -88,6 +88,8 @@ class _FormWizardState extends State<FormWizard> {
     'nominee': 6,
     // Made by signing, on the review.
     'declaration': 7,
+    // Collected on the review, before she signs.
+    'fee': 7,
   };
   static const _reviewIndex = 7;
   static const _signatures = {'member_signature', 'member_thumbprint'};
@@ -1344,9 +1346,18 @@ class _FormWizardState extends State<FormWizard> {
   }
 
   /// What the member pays, said before she signs.
+  /// The fee section's fields, from the server: an older server has none.
+  List<FormFieldSpec> get _feeFields => [
+    for (final section in _schema.sections)
+      if (section.key == 'fee') ...section.fields,
+  ];
+
   Widget? _feeCard() {
     final fee = _schema.fee;
-    if (fee == null || fee.admissionFee == 0) return null;
+    final fields = _feeFields;
+    if ((fee == null || fee.admissionFee == 0) && fields.isEmpty) return null;
+    // A transaction ID only means something for an online payment.
+    final online = _form.draft.section('fee')['payment_mode'] == 'online';
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     Widget line(String label, String amount, {bool strong = false}) => Padding(
@@ -1376,14 +1387,18 @@ class _FormWizardState extends State<FormWizard> {
       title: Strings.memberFee,
       icon: Icons.currency_rupee,
       children: [
-        Column(
-          children: [
-            line(Strings.admissionFee, '₹${fee.admissionFee}'),
-            const Divider(),
-            line(Strings.totalToPay, '₹${fee.admissionFee}', strong: true),
-          ],
-        ),
-        if (fee.shareCount > 0)
+        if (fee != null && fee.admissionFee > 0)
+          Column(
+            children: [
+              line(Strings.admissionFee, '₹${fee.admissionFee}'),
+              const Divider(),
+              line(Strings.totalToPay, '₹${fee.admissionFee}', strong: true),
+            ],
+          ),
+        // Collected now, in the village: how, and how much.
+        for (final spec in fields)
+          if (spec.key != 'transaction_id' || online) _field('fee', spec),
+        if (fee != null && fee.shareCount > 0)
           Text(
             '${Strings.shares}: ${fee.shareCount} × ₹${fee.sharePrice} = ₹${fee.shareCount * fee.sharePrice}, '
             '${Strings.sharesFromMilk}',
