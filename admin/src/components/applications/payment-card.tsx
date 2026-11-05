@@ -1,13 +1,12 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, TriangleAlert, Upload } from "lucide-react";
 import Link from "next/link";
-import { type FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/common/date-picker";
-import { Field } from "@/components/common/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useCan } from "@/hooks/use-session";
@@ -39,7 +38,6 @@ export function PaymentCard({
   const id = application.id;
   const file = useRef<HTMLInputElement>(null);
   const paid = application.payment;
-  const bank = application.fee.collection_bank;
   const atFinance = application.status === "pending_finance";
   const actsOnAll = useCan(APPROVE_ALL);
   const isFinance = useCan("applications.approve_finance") || actsOnAll;
@@ -51,17 +49,7 @@ export function PaymentCard({
     canRecord ||
     (isFinance && atFinance) ||
     (isAreaManager && application.status === "pending_am");
-  const [depositedOn, setDepositedOn] = useState(paid.deposited_on ?? "");
 
-  const save = useMutation({
-    mutationFn: (body: object) =>
-      api(`applications/${id}/payment`, { method: "POST", body }),
-    onSuccess: () => {
-      toast.success("Deposit saved.");
-      onChange();
-    },
-    onError: (error) => toast.error(message(error)),
-  });
   const upload = useMutation({
     mutationFn: (proof: File) => {
       const body = new FormData();
@@ -79,20 +67,11 @@ export function PaymentCard({
     },
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!depositedOn) {
-      toast.error("Choose the deposit date.");
-      return;
-    }
-    save.mutate({ deposited_on: depositedOn });
-  }
-
   if (!canUpload && !paid.amount) return null;
 
   return (
     <Card id="section-payment" className="scroll-mt-28 gap-3 p-4">
-      <h2 className="text-sm font-semibold">Deposit</h2>
+      <h2 className="text-sm font-semibold">Payment slip</h2>
       {paid.amount ? (
         <p className="flex items-start gap-2 text-sm">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -137,40 +116,93 @@ export function PaymentCard({
           </p>
         </div>
       ) : null}
-
-      {canRecord ? (
-        bank.bank_name ? (
-          <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-            <Field label="Deposit date">
-              <DatePicker
-                value={depositedOn}
-                onChange={setDepositedOn}
-                aria-label="Deposit date"
-              />
-            </Field>
-            <Button type="submit" variant="outline" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save deposit"}
-            </Button>
-            <p className="basis-full text-xs text-muted-foreground">
-              Into {bank.bank_name}, {bank.branch_name}
-              {bank.bank_address ? `, ${bank.bank_address}` : ""}: the
-              organization&apos;s collection account.
-            </p>
-          </form>
-        ) : (
-          <p className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
-            <TriangleAlert className="size-4" /> Set the bank member fees are
-            paid into, under{" "}
-            <Link
-              href="/admin/member-code"
-              className="underline underline-offset-2"
-            >
-              Member Code
-            </Link>
-            , before recording a deposit.
-          </p>
-        )
-      ) : null}
     </Card>
+  );
+}
+
+/**
+ * The deposit date, picked by Finance on the day the money reached the collection
+ * account. Everything else about the fee is already known, so this is all they enter.
+ */
+export function DepositDate({
+  application,
+}: {
+  application: ApplicationDetail;
+}) {
+  const client = useQueryClient();
+  const paid = application.payment;
+  const bank = application.fee.collection_bank;
+  const canRecord = application.review_steps.some(
+    (step) => step.key === "fee" && step.can_approve,
+  );
+  const [value, setValue] = useState(paid.deposited_on ?? "");
+  const save = useMutation({
+    mutationFn: () =>
+      api(`applications/${application.id}/payment`, {
+        method: "POST",
+        body: { deposited_on: value },
+      }),
+    onSuccess: () => {
+      toast.success("Deposit date saved.");
+      client.invalidateQueries({ queryKey: ["application", application.id] });
+      client.invalidateQueries({ queryKey: ["queue"] });
+    },
+    onError: (error) => toast.error(message(error)),
+  });
+
+  if (!canRecord) {
+    return (
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Deposit date</p>
+        <p className="border bg-muted/40 px-3 py-2.5 text-sm">
+          {paid.deposited_on ? date(paid.deposited_on) : "—"}
+        </p>
+        {paid.deposited_on ? null : (
+          <p className="text-xs text-muted-foreground">
+            Finance picks this at the Finance stage.
+          </p>
+        )}
+      </div>
+    );
+  }
+  if (!bank.bank_name) {
+    return (
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Deposit date</p>
+        <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <TriangleAlert className="size-3.5" /> First set the collection bank
+          under{" "}
+          <Link
+            href="/admin/member-code"
+            className="underline underline-offset-2"
+          >
+            Member Code
+          </Link>
+          .
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">Deposit date</p>
+      <div className="flex gap-2">
+        <DatePicker
+          value={value}
+          onChange={setValue}
+          aria-label="Deposit date"
+        />
+        <Button
+          type="button"
+          disabled={save.isPending || !value || value === paid.deposited_on}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? "Saving…" : "Save"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The day the payment reached the account.
+      </p>
+    </div>
   );
 }

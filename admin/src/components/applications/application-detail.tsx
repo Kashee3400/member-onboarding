@@ -103,7 +103,7 @@ import { DeleteForm } from "./delete-form";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
-import { PaymentCard } from "./payment-card";
+import { DepositDate, PaymentCard } from "./payment-card";
 import { WithdrawApproval } from "./withdraw-approval";
 
 type SchemaSection = FormSchema["sections"][number];
@@ -1508,9 +1508,8 @@ function FeeDetails({
         <Fact label="Bank address">
           {text(paid.bank_address || bank.bank_address)}
         </Fact>
-        <Fact label="Deposit date">
-          {paid.deposited_on ? date(paid.deposited_on) : null}
-        </Fact>
+        {/* The one thing Finance fills in: the day the payment reached the account. */}
+        <DepositDate application={application} />
         <Fact label="SHG member">
           {fee.is_shg_member
             ? "Yes"
