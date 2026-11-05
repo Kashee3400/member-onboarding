@@ -347,9 +347,34 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
 
   Future<void> _openRejected(ApplicationSummary item) async {
     for (final draft in await _store.all()) {
-      if (draft.serverId == item.id) return _open(draft);
+      if (draft.serverId == item.id) return _open(await _withServerDocuments(draft));
     }
-    await _open(Draft.fromServer(await _api.fetchApplication(item.id)));
+    await _open(await _withServerDocuments(Draft.fromServer(await _api.fetchApplication(item.id))));
+  }
+
+  /// A form already on the server keeps its photos there: the phone deleted its own
+  /// copies once they were sent. They count as taken and show from the server, so a
+  /// form sent back for one photo does not ask for all of them again. A photo the
+  /// reviewer marked is left out on purpose: that one is to be taken again.
+  Future<Draft> _withServerDocuments(Draft draft) async {
+    final id = draft.serverId;
+    if (id == null) return draft;
+    try {
+      final onServer = await _api.fetchDocumentIds(id);
+      draft.uploadedDocuments
+        ..clear()
+        ..addAll(
+          onServer.keys.where(
+            (type) =>
+                !draft.pendingDocuments.containsKey(type) &&
+                !draft.rejectedFields.contains('documents.$type'),
+          ),
+        );
+      await _store.save(draft);
+    } on Object {
+      // Offline: the form opens as the phone last knew it.
+    }
+    return draft;
   }
 
   @override

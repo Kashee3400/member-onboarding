@@ -73,6 +73,29 @@ class FakeApi extends OnboardingApi {
   List<ApplicationSummary> sentBack = const [];
   List<ApplicationSummary> serverDrafts = const [];
   List<Map<String, dynamic>> moreMpps = const [];
+  Map<String, String> documentIds = const {};
+
+  @override
+  Future<Map<String, dynamic>> fetchApplication(String id) async => {
+    'id': id,
+    'client_id': 'c-$id',
+    'mpp': 'm1',
+    'mpp_code': '1305',
+    'mpp_name': 'Dudwa',
+    'version': 4,
+    'status': 'rejected',
+    'data': <String, dynamic>{},
+    'aadhaar_last4': '4426',
+    'account_last4': '1234',
+    'rejection_reason': 'Photo not matched',
+    'rejected_fields': ['documents.photo'],
+    'rejected_field_notes': <String, String>{},
+    'contact_verified': <String, dynamic>{},
+    'mpp_place': <String, String>{},
+  };
+
+  @override
+  Future<Map<String, String>> fetchDocumentIds(String id) async => documentIds;
   final pushTokens = <String>[];
 
   @override
@@ -300,6 +323,49 @@ void main() {
     await tester.tap(find.text(Strings.later));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('sent_back.alert')), findsNothing);
+  });
+
+  testWidgets('a form sent back for its photo keeps the other photos from the server', (tester) async {
+    final store = MemoryDraftStore();
+    final api = FakeApi()
+      ..sentBack = const [
+        ApplicationSummary(
+          id: 'r1',
+          status: 'rejected',
+          statusLabel: 'Rejected',
+          applicantName: 'Sarika Gupta',
+          mppCode: '1305',
+          formNumber: 'A00012',
+        ),
+      ]
+      ..documentIds = const {
+        'photo': 'd1',
+        'aadhaar_front': 'd2',
+        'aadhaar_back': 'd3',
+        'passbook': 'd4',
+        'member_signature': 'd5',
+      };
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemberOnboardingScreen(
+          config: MemberOnboardingConfig(baseUrl: 'https://x.test', assertionProvider: () async => ''),
+          api: api,
+          store: store,
+          device: const FakeDevice(),
+          openApplicationId: 'r1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final draft = (await store.all()).single;
+    // Already on the server, so not asked for again...
+    expect(draft.uploadedDocuments, {'aadhaar_front', 'aadhaar_back', 'passbook', 'member_signature'});
+    // ...except the photo the reviewer sent it back for.
+    expect(draft.hasDocument('photo'), isFalse);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets('no alert when nothing was sent back', (tester) async {
