@@ -430,9 +430,9 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _CountTile(label: Strings.sent, value: month.submitted, onTap: _openRecords),
+                        _CountTile(label: Strings.totalForms, value: month.total, onTap: _openRecords),
                         const SizedBox(width: 8),
-                        _CountTile(label: Strings.waiting, value: month.pending, onTap: _openRecords),
+                        _CountTile(label: Strings.waiting, value: month.underReview, onTap: _openRecords),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -440,14 +440,14 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                       children: [
                         _CountTile(
                           label: Strings.approved,
-                          value: month.approved,
+                          value: month.becameMembers,
                           color: Colors.green.shade700,
                           onTap: _openRecords,
                         ),
                         const SizedBox(width: 8),
                         _CountTile(
                           label: Strings.returned,
-                          value: month.rejected,
+                          value: month.sentBack,
                           color: scheme.error,
                           onTap: _openRecords,
                         ),

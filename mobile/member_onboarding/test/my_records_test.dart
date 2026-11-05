@@ -57,7 +57,7 @@ class RecordsApi extends OnboardingApi {
 
   @override
   Future<RecordSummary> fetchSummary({required DateTime from, required DateTime to}) async =>
-      const RecordSummary(started: 35, submitted: 34, pending: 33, approved: 0, rejected: 1);
+      const RecordSummary(total: 35, draft: 1, underReview: 33, sentBack: 1, becameMembers: 0);
 }
 
 // The page itself, not the rows of chips that scroll sideways inside it.
@@ -75,6 +75,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('35'), findsOneWidget);
+    expect(find.text(Strings.totalForms), findsOneWidget);
+    expect(find.text(Strings.draftCount), findsOneWidget);
     expect(find.text('Member 0'), findsOneWidget);
     await tester.scrollUntilVisible(find.text(Strings.showMore), 300, scrollable: list);
     expect(find.text(Strings.showMore), findsOneWidget);
@@ -143,7 +145,8 @@ void main() {
 
     expect(find.text(Strings.approvals), findsOneWidget);
     expect(find.text('Area Manager'), findsOneWidget);
-    expect(find.textContaining(Strings.stageApproved), findsOneWidget);
+    // The approved stage names who approved it.
+    expect(find.textContaining('AM Chunar'), findsOneWidget);
     expect(find.textContaining(Strings.stagePending), findsOneWidget);
     expect(find.text(Strings.stageNotYet), findsOneWidget);
     // Waiting at a stage cannot be edited from the phone.
@@ -157,5 +160,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(Strings.recordsNeedNetwork), findsOneWidget);
+  });
+
+  test('the counts read where forms stand now, and add up', () {
+    final summary = RecordSummary.fromJson({
+      'started': 5,
+      'rejected': 2,
+      'now': {'total': 5, 'draft': 1, 'under_review': 3, 'sent_back': 0, 'became_members': 1},
+    });
+
+    expect(summary.sentBack, 0);
+    expect(summary.draft + summary.underReview + summary.sentBack + summary.becameMembers, summary.total);
   });
 }

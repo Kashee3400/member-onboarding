@@ -86,29 +86,46 @@ class ApplicationSummary {
   final DateTime? submittedAt;
 }
 
-/// A person's own counts between two dates, as the records screen shows them.
+/// A person's forms started between two dates, by where each stands now. Each form
+/// is in one of them, so they add up to [total]: a form sent back and sent in again
+/// is under review, no longer sent back.
 class RecordSummary {
   const RecordSummary({
-    this.started = 0,
-    this.submitted = 0,
-    this.pending = 0,
-    this.approved = 0,
-    this.rejected = 0,
+    this.total = 0,
+    this.draft = 0,
+    this.underReview = 0,
+    this.sentBack = 0,
+    this.becameMembers = 0,
   });
 
-  factory RecordSummary.fromJson(Map<String, dynamic> json) => RecordSummary(
-    started: json['started'] as int? ?? 0,
-    submitted: json['submitted'] as int? ?? 0,
-    pending: json['pending'] as int? ?? 0,
-    approved: json['approved'] as int? ?? 0,
-    rejected: json['rejected'] as int? ?? 0,
-  );
+  factory RecordSummary.fromJson(Map<String, dynamic> json) {
+    final now = json['now'];
+    if (now is Map) {
+      return RecordSummary(
+        total: now['total'] as int? ?? 0,
+        draft: now['draft'] as int? ?? 0,
+        underReview: now['under_review'] as int? ?? 0,
+        sentBack: now['sent_back'] as int? ?? 0,
+        becameMembers: now['became_members'] as int? ?? 0,
+      );
+    }
+    // An older server counts events instead: the nearest it has.
+    final started = json['started'] as int? ?? 0;
+    final submitted = json['submitted'] as int? ?? 0;
+    return RecordSummary(
+      total: started,
+      draft: (started - submitted).clamp(0, started),
+      underReview: json['pending'] as int? ?? 0,
+      sentBack: json['rejected'] as int? ?? 0,
+      becameMembers: json['approved'] as int? ?? 0,
+    );
+  }
 
-  final int started;
-  final int submitted;
-  final int pending;
-  final int approved;
-  final int rejected;
+  final int total;
+  final int draft;
+  final int underReview;
+  final int sentBack;
+  final int becameMembers;
 }
 
 /// One page of a person's forms, and how many there are in all.

@@ -58,8 +58,10 @@ class Strings {
   static const pickDates = 'Pick dates';
   static const started = 'Started';
   static const sent = 'Submitted';
+  static const totalForms = 'Total forms';
+  static const draftCount = 'Draft';
   static const waiting = 'Under review';
-  static const approved = 'Became members';
+  static const approved = 'Approved (became member)';
   static const returned = 'Sent back';
   static const all = 'All';
   static const drafts = 'Unfinished';

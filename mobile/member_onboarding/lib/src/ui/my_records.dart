@@ -179,11 +179,11 @@ class _MyRecordsScreenState extends State<MyRecordsScreen> {
       _Range.custom: Strings.pickDates,
     };
     final counts = [
-      (Strings.started, _summary.started, scheme.onSurface),
-      (Strings.sent, _summary.submitted, scheme.onSurface),
-      (Strings.waiting, _summary.pending, Colors.orange.shade800),
-      (Strings.approved, _summary.approved, Colors.green.shade700),
-      (Strings.returned, _summary.rejected, Colors.red.shade700),
+      (Strings.totalForms, _summary.total, scheme.onSurface),
+      (Strings.draftCount, _summary.draft, scheme.onSurfaceVariant),
+      (Strings.waiting, _summary.underReview, Colors.orange.shade800),
+      (Strings.returned, _summary.sentBack, Colors.red.shade700),
+      (Strings.approved, _summary.becameMembers, Colors.green.shade700),
     ];
 
     Widget chips<T>(Iterable<(T, String)> options, T selected, ValueChanged<T> onTap) =>
