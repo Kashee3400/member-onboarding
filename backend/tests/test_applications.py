@@ -905,3 +905,15 @@ def test_clients_can_tell_a_stale_edit_from_a_duplicate(world):
 
     assert duplicate.data["error"]["code"] == "duplicate_record"
     assert stale.data["error"]["code"] == "stale_version"
+
+
+def test_each_form_prefix_counts_on_its_own(world):
+    first = world.submitted(AADHAAR)
+    with organization_context(world.org.id):
+        MemberCodeSettings.objects.update(form_prefix="B")
+
+    second = world.submitted(OTHER_AADHAAR)
+
+    assert first["form_number"] == "A00001"
+    # A new series, for when another portal still gives out A numbers, starts afresh.
+    assert second["form_number"] == "B00001"

@@ -94,6 +94,14 @@ def next_value(key: str) -> int:
     return sequence.value
 
 
+def form_number_key(prefix: str) -> str:
+    """
+    Each series counts on its own. A new prefix, say B while another portal still
+    gives out A numbers, starts again from 00001 and can never meet the other.
+    """
+    return f"form_number:{prefix}"
+
+
 def fee_problems(data: dict) -> dict:
     """The facilitator must have collected exactly the admission fee."""
     fee = data.get("fee", {})
@@ -438,7 +446,7 @@ def submit(application, *, user, version=None):
 
     if not application.form_number:
         prefix = code_settings().form_prefix
-        application.form_number = f"{prefix}{next_value('form_number'):05d}"
+        application.form_number = f"{prefix}{next_value(form_number_key(prefix)):05d}"
 
     application.revision += 1
     application.version += 1

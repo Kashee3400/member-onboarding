@@ -149,7 +149,8 @@ def import_legacy_members(path, *, organization_id, form_prefix: str) -> dict:
         _raise_sequence(organization_id, serial_key(state_code, village, hamlet_code), serial)
     highest_form, form_typos = _last_real_form_number(form_numbers)
     if highest_form:
-        _raise_sequence(organization_id, "form_number", highest_form)
+        # The imported forms were numbered in this series: new ones must come after them.
+        _raise_sequence(organization_id, f"form_number:{form_prefix}", highest_form)
 
     report["members"] = len(records)
     report["villages"] = len({village for _, village, _ in highest_serial})
