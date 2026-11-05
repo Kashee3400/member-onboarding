@@ -25,7 +25,13 @@ LISTS = {
     "family_status": ("Family status", "BPL or APL"),
     "family_relation": ("Household relation", "How each household member is related"),
     "nominee_relation": ("Nominee relation", "How the nominee is related to the applicant"),
+    "payment_mode": (
+        "Payment mode",
+        "How the facilitator collects the member fee. Switch Online on once a gateway is set up",
+    ),
 }
+# Kept in the list but off at the start: there is no payment gateway yet.
+STARTS_RETIRED = {("payment_mode", "online")}
 MAX_LABEL = 100
 
 
@@ -39,6 +45,7 @@ def _seed(missing: set[str]) -> None:
                 label=option["label"],
                 label_hi=OPTION_LABELS.get(option["value"], option["label"]),
                 position=position,
+                is_active=(key, option["value"]) not in STARTS_RETIRED,
             )
             for key in sorted(missing)
             for position, option in enumerate(form.OPTION_LISTS[key])

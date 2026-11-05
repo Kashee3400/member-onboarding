@@ -213,7 +213,15 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
         if request.query_params.get("mine") in ("1", "true"):
             forms = forms.filter(created_by=request.user)
         start, end = _date_range(request)
-        return Response({"from": start, "to": end, **home.totals(forms, start, end)})
+        # Events in the period (older apps read these) and where its forms stand now.
+        return Response(
+            {
+                "from": start,
+                "to": end,
+                **home.totals(forms, start, end),
+                "now": home.status_totals(forms, start, end),
+            }
+        )
 
     @extend_schema(responses={200: StatusCountsSerializer})
     @action(detail=False, methods=["get"], filterset_class=None, pagination_class=None)

@@ -236,6 +236,23 @@ def _measures(forms, start, end) -> dict:
     }
 
 
+def status_totals(forms, start, end) -> dict:
+    """
+    The forms started between two dates, by where each stands now. Each form counts
+    once, so the parts add up to the total: a form sent back and sent in again is
+    under review, not sent back.
+    """
+    started = forms.filter(created_at__date__range=(start, end))
+    by_status = dict(started.order_by().values_list("status").annotate(count=Count("id")))
+    counts = {
+        "draft": by_status.get(Status.DRAFT, 0),
+        "under_review": sum(by_status.get(stage, 0) for stage in services.STAGES),
+        "sent_back": by_status.get(Status.REJECTED, 0),
+        "became_members": by_status.get(Status.APPROVED, 0),
+    }
+    return {"total": sum(counts.values()), **counts}
+
+
 def totals(forms, start, end) -> dict:
     return {
         count: queryset.order_by().values("id").distinct().count()

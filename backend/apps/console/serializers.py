@@ -75,3 +75,15 @@ class OrganizationUpdateSerializer(serializers.Serializer):
     storage_limit_mb = serializers.IntegerField(
         required=False, allow_null=True, min_value=1, help_text="Blank for no limit."
     )
+
+
+class ApplicationDeleteSerializer(serializers.Serializer):
+    reason = serializers.CharField(min_length=5, max_length=500, help_text="Kept in the audit log.")
+
+
+class ApplicationDeletedSerializer(serializers.Serializer):
+    form_number = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
+    mpp = serializers.CharField()
+    member = serializers.CharField(allow_blank=True)
+    reason = serializers.CharField()

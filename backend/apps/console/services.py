@@ -74,3 +74,48 @@ def set_storage_limit(organization, limit_mb, *, actor) -> Organization:
             metadata={"limit_mb": limit_mb},
         )
     return organization
+
+
+@transaction.atomic
+def delete_application(application, *, actor, reason: str) -> dict:
+    """
+    Removes a form completely, so it can be filled again from the start: its
+    documents and printed forms, approvals, Aadhaar check, the member it made, and
+    their files. The audit log keeps that it happened, who did it and why.
+    """
+    from apps.applications.models import ApplicationStepApproval, GeneratedPdf, Member
+    from apps.documents import storage
+    from apps.documents.models import Document
+
+    files = [
+        *Document.objects.filter(application=application).values_list("relative_path", flat=True),
+        *GeneratedPdf.objects.filter(application=application).values_list(
+            "relative_path", flat=True
+        ),
+    ]
+    check = getattr(application, "aadhaar_check", None)
+    if check is not None and check.photo_path:
+        files.append(check.photo_path)
+
+    summary = {
+        "form_number": application.form_number,
+        "status": application.status,
+        "mpp": application.mpp.code,
+        "member": Member.objects.filter(application=application)
+        .values_list("tr_code", flat=True)
+        .first()
+        or "",
+        "reason": reason,
+    }
+    # Kept apart from the form's own rows, which go with it.
+    record_event("application.force_deleted", actor=actor, target=application, metadata=summary)
+
+    # What protects the form goes first; everything else follows it.
+    Member.objects.filter(application=application).delete()
+    ApplicationStepApproval.objects.filter(application=application).delete()
+    GeneratedPdf.objects.filter(application=application).delete()
+    Document.objects.filter(application=application).delete()
+    application.delete()
+
+    transaction.on_commit(lambda: [storage.delete_quietly(path) for path in files if path])
+    return summary

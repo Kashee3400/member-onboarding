@@ -99,6 +99,7 @@ def complete_form():
             "date_of_birth": "1982-01-01",
             "address": "Same village",
         },
+        "fee": {"payment_mode": "cash", "amount_received": 50},
         "declaration": {
             "accepted_terms": True,
             "no_household_member": True,

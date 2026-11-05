@@ -30,6 +30,8 @@ GENDERS = _choices(("male", "Male"), ("female", "Female"), ("other", "Other"))
 RELATIONS = _choices(("father", "Father"), ("husband", "Husband"), ("guardian", "Guardian"))
 CATEGORIES = _choices(("general", "General"), ("obc", "OBC"), ("sc", "SC"), ("st", "ST"))
 FAMILY_STATUS = _choices(("bpl", "BPL"), ("apl", "APL"))
+# How the facilitator collects the member fee. Online opens once a gateway is set up.
+PAYMENT_MODES = _choices(("cash", "Cash"), ("online", "Online"))
 EDUCATION = _choices(
     ("none", "None"),
     ("primary", "Primary"),
@@ -62,6 +64,7 @@ OPTION_LISTS = {
     "family_status": FAMILY_STATUS,
     "family_relation": FAMILY_RELATIONS,
     "nominee_relation": FAMILY_RELATIONS,
+    "payment_mode": PAYMENT_MODES,
 }
 DEFAULT_CHOICES = {key: {o["value"] for o in options} for key, options in OPTION_LISTS.items()}
 # ------------------------------------------------------------------------------------
@@ -173,6 +176,16 @@ FORM_SCHEMA = {
                 ),
                 _field("address", "Nominee address"),
                 _field("guardian_name", "Guardian name", required=False),
+            ],
+        },
+        {
+            # Collected in the village, before the member signs. Finance records the deposit.
+            "key": "fee",
+            "title": "Member fee",
+            "fields": [
+                _choice("payment_mode", "Payment mode", "payment_mode"),
+                _field("amount_received", "Amount received", "number"),
+                _field("transaction_id", "Transaction ID", required=False),
             ],
         },
         {

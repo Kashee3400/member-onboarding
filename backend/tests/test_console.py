@@ -11,6 +11,7 @@ from rest_framework.throttling import SimpleRateThrottle
 from apps.accounts.mfa import issue_tokens
 from apps.applications.models import Application, Status
 from apps.applications.services import printed_form
+from apps.audit.models import AuditEvent
 from apps.console import quotas
 from apps.console.throttling import OrganizationRateThrottle
 from apps.core.tenancy import organization_context
@@ -227,3 +228,63 @@ def test_one_organization_has_a_ceiling_on_its_requests(world, ceiling_of_three)
 
     # Two people, one organization: the fourth request is over their shared ceiling.
     assert codes == [200, 200, 200, 429]
+
+
+# Deleting a form outright -------------------------------------------------------------
+
+
+def delete_form(client, application_id, reason="Filled for the wrong member"):
+    return client.post(
+        f"/api/v1/console/applications/{application_id}/delete/", {"reason": reason}, format="json"
+    )
+
+
+def test_the_operator_deletes_a_form_completely_so_it_can_be_filled_again(world):
+    from pathlib import Path
+
+    from django.conf import settings
+
+    from apps.applications.models import Member
+    from apps.documents.models import Document
+
+    from .test_applications import AADHAAR
+
+    done = world.fully_approved()
+    with organization_context(world.org.id):
+        paths = list(
+            Document.objects.filter(application_id=done["id"]).values_list(
+                "relative_path", flat=True
+            )
+        )
+
+    response = delete_form(operator_client(world.org, world.admin), done["id"])
+
+    assert response.status_code == 200, response.content
+    assert response.data["member"] == done["tr_code"]
+    with organization_context(world.org.id):
+        assert not Application.objects.filter(pk=done["id"]).exists()
+        assert not Member.objects.filter(tr_code=done["tr_code"]).exists()
+        assert not Document.objects.filter(application_id=done["id"]).exists()
+        event = AuditEvent.objects.get(action="application.force_deleted", target_id=done["id"])
+        assert event.metadata["reason"] == "Filled for the wrong member"
+    assert paths and not any((Path(settings.MEDIA_ROOT) / path).exists() for path in paths)
+    # The same member can now be filled in afresh.
+    again = world.filled(AADHAAR)
+    assert again["aadhaar_last4"] == AADHAAR[-4:]
+
+
+def test_only_the_operator_may_delete_a_form(world):
+    draft = world.draft()
+
+    assert delete_form(world.client(world.admin), draft["id"]).status_code == 403
+    assert delete_form(world.client(world.facilitator), draft["id"]).status_code == 403
+    with organization_context(world.org.id):
+        assert Application.objects.filter(pk=draft["id"]).exists()
+
+
+def test_a_reason_is_needed(world):
+    draft = world.draft()
+
+    response = delete_form(operator_client(world.org, world.admin), draft["id"], reason="")
+
+    assert response.status_code == 400

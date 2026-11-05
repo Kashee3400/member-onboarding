@@ -118,9 +118,12 @@ class RoleViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         role = serializer.instance
         data = serializer.validated_data
-        if role.is_system and data.get("code", role.code) != role.code:
-            # The code is what the system recognises a standard role by.
-            raise Conflict("A standard role keeps its code.")
+        if role.is_system and (
+            data.get("code", role.code) != role.code or data.get("name", role.name) != role.name
+        ):
+            # The code is what the system recognises a standard role by, and the
+            # name is what everyone knows it as.
+            raise Conflict("A standard role keeps its code and name.")
         previous = role.permissions
         # Taking a permission away is always allowed; adding one must be held.
         self._ensure_can_add(sorted(set(data.get("permissions", previous)) - set(previous)))

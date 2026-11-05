@@ -11,12 +11,14 @@ from apps.organizations.models import Organization
 from .health import organization_health
 from .permissions import IsPlatformOperator
 from .serializers import (
+    ApplicationDeletedSerializer,
+    ApplicationDeleteSerializer,
     ConsoleOrganizationSerializer,
     OrganizationCreatedSerializer,
     OrganizationCreateSerializer,
     OrganizationUpdateSerializer,
 )
-from .services import create_organization, set_active, set_storage_limit
+from .services import create_organization, delete_application, set_active, set_storage_limit
 
 
 def _described(organization) -> dict:
@@ -77,3 +79,27 @@ class ConsoleOrganizationView(APIView):
         if "storage_limit_mb" in data:
             set_storage_limit(organization, data["storage_limit_mb"], actor=request.user)
         return Response(_described(organization))
+
+
+class ConsoleApplicationDeleteView(APIView):
+    """
+    Removes one form of the organization signed in to, completely. For the platform
+    operator only, to let a form be filled again from the start.
+    """
+
+    permission_classes = [IsAuthenticated, IsPlatformOperator]
+
+    @extend_schema(
+        request=ApplicationDeleteSerializer,
+        responses={200: ApplicationDeletedSerializer, 404: ErrorResponseSerializer},
+    )
+    def post(self, request, pk):
+        from apps.applications.models import Application
+
+        serializer = ApplicationDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application = get_object_or_404(Application.objects.select_related("mpp"), pk=pk)
+        summary = delete_application(
+            application, actor=request.user, reason=serializer.validated_data["reason"].strip()
+        )
+        return Response(summary)

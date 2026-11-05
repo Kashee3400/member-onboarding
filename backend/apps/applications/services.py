@@ -94,6 +94,24 @@ def next_value(key: str) -> int:
     return sequence.value
 
 
+def fee_problems(data: dict) -> dict:
+    """The facilitator must have collected exactly the admission fee."""
+    fee = data.get("fee", {})
+    received = fee.get("amount_received")
+    if received in (None, ""):
+        return {}  # Reported as missing by the form's own check.
+    try:
+        received = int(float(received))
+    except TypeError, ValueError:
+        return {"fee.amount_received": "Enter the amount in rupees."}
+    due = code_settings().entry_fee
+    if received != due:
+        return {"fee.amount_received": f"The admission fee is ₹{due}: collect exactly that."}
+    if fee.get("payment_mode") == "online" and not str(fee.get("transaction_id") or "").strip():
+        return {"fee.transaction_id": "Enter the transaction ID of the online payment."}
+    return {}
+
+
 def code_settings() -> MemberCodeSettings:
     settings, _ = MemberCodeSettings.objects.get_or_create()
     return settings
@@ -413,6 +431,7 @@ def submit(application, *, user, version=None):
     applicant_gender = application.data.get("applicant", {}).get("gender")
     if organization_profile().members_female_only and applicant_gender != "female":
         errors["applicant.gender"] = "Membership is open to women only."
+    errors |= fee_problems(application.data)
     signature = _signature_of(user)
     if errors:
         raise exceptions.ValidationError(errors)

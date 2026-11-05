@@ -35,7 +35,8 @@ STEPS = (
     Step("household", "Household Members", ("family",)),
     Step("nominee", "Nominee Declaration", ("nominee", "declaration")),
     Step("village", "Village Details", ("place", "location")),
-    Step(FEE_STEP, "Member Fee", ("payment",), ("payment_proof",)),
+    # What the facilitator collected, then what Finance deposited.
+    Step(FEE_STEP, "Member Fee", ("fee", "payment"), ("payment_proof",)),
 )
 STEP_KEYS = tuple(step.key for step in STEPS)
 TITLES = {step.key: step.title for step in STEPS}

@@ -99,6 +99,7 @@ import {
   useMarksOn,
 } from "./field-marks";
 import { AadhaarCheckCard } from "./aadhaar-check";
+import { DeleteForm } from "./delete-form";
 import { StepDocuments } from "./step-documents";
 import { FormNav } from "./form-nav";
 import { useSensitiveNumbers } from "./numbers-check";
@@ -376,6 +377,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   declaration: ScrollText,
   place: MapPin,
   payment: IndianRupee,
+  fee: IndianRupee,
   history: HistoryIcon,
 };
 
@@ -1072,6 +1074,7 @@ export function ApplicationDetail({ id }: { id: string }) {
                 ) : null}
               </>
             ) : null}
+            <DeleteForm application={data} />
             {canExportData && data.status !== "draft" ? (
               <Button
                 variant="ghost"
@@ -1344,6 +1347,11 @@ function StepContent({
     ) : null;
   const parts = step.sections
     .map((key) => {
+      // The fee reads as one panel, as on the printed form, not as a list of fields.
+      if (key === "fee")
+        return (
+          <FeeDetails key={key} application={application} changes={changes} />
+        );
       const section = schema.sections.find((item) => item.key === key);
       if (section)
         return (
@@ -1434,6 +1442,86 @@ function StepContent({
         ) : null}
       </div>
     </>
+  );
+}
+
+const PAYMENT_MODES: Record<string, string> = {
+  cash: "Cash",
+  online: "Online",
+  dd: "DD",
+};
+
+/**
+ * Step 8 at a glance, laid out as the old portal and the printed form have it: what
+ * the member owes, what the facilitator collected and how, then Finance's deposit.
+ */
+function FeeDetails({
+  application,
+  changes,
+}: {
+  application: Application;
+  changes: Changes;
+}) {
+  const fee = application.fee;
+  const collected = (application.data.fee ?? {}) as Record<string, unknown>;
+  const paid = application.payment;
+  const mode = String(collected.payment_mode ?? "");
+  const received = collected.amount_received;
+  const text = (value: unknown) =>
+    value === undefined || value === null || value === ""
+      ? null
+      : String(value);
+  return (
+    <Section id="fee" title="Member fee details">
+      <Facts>
+        <Fact label="Admission fee">{`₹ ${fee.admission_fee}`}</Fact>
+        <Fact label="Share quantity">
+          {String(paid.share_quantity ?? fee.share_quantity)}
+        </Fact>
+        <Fact
+          label="Received amount"
+          path="fee.amount_received"
+          change={changes.byPath.get("fee.amount_received")}
+        >
+          {received === undefined || received === null || received === ""
+            ? null
+            : `₹ ${received}`}
+        </Fact>
+        <Fact
+          label="Payment mode"
+          path="fee.payment_mode"
+          change={changes.byPath.get("fee.payment_mode")}
+        >
+          {mode ? (PAYMENT_MODES[mode] ?? mode) : null}
+        </Fact>
+        <Fact
+          label="Transaction ID"
+          path="fee.transaction_id"
+          change={changes.byPath.get("fee.transaction_id")}
+        >
+          {text(collected.transaction_id) ?? (mode === "cash" ? "NA" : null)}
+        </Fact>
+        <Fact label="Collected by">{text(application.created_by_name)}</Fact>
+        <Fact label="Bank name">{text(paid.bank_name)}</Fact>
+        <Fact label="Branch name">{text(paid.branch_name)}</Fact>
+        <Fact label="Bank address">{text(paid.bank_address)}</Fact>
+        <Fact label="Bank slip / receipt date">
+          {paid.deposited_on ? date(paid.deposited_on) : null}
+        </Fact>
+        <Fact label="Deposited amount">
+          {paid.amount ? `₹ ${paid.amount}` : null}
+        </Fact>
+        <Fact label="Slip or UTR number">{text(paid.reference)}</Fact>
+        <Fact label="SHG member">
+          {fee.is_shg_member
+            ? "Yes"
+            : fee.is_shg_member === false
+              ? "No"
+              : null}
+        </Fact>
+        <Fact label="Deposit recorded by">{text(paid.recorded_by_name)}</Fact>
+      </Facts>
+    </Section>
   );
 }
 

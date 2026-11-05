@@ -11,6 +11,7 @@ from .test_applications import AADHAAR, OTHER_AADHAAR, World
 pytestmark = pytest.mark.django_db(transaction=True)
 
 URL = "/api/v1/home/breakdown/"
+FORMS = "/api/v1/applications/"
 
 
 @pytest.fixture
@@ -144,3 +145,27 @@ def test_a_past_range_lists_nothing_from_today(world):
         ]
         == 0
     )
+
+
+def test_where_a_facilitators_forms_stand_now_adds_up(world):
+    world.draft()
+    world.submitted(OTHER_AADHAAR)
+    resent = world.submitted(AADHAAR)
+    client = world.client(world.facilitator)
+    rejected = world.client(world.manager).post(
+        f"{FORMS}{resent['id']}/decide/", {"decision": "rejected", "reason": "Photo not matched"}
+    )
+    assert rejected.data["status"] == "rejected"
+    assert client.get(f"{FORMS}summary/", {"mine": "1"}).data["now"]["sent_back"] == 1
+
+    # Corrected and sent in again: under review now, no longer sent back.
+    assert client.post(f"{FORMS}{resent['id']}/submit/").data["status"] == "pending_am"
+    now = client.get(f"{FORMS}summary/", {"mine": "1"}).data["now"]
+
+    assert now == {
+        "total": 3,
+        "draft": 1,
+        "under_review": 2,
+        "sent_back": 0,
+        "became_members": 0,
+    }

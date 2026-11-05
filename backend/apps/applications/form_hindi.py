@@ -8,6 +8,7 @@ SECTION_TITLES = {
     "bank": "बैंक खाता",
     "nominee": "नामित",
     "declaration": "घोषणा",
+    "fee": "सदस्यता शुल्क",
 }
 
 FIELD_LABELS = {
@@ -56,6 +57,9 @@ FIELD_LABELS = {
     "nominee.date_of_birth": "नामित की जन्म तिथि",
     "nominee.address": "नामित का पता",
     "nominee.guardian_name": "अभिभावक का नाम",
+    "fee.payment_mode": "भुगतान का तरीका",
+    "fee.amount_received": "प्राप्त राशि",
+    "fee.transaction_id": "लेन-देन आईडी",
     "declaration.accepted_terms": "शर्तें पढ़ / समझ ली हैं और सहमत हूँ",
     "declaration.no_household_member": "परिवार का कोई सदस्य पहले से सदस्य नहीं है",
     "declaration.not_sahayak_or_employee": "सहायक या कंपनी की कर्मचारी नहीं हूँ",
@@ -87,4 +91,6 @@ OPTION_LABELS = {
     "mother": "माता",
     "brother": "भाई",
     "sister": "बहन",
+    "cash": "नकद",
+    "online": "ऑनलाइन",
 }
