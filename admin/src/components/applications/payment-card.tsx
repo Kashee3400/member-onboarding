@@ -111,7 +111,7 @@ export function PaymentCard({
                 : "Upload payment slip"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            A photo or scan of the slip.
+            Optional: the PIB confirms payments by mail, often several together.
             {hasProof ? " It replaces the earlier one." : ""}
           </p>
         </div>

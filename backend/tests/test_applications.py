@@ -806,14 +806,26 @@ def at_finance(world):
     return application
 
 
-def test_final_approval_needs_the_payment_and_its_proof(world):
+def test_final_approval_needs_the_deposit_date(world):
     application = at_finance(world)
     client = world.client(world.finance)
 
     response = client.post(f"{URL}{application['id']}/decide/", {"decision": "approved"})
 
     assert response.status_code == 400
-    assert set(response.data["error"]["details"]) == {"payment", "payment_proof"}
+    assert set(response.data["error"]["details"]) == {"payment"}
+
+
+def test_the_payment_slip_is_optional(world):
+    application = at_finance(world)
+    client = world.client(world.finance)
+    assert client.post(f"{URL}{application['id']}/payment/", PAYMENT).status_code == 200
+
+    # No slip: the PIB confirms payments to Finance by mail, often several at once.
+    response = client.post(f"{URL}{application['id']}/decide/", {"decision": "approved"})
+
+    assert response.status_code == 200, response.content
+    assert response.data["status"] == "approved"
 
 
 def test_a_deposit_without_a_reference_is_accepted(world):

@@ -940,10 +940,8 @@ export function ApplicationDetail({ id }: { id: string }) {
   const blocked = !feeOpen
     ? null
     : !data.payment.amount
-      ? "Save the payment details before approving Member Fee."
-      : documents.isSuccess && !hasProof
-        ? "Upload the payment slip before approving Member Fee."
-        : null;
+      ? "Pick the deposit date before approving Member Fee."
+      : null;
   const back = canAct ? STAGE_QUEUE[data.status] : "/applications";
   const changes = changesOf(data, schema.data, documents.data ?? []);
   const labels: Record<string, string> = Object.fromEntries(

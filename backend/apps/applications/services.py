@@ -10,7 +10,6 @@ from apps.audit.services import record_event
 from apps.core import crypto
 from apps.core.exceptions import Conflict, DuplicateRecord, StaleVersion
 from apps.documents import storage
-from apps.documents.models import Document, DocumentType
 from apps.documents.services import current_signature, missing_documents
 from apps.hierarchy.services import accessible_mpps
 from apps.notifications import services as notifications
@@ -481,16 +480,14 @@ def submit(application, *, user, version=None):
 
 
 def _ensure_payment_recorded(application) -> None:
-    errors = {}
+    """
+    The deposit date is enough. A slip is optional: an Area Manager often pays in
+    several members' fees at once, and the PIB confirms the payments to Finance by mail.
+    """
     if not application.payment:
-        errors["payment"] = ["Record the payment before final approval."]
-    has_proof = Document.objects.filter(
-        application=application, document_type=DocumentType.PAYMENT_PROOF, is_current=True
-    ).exists()
-    if not has_proof:
-        errors["payment_proof"] = ["Upload the payment proof before final approval."]
-    if errors:
-        raise exceptions.ValidationError(errors)
+        raise exceptions.ValidationError(
+            {"payment": ["Pick the deposit date before final approval."]}
+        )
 
 
 def _steps_to_approve(application, user, steps) -> set[str]:
