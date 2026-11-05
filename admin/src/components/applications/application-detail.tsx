@@ -385,6 +385,27 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   history: HistoryIcon,
 };
 
+/**
+ * A label that says what the answer is: "Father / husband name" reads as
+ * "Husband's name" once the relation says whose name it is.
+ */
+function labelOf(
+  section: SchemaSection,
+  key: string,
+  label: string,
+  values: Record<string, unknown>,
+) {
+  if (key !== "relation_name") return label;
+  const relation = section.fields.find(
+    (field) => field.key === "relation_type",
+  );
+  const chosen = [
+    ...(relation?.options ?? []),
+    ...(relation?.retired_options ?? []),
+  ].find((option) => option.value === values.relation_type);
+  return chosen ? `${chosen.label}'s name` : label;
+}
+
 function FormSection({
   section,
   application,
@@ -437,7 +458,7 @@ function FormSection({
           return (
             <Fact
               key={path}
-              label={field.label}
+              label={labelOf(section, field.key, field.label, values)}
               flagged={application.rejected_fields.includes(path)}
               note={application.rejected_field_notes?.[path]}
               path={path}
