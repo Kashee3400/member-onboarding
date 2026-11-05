@@ -58,7 +58,6 @@ final schema = FormSchema(
         required: true,
         options: [ChoiceOption(value: 'cash', label: 'Cash')],
       ),
-      FormFieldSpec(key: 'amount_received', label: 'Amount received', type: 'number', required: true),
       FormFieldSpec(key: 'transaction_id', label: 'Transaction ID', type: 'text', required: false),
     ]),
     section('declaration', 'घोषणा', const [
@@ -1073,7 +1072,8 @@ void nomineeTests() {
 
     final card = find.byKey(const ValueKey('review.fee'));
     expect(find.descendant(of: card, matching: find.text('Payment mode')), findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Amount received')), findsOneWidget);
+    // The amount is the admission fee: nothing to type.
+    expect(find.descendant(of: card, matching: find.text('Amount received')), findsNothing);
     // Only for an online payment, which is not open yet.
     expect(find.descendant(of: card, matching: find.text('Transaction ID')), findsNothing);
 

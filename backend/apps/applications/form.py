@@ -183,8 +183,8 @@ FORM_SCHEMA = {
             "key": "fee",
             "title": "Member fee",
             "fields": [
+                # The amount is always the admission fee, so it is not asked for.
                 _choice("payment_mode", "Payment mode", "payment_mode"),
-                _field("amount_received", "Amount received", "number"),
                 _field("transaction_id", "Transaction ID", required=False),
             ],
         },

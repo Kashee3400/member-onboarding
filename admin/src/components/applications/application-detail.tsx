@@ -1469,7 +1469,6 @@ function FeeDetails({
     bank_address: "",
   };
   const mode = String(collected.payment_mode ?? "");
-  const received = collected.amount_received;
   const text = (value: unknown) =>
     value === undefined || value === null || value === ""
       ? null
@@ -1481,14 +1480,9 @@ function FeeDetails({
         <Fact label="Share quantity">
           {String(paid.share_quantity ?? fee.share_quantity)}
         </Fact>
-        <Fact
-          label="Received amount"
-          path="fee.amount_received"
-          change={changes.byPath.get("fee.amount_received")}
-        >
-          {received === undefined || received === null || received === ""
-            ? null
-            : `₹ ${received}`}
+        <Fact label="Received amount">
+          {/* Always the admission fee: the app asks only how it was paid. */}
+          {mode ? `₹ ${fee.admission_fee}` : null}
         </Fact>
         <Fact
           label="Payment mode"

@@ -1396,8 +1396,10 @@ class _FormWizardState extends State<FormWizard> {
             ],
           ),
         // Collected now, in the village: how, and how much.
+        // The amount is always the admission fee, shown above: only how it was paid.
         for (final spec in fields)
-          if (spec.key != 'transaction_id' || online) _field('fee', spec),
+          if (spec.key != 'amount_received' && (spec.key != 'transaction_id' || online))
+            _field('fee', spec),
         if (fee != null && fee.shareCount > 0)
           Text(
             '${Strings.shares}: ${fee.shareCount} × ₹${fee.sharePrice} = ₹${fee.shareCount * fee.sharePrice}, '

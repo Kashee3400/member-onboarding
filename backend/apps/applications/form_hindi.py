@@ -58,7 +58,6 @@ FIELD_LABELS = {
     "nominee.address": "नामित का पता",
     "nominee.guardian_name": "अभिभावक का नाम",
     "fee.payment_mode": "भुगतान का तरीका",
-    "fee.amount_received": "प्राप्त राशि",
     "fee.transaction_id": "लेन-देन आईडी",
     "declaration.accepted_terms": "शर्तें पढ़ / समझ ली हैं और सहमत हूँ",
     "declaration.no_household_member": "परिवार का कोई सदस्य पहले से सदस्य नहीं है",

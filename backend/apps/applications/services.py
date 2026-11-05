@@ -102,18 +102,8 @@ def form_number_key(prefix: str) -> str:
 
 
 def fee_problems(data: dict) -> dict:
-    """The facilitator must have collected exactly the admission fee."""
+    """An online payment names its transaction. The amount is always the admission fee."""
     fee = data.get("fee", {})
-    received = fee.get("amount_received")
-    if received in (None, ""):
-        return {}  # Reported as missing by the form's own check.
-    try:
-        received = int(float(received))
-    except TypeError, ValueError:
-        return {"fee.amount_received": "Enter the amount in rupees."}
-    due = code_settings().entry_fee
-    if received != due:
-        return {"fee.amount_received": f"The admission fee is ₹{due}: collect exactly that."}
     if fee.get("payment_mode") == "online" and not str(fee.get("transaction_id") or "").strip():
         return {"fee.transaction_id": "Enter the transaction ID of the online payment."}
     return {}
@@ -522,10 +512,8 @@ def record_payment(application, *, user, permissions, payment: dict):
             "Set the bank member fees are paid into, under Member Code, before recording a deposit."
         )
     collected = application.data.get("fee", {})
-    try:
-        amount = int(float(collected.get("amount_received") or settings.entry_fee))
-    except TypeError, ValueError:
-        amount = settings.entry_fee
+    # Always the admission fee: the facilitator says only how it was paid.
+    amount = settings.entry_fee
     # Kept on the form as it was then, so a later change of bank leaves it unchanged.
     application.payment = {
         "bank_name": settings.collection_bank_name,
