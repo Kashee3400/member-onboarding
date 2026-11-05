@@ -5,6 +5,7 @@ from django.db.models import Exists, OuterRef, ProtectedError
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import exceptions, generics, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -45,6 +46,7 @@ from .services import (
     ensure_can_assign,
     ensure_can_grant,
     ensure_role_manager_remains,
+    reset_system_role,
     set_membership_roles,
 )
 
@@ -96,12 +98,15 @@ class RoleViewSet(viewsets.ModelViewSet):
 
     def _reject_system_role(self, role):
         if role.is_system:
-            raise Conflict("System roles cannot be changed.")
+            raise Conflict("Standard roles cannot be deleted.")
+
+    def _ensure_can_add(self, added):
+        """Nobody gives what they do not hold, except the platform operator."""
+        if not is_operator(self.request):
+            ensure_can_grant(self.request.user.active_permissions, added)
 
     def perform_create(self, serializer):
-        ensure_can_grant(
-            self.request.user.active_permissions, serializer.validated_data["permissions"]
-        )
+        self._ensure_can_add(serializer.validated_data["permissions"])
         role = serializer.save(organization_id=self.request.user.active_membership.organization_id)
         record_event(
             "role.created",
@@ -111,13 +116,16 @@ class RoleViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        self._reject_system_role(serializer.instance)
-        ensure_can_grant(
-            self.request.user.active_permissions,
-            serializer.validated_data.get("permissions", []),
-        )
-        previous = serializer.instance.permissions
-        role = serializer.save()
+        role = serializer.instance
+        data = serializer.validated_data
+        if role.is_system and data.get("code", role.code) != role.code:
+            # The code is what the system recognises a standard role by.
+            raise Conflict("A standard role keeps its code.")
+        previous = role.permissions
+        # Taking a permission away is always allowed; adding one must be held.
+        self._ensure_can_add(sorted(set(data.get("permissions", previous)) - set(previous)))
+        extra = {"customized": True} if role.is_system else {}
+        role = serializer.save(**extra)
         ensure_role_manager_remains()
         record_event(
             "role.updated",
@@ -125,6 +133,24 @@ class RoleViewSet(viewsets.ModelViewSet):
             target=role,
             metadata={"before": previous, "after": role.permissions},
         )
+
+    @extend_schema(request=None, responses={200: RoleSerializer, 409: ErrorResponseSerializer})
+    @action(detail=True, methods=["post"])
+    def reset(self, request, pk=None):
+        """A standard role back to its standard permissions."""
+        role = self.get_object()
+        if not role.is_system:
+            raise Conflict("Only a standard role has standard permissions to go back to.")
+        previous = role.permissions
+        reset_system_role(role)
+        ensure_role_manager_remains()
+        record_event(
+            "role.reset",
+            actor=request.user,
+            target=role,
+            metadata={"before": previous, "after": role.permissions},
+        )
+        return Response(RoleSerializer(role).data)
 
     def perform_destroy(self, instance):
         self._reject_system_role(instance)

@@ -32,8 +32,8 @@ class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ["id", "code", "name", "is_system", "requires_mfa", "permissions"]
-        read_only_fields = ["id", "is_system"]
+        fields = ["id", "code", "name", "is_system", "customized", "requires_mfa", "permissions"]
+        read_only_fields = ["id", "is_system", "customized"]
 
     def validate_code(self, value):
         queryset = Role.objects.filter(code=value)

@@ -78,3 +78,4 @@ class CurrentUserSerializer(serializers.Serializer):
     has_signature = serializers.BooleanField()
     needs_signature = serializers.BooleanField()
     permissions = serializers.ListField(child=serializers.CharField())
+    platform_operator = serializers.BooleanField()

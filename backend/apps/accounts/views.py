@@ -12,6 +12,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.audit.services import record_event
+from apps.console.permissions import is_operator
 from apps.core.exceptions import ErrorResponseSerializer, error_body
 from apps.core.tenancy import organization_context
 from apps.documents.services import current_signature, needs_signature
@@ -128,6 +129,7 @@ class MeView(APIView):
                     "roles": sorted(role_codes_for(membership)),
                     "role_names": sorted(role_names_for(membership)),
                     "permissions": sorted(request.user.active_permissions),
+                    "platform_operator": is_operator(request),
                 }
             ).data
         )

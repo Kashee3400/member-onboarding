@@ -133,7 +133,8 @@ NAVIGATION = (
                 "Hierarchy",
                 "network",
                 "/masters/hierarchy",
-                "hierarchy.view",
+                "masters.hierarchy",
+                requires=("hierarchy.view",),
                 description="The collection network",
             ),
             NavItem(

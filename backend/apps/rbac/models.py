@@ -11,6 +11,8 @@ class Role(OrganizationOwnedModel):
     code = models.SlugField(max_length=60)
     name = models.CharField(max_length=100)
     is_system = models.BooleanField(default=False)
+    # A standard role this organization has changed: deployments then leave it as it is.
+    customized = models.BooleanField(default=False)
     requires_mfa = models.BooleanField(default=False)
     permissions = ArrayField(models.CharField(max_length=60), default=list, blank=True)
 

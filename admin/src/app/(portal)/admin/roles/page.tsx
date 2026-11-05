@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Lock, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -36,12 +36,20 @@ function PermissionPicker({
   const me = useMe();
   const [text, setText] = useState("");
   const needle = text.toLowerCase();
-  // Nobody can hand out a permission they do not hold themselves.
-  const grantable = (code: string) => me.permissions.includes(code) || selected.includes(code);
+  // Nobody can hand out a permission they do not hold, except the platform operator.
+  // Taking one away is always possible.
+  const grantable = (code: string) =>
+    me.platform_operator ||
+    me.permissions.includes(code) ||
+    selected.includes(code);
   const shown = permissions.filter(
-    (item) => item.code.toLowerCase().includes(needle) || item.description.toLowerCase().includes(needle),
+    (item) =>
+      item.code.toLowerCase().includes(needle) ||
+      item.description.toLowerCase().includes(needle),
   );
-  const groups = Object.entries(Object.groupBy(shown, (item) => item.code.split(".")[0]));
+  const groups = Object.entries(
+    Object.groupBy(shown, (item) => item.code.split(".")[0]),
+  );
 
   return (
     <fieldset className="space-y-2">
@@ -51,11 +59,17 @@ function PermissionPicker({
           {selected.length} of {permissions.length}
         </span>
       </legend>
-      <SearchBox value={text} onChange={setText} placeholder="Find a permission" className="w-full" />
+      <SearchBox
+        value={text}
+        onChange={setText}
+        placeholder="Find a permission"
+        className="w-full"
+      />
       <div className="max-h-72 space-y-3 overflow-y-auto border p-2">
         {groups.map(([group, items = []]) => {
           const codes = items.map((item) => item.code).filter(grantable);
-          const all = codes.length > 0 && codes.every((code) => selected.includes(code));
+          const all =
+            codes.length > 0 && codes.every((code) => selected.includes(code));
           return (
             <section key={group}>
               <div className="flex items-center justify-between px-2 pb-0.5">
@@ -82,11 +96,19 @@ function PermissionPicker({
                 <CheckRow
                   key={item.code}
                   label={item.description}
-                  hint={grantable(item.code) ? item.code : `${item.code}. You do not hold this, so you cannot give it.`}
+                  hint={
+                    grantable(item.code)
+                      ? item.code
+                      : `${item.code}. You do not hold this, so you cannot give it.`
+                  }
                   disabled={locked || !grantable(item.code)}
                   checked={selected.includes(item.code)}
                   onChange={(on) =>
-                    onChange(on ? [...selected, item.code] : selected.filter((code) => code !== item.code))
+                    onChange(
+                      on
+                        ? [...selected, item.code]
+                        : selected.filter((code) => code !== item.code),
+                    )
                   }
                 />
               ))}
@@ -94,7 +116,9 @@ function PermissionPicker({
           );
         })}
         {shown.length === 0 ? (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">No permission matches that.</p>
+          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+            No permission matches that.
+          </p>
         ) : null}
       </div>
     </fieldset>
@@ -115,7 +139,9 @@ function RoleForm({
   const [selected, setSelected] = useState(role?.permissions ?? []);
   const [mfa, setMfa] = useState(role?.requires_mfa ?? false);
   const system = role?.is_system ?? false;
-  const locked = system || !canManage;
+  // A standard role's permissions and two-step sign-in can change; its code and name cannot.
+  const locked = !canManage;
+  const fixedName = system || locked;
 
   const done = (message: string) => {
     client.invalidateQueries({ queryKey: ["queue"] });
@@ -125,28 +151,45 @@ function RoleForm({
   };
   const save = useMutation({
     mutationFn: (body: object) =>
-      role ? api(`roles/${role.id}`, { method: "PATCH", body }) : api("roles", { method: "POST", body }),
+      role
+        ? api(`roles/${role.id}`, { method: "PATCH", body })
+        : api("roles", { method: "POST", body }),
     onSuccess: () => done("Role saved."),
   });
   const remove = useMutation({
     mutationFn: () => api(`roles/${role!.id}`, { method: "DELETE" }),
     onSuccess: () => done("Role deleted."),
   });
+  const reset = useMutation({
+    mutationFn: () => api(`roles/${role!.id}/reset`, { method: "POST" }),
+    onSuccess: () => done("Role set back to its standard permissions."),
+  });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    save.mutate({ code: form.get("code"), name: form.get("name"), requires_mfa: mfa, permissions: selected });
+    save.mutate(
+      system
+        ? { requires_mfa: mfa, permissions: selected }
+        : {
+            code: form.get("code"),
+            name: form.get("name"),
+            requires_mfa: mfa,
+            permissions: selected,
+          },
+    );
   };
 
   return (
     <FormDialog
       title={role ? role.name : "New role"}
-      description={role ? undefined : "Choose exactly what people with this role can do."}
+      description={
+        role ? undefined : "Choose exactly what people with this role can do."
+      }
       className="sm:max-w-2xl"
       onClose={onClose}
       onSubmit={submit}
-      error={save.error ?? remove.error}
+      error={save.error ?? remove.error ?? reset.error}
       footer={
         locked ? (
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -154,14 +197,37 @@ function RoleForm({
           </Button>
         ) : (
           <>
-            {role ? (
+            {role && system && role.customized ? (
+              <Confirm
+                title="Back to the standard permissions?"
+                description="This organization's changes to the role are undone, and later updates set it again."
+                action="Reset"
+                onConfirm={() => reset.mutate()}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mr-auto"
+                    disabled={reset.isPending}
+                  >
+                    <RotateCcw /> Reset to standard
+                  </Button>
+                }
+              />
+            ) : null}
+            {role && !system ? (
               <Confirm
                 title="Delete this role?"
                 description="People who hold only this role lose their access. This cannot be undone."
                 action="Delete"
                 onConfirm={() => remove.mutate()}
                 trigger={
-                  <Button type="button" variant="destructive" className="mr-auto" disabled={remove.isPending}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="mr-auto"
+                    disabled={remove.isPending}
+                  >
                     <Trash2 /> Delete
                   </Button>
                 }
@@ -181,21 +247,34 @@ function RoleForm({
         <Alert>
           <Lock />
           <AlertDescription>
-            System roles are read-only. Create a custom role for a different set of permissions.
+            {role?.customized
+              ? "A standard role this organization has changed. Updates no longer change it; reset it to follow them again."
+              : "A standard role. Its code and name stay as they are; its permissions are yours to change."}
           </AlertDescription>
         </Alert>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="role-name">
-          <Input id="role-name" name="name" required defaultValue={role?.name} disabled={locked} autoFocus={!locked} />
+          <Input
+            id="role-name"
+            name="name"
+            required
+            defaultValue={role?.name}
+            disabled={fixedName}
+            autoFocus={!fixedName}
+          />
         </Field>
-        <Field label="Code" htmlFor="role-code" help="Lowercase letters, numbers, hyphens and underscores.">
+        <Field
+          label="Code"
+          htmlFor="role-code"
+          help="Lowercase letters, numbers, hyphens and underscores."
+        >
           <Input
             id="role-code"
             name="code"
             required
             defaultValue={role?.code}
-            disabled={locked}
+            disabled={fixedName}
             pattern="[a-z0-9_\-]+"
             className="font-mono"
           />
@@ -209,7 +288,12 @@ function RoleForm({
         disabled={locked}
         onChange={setMfa}
       />
-      <PermissionPicker permissions={permissions} selected={selected} locked={locked} onChange={setSelected} />
+      <PermissionPicker
+        permissions={permissions}
+        selected={selected}
+        locked={locked}
+        onChange={setSelected}
+      />
     </FormDialog>
   );
 }
@@ -237,20 +321,42 @@ export default function RolesPage() {
         header: "Code",
         sortKey: "code",
         csv: (row) => row.code,
-        cell: (row) => <span className="font-mono text-xs text-muted-foreground">{row.code}</span>,
+        cell: (row) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.code}
+          </span>
+        ),
       },
       {
         id: "type",
         header: "Type",
-        csv: (row) => (row.is_system ? "System" : "Custom"),
-        cell: (row) => <StatusBadge status="draft" label={row.is_system ? "System" : "Custom"} />,
+        csv: (row) =>
+          row.is_system
+            ? row.customized
+              ? "Standard, changed"
+              : "Standard"
+            : "Custom",
+        cell: (row) => (
+          <StatusBadge
+            status={row.customized ? "pending" : "draft"}
+            label={
+              row.is_system
+                ? row.customized
+                  ? "Standard, changed"
+                  : "Standard"
+                : "Custom"
+            }
+          />
+        ),
       },
       {
         id: "permissions",
         header: "Permissions",
         align: "right",
         csv: (row) => row.permissions.length,
-        cell: (row) => <span className="tabular-nums">{row.permissions.length}</span>,
+        cell: (row) => (
+          <span className="tabular-nums">{row.permissions.length}</span>
+        ),
       },
       {
         id: "mfa",
@@ -291,10 +397,19 @@ export default function RolesPage() {
         defaultOrdering="name"
         exportName="roles"
         onRowClick={(role) => setForm({ role })}
-        empty={<EmptyState title="No roles found" description="Try another search." />}
+        empty={
+          <EmptyState
+            title="No roles found"
+            description="Try another search."
+          />
+        }
       />
       {form ? (
-        <RoleForm role={form.role} permissions={permissions.data ?? []} onClose={() => setForm(null)} />
+        <RoleForm
+          role={form.role}
+          permissions={permissions.data ?? []}
+          onClose={() => setForm(null)}
+        />
       ) : null}
     </>
   );

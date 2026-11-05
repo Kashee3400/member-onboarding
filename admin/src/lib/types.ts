@@ -20,6 +20,8 @@ export type Me = {
   needs_signature: boolean;
   has_signature: boolean;
   permissions: string[];
+  /** Runs the platform: may give any permission. */
+  platform_operator: boolean;
 };
 
 export type Page<T> = {
@@ -33,6 +35,8 @@ export type Role = {
   code: string;
   name: string;
   is_system: boolean;
+  /** A standard role this organization changed: deployments leave it as it is. */
+  customized: boolean;
   requires_mfa: boolean;
   permissions: string[];
 };

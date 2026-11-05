@@ -1,6 +1,6 @@
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from .catalog import SYSTEM_ROLES
+from .catalog import PERMISSIONS, SYSTEM_ROLES
 from .models import MembershipRole, Role
 
 ROLE_MANAGEMENT_PERMISSION = "roles.manage"
@@ -30,17 +30,37 @@ def role_names_for(membership) -> set[str]:
 
 
 def sync_system_roles() -> None:
-    """Bring the active organization's system roles in line with the catalog."""
+    """
+    Bring the active organization's standard roles in line with the catalog. One the
+    organization has changed keeps its permissions, less any the catalog dropped.
+    """
     for code, definition in SYSTEM_ROLES.items():
+        role = Role.objects.filter(code=code).first()
+        if role is not None and role.customized:
+            kept = sorted(set(role.permissions) & set(PERMISSIONS))
+            if kept != role.permissions:
+                role.permissions = kept
+                role.save(update_fields=["permissions", "updated_at"])
+            continue
         Role.objects.update_or_create(
             code=code,
             defaults={
                 "name": definition["name"],
                 "is_system": True,
+                "customized": False,
                 "requires_mfa": definition.get("requires_mfa", False),
                 "permissions": sorted(definition["permissions"]),
             },
         )
+
+
+def reset_system_role(role) -> None:
+    """Back to the standard permissions, and followed by deployments again."""
+    definition = SYSTEM_ROLES[role.code]
+    role.customized = False
+    role.requires_mfa = definition.get("requires_mfa", False)
+    role.permissions = sorted(definition["permissions"])
+    role.save(update_fields=["customized", "requires_mfa", "permissions", "updated_at"])
 
 
 def grant_role(membership, role_code: str) -> None:
