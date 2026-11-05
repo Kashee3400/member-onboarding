@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -462,6 +464,7 @@ class _FormWizardState extends State<FormWizard> {
     if (details == null) return;
     final messenger = ScaffoldMessenger.of(context);
     if (!await _askConsent() || !mounted) return;
+    unawaited(HapticFeedback.lightImpact());
     _applyScan(details);
     _form.setAadhaarQr(raw);
     messenger.showSnackBar(const SnackBar(content: Text(Strings.filledFromPhoto)));
@@ -644,6 +647,8 @@ class _FormWizardState extends State<FormWizard> {
     final raw = await widget.device.scanQr(context);
     if (raw == null) return;
     final details = parseAadhaarQr(raw);
+    // Felt as well as seen: a light tap when it read, a heavy one when it did not.
+    unawaited(details == null ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact());
     if (details != null) {
       _applyScan(details);
       // The server checks UIDAI's signature; the phone only reads.

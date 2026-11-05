@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:member_onboarding/src/api/api_client.dart';
 import 'package:member_onboarding/src/api/onboarding_api.dart';
@@ -857,6 +858,35 @@ void main() {
 
     await goToStep(tester, 2);
     expect(find.widgetWithText(FilledButton, Strings.scanAadhaar), findsNothing);
+  });
+
+  Future<List<String>> vibrationsOfScanning(WidgetTester tester, String qr) async {
+    final felt = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'HapticFeedback.vibrate') felt.add('${call.arguments}');
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    await pump(tester, newController(draft: placedDraft()), withSchema: placeSchema, device: _FakeDevice(qr: qr));
+    await tester.tap(find.widgetWithText(FilledButton, Strings.scanAadhaar));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('scan.consent')));
+    await tester.pumpAndSettle();
+    return felt;
+  }
+
+  wizardTest('a good Aadhaar scan is felt as a light tap', (tester) async {
+    final felt = await vibrationsOfScanning(tester, '<PrintLetterBarcodeData name="Test Applicant"/>');
+
+    expect(felt, ['HapticFeedbackType.lightImpact']);
+  });
+
+  wizardTest('a scan that cannot be read is felt as a heavy one', (tester) async {
+    final felt = await vibrationsOfScanning(tester, 'not an aadhaar qr');
+
+    expect(felt, ['HapticFeedbackType.heavyImpact']);
   });
 
   wizardTest('no scan without the member agreeing', (tester) async {
