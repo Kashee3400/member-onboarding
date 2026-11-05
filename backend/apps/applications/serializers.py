@@ -316,6 +316,12 @@ class ApplicationDetailSerializer(ApplicationListSerializer):
             "share_quantity": application.payment.get("share_quantity", settings.share_count),
             "share_price": settings.share_price,
             "is_shg_member": application.data.get("applicant", {}).get("is_shg_member"),
+            # Where the fee is deposited, shown to Finance before they record it.
+            "collection_bank": {
+                "bank_name": settings.collection_bank_name,
+                "branch_name": settings.collection_branch_name,
+                "bank_address": settings.collection_bank_address,
+            },
         }
 
     @staticmethod
@@ -485,16 +491,13 @@ class FieldMarkSerializer(serializers.Serializer):
 
 
 class PaymentSerializer(serializers.Serializer):
-    """The form's "office use" block. Some deposits have no slip or UTR number."""
+    """
+    The deposit, as Finance records it. Everything else is known already: the bank is
+    the organization's collection account, and the amount and mode are what the
+    facilitator collected.
+    """
 
-    bank_name = serializers.CharField(max_length=200)
-    branch_name = serializers.CharField(max_length=200)
-    reference = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    amount = serializers.IntegerField(min_value=1)
     deposited_on = serializers.DateField()
-    mode = serializers.ChoiceField(choices=["cash", "dd", "online"], default="cash")
-    bank_address = serializers.CharField(max_length=300, required=False, allow_blank=True)
-    share_quantity = serializers.IntegerField(min_value=0, required=False)
 
 
 class LegacyMemberSerializer(serializers.ModelSerializer):
@@ -542,6 +545,10 @@ class MemberCodeSettingsSerializer(serializers.ModelSerializer):
             "entry_fee",
             "share_price",
             "share_count",
+            "collection_bank_name",
+            "collection_branch_name",
+            "collection_bank_address",
+            "collection_account_number",
         ]
 
 

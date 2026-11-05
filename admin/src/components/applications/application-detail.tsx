@@ -1465,6 +1465,11 @@ function FeeDetails({
   const fee = application.fee;
   const collected = (application.data.fee ?? {}) as Record<string, unknown>;
   const paid = application.payment;
+  const bank = fee.collection_bank ?? {
+    bank_name: "",
+    branch_name: "",
+    bank_address: "",
+  };
   const mode = String(collected.payment_mode ?? "");
   const received = collected.amount_received;
   const text = (value: unknown) =>
@@ -1494,24 +1499,18 @@ function FeeDetails({
         >
           {mode ? (PAYMENT_MODES[mode] ?? mode) : null}
         </Fact>
-        <Fact
-          label="Transaction ID"
-          path="fee.transaction_id"
-          change={changes.byPath.get("fee.transaction_id")}
-        >
-          {text(collected.transaction_id) ?? (mode === "cash" ? "NA" : null)}
-        </Fact>
         <Fact label="Collected by">{text(application.created_by_name)}</Fact>
-        <Fact label="Bank name">{text(paid.bank_name)}</Fact>
-        <Fact label="Branch name">{text(paid.branch_name)}</Fact>
-        <Fact label="Bank address">{text(paid.bank_address)}</Fact>
-        <Fact label="Bank slip / receipt date">
+        {/* The organization's collection account, until Finance records the deposit. */}
+        <Fact label="Bank name">{text(paid.bank_name || bank.bank_name)}</Fact>
+        <Fact label="Branch name">
+          {text(paid.branch_name || bank.branch_name)}
+        </Fact>
+        <Fact label="Bank address">
+          {text(paid.bank_address || bank.bank_address)}
+        </Fact>
+        <Fact label="Deposit date">
           {paid.deposited_on ? date(paid.deposited_on) : null}
         </Fact>
-        <Fact label="Deposited amount">
-          {paid.amount ? `₹ ${paid.amount}` : null}
-        </Fact>
-        <Fact label="Slip or UTR number">{text(paid.reference)}</Fact>
         <Fact label="SHG member">
           {fee.is_shg_member
             ? "Yes"
@@ -1519,7 +1518,6 @@ function FeeDetails({
               ? "No"
               : null}
         </Fact>
-        <Fact label="Deposit recorded by">{text(paid.recorded_by_name)}</Fact>
       </Facts>
     </Section>
   );

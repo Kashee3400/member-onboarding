@@ -261,6 +261,12 @@ export type ApplicationDetail = ApplicationSummary & {
     share_quantity: number;
     share_price: number;
     is_shg_member: boolean | null | undefined;
+    /** Where member fees are paid in: the organization's one account. */
+    collection_bank: {
+      bank_name: string;
+      branch_name: string;
+      bank_address: string;
+    };
   };
   place: {
     mcc_code: string;
@@ -569,6 +575,10 @@ export type MemberCodeSettings = {
   entry_fee: number;
   share_price: number;
   share_count: number;
+  collection_bank_name: string;
+  collection_branch_name: string;
+  collection_bank_address: string;
+  collection_account_number: string;
 };
 
 export type ApplicationDocument = {

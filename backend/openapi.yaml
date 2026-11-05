@@ -6786,6 +6786,18 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        collection_bank_name:
+          type: string
+          maxLength: 200
+        collection_branch_name:
+          type: string
+          maxLength: 200
+        collection_bank_address:
+          type: string
+          maxLength: 300
+        collection_account_number:
+          type: string
+          maxLength: 30
       required:
       - hamlet_code
       - state_code
@@ -6816,6 +6828,18 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        collection_bank_name:
+          type: string
+          maxLength: 200
+        collection_branch_name:
+          type: string
+          maxLength: 200
+        collection_bank_address:
+          type: string
+          maxLength: 300
+        collection_account_number:
+          type: string
+          maxLength: 30
       required:
       - hamlet_code
       - state_code
@@ -6942,16 +6966,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrganizationChoice'
-    ModeEnum:
-      enum:
-      - cash
-      - dd
-      - online
-      type: string
-      description: |-
-        * `cash` - cash
-        * `dd` - dd
-        * `online` - online
     Mpp:
       type: object
       description: The unique constraint includes the organization, which clients
@@ -8380,40 +8394,15 @@ components:
           type: boolean
     PaymentRequest:
       type: object
-      description: The form's "office use" block. Some deposits have no slip or UTR
-        number.
+      description: |-
+        The deposit, as Finance records it. Everything else is known already: the bank is
+        the organization's collection account, and the amount and mode are what the
+        facilitator collected.
       properties:
-        bank_name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        branch_name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        reference:
-          type: string
-          maxLength: 100
-        amount:
-          type: integer
-          minimum: 1
         deposited_on:
           type: string
           format: date
-        mode:
-          allOf:
-          - $ref: '#/components/schemas/ModeEnum'
-          default: cash
-        bank_address:
-          type: string
-          maxLength: 300
-        share_quantity:
-          type: integer
-          minimum: 0
       required:
-      - amount
-      - bank_name
-      - branch_name
       - deposited_on
     PdfBatch:
       type: object

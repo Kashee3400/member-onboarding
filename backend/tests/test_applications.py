@@ -35,12 +35,11 @@ URL = "/api/v1/applications/"
 AADHAAR = "234123412346"
 OTHER_AADHAAR = "496858245229"
 ACCOUNT = "656302010000644"
-PAYMENT = {
-    "bank_name": "Indian Bank",
-    "branch_name": "Station Road",
-    "reference": "",
-    "amount": 50,
-    "deposited_on": "2026-01-15",
+PAYMENT = {"deposited_on": "2026-01-15"}
+COLLECTION_BANK = {
+    "collection_bank_name": "Indian Bank",
+    "collection_branch_name": "Station Road",
+    "collection_bank_address": "Kashee Vidyapith Road, Varanasi",
 }
 
 
@@ -140,6 +139,7 @@ class World:
         self.finance = self.member("finance@a.test", "finance")
         with organization_context(org.id):
             choose_review_steps()
+            MemberCodeSettings.objects.update_or_create(defaults=COLLECTION_BANK)
             for stage, user in (
                 (Status.PENDING_CS, self.legal),
                 (Status.PENDING_FINANCE, self.finance),

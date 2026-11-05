@@ -511,8 +511,26 @@ def record_payment(application, *, user, permissions, payment: dict):
     if review_steps.FEE_STEP not in review_steps.actionable(application, membership):
         raise Conflict("Payment is recorded while the Member Fee step is open.")
 
+    settings = code_settings()
+    if not settings.collection_bank_name:
+        raise Conflict(
+            "Set the bank member fees are paid into, under Member Code, before recording a deposit."
+        )
+    collected = application.data.get("fee", {})
+    try:
+        amount = int(float(collected.get("amount_received") or settings.entry_fee))
+    except TypeError, ValueError:
+        amount = settings.entry_fee
+    # Kept on the form as it was then, so a later change of bank leaves it unchanged.
     application.payment = {
-        **payment,
+        "bank_name": settings.collection_bank_name,
+        "branch_name": settings.collection_branch_name,
+        "bank_address": settings.collection_bank_address,
+        "account_number": settings.collection_account_number,
+        "amount": amount,
+        "mode": collected.get("payment_mode") or "cash",
+        "share_quantity": settings.share_count,
+        "reference": "",
         "deposited_on": payment["deposited_on"].isoformat(),
         "recorded_by_name": display_name(user),
     }

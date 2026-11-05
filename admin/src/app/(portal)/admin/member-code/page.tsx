@@ -180,6 +180,60 @@ function CodeForm({
         </p>
       </SettingsCard>
 
+      <SettingsCard
+        title="Member fee collection bank"
+        description="The one account member fees are paid into. Finance then records only the deposit date."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Bank" htmlFor="collection_bank_name">
+            <Input
+              id="collection_bank_name"
+              value={form.collection_bank_name}
+              onChange={(event) =>
+                set("collection_bank_name", event.target.value)
+              }
+            />
+          </Field>
+          <Field label="Branch" htmlFor="collection_branch_name">
+            <Input
+              id="collection_branch_name"
+              value={form.collection_branch_name}
+              onChange={(event) =>
+                set("collection_branch_name", event.target.value)
+              }
+            />
+          </Field>
+          <Field
+            label="Bank address"
+            htmlFor="collection_bank_address"
+            optional
+          >
+            <Input
+              id="collection_bank_address"
+              value={form.collection_bank_address}
+              onChange={(event) =>
+                set("collection_bank_address", event.target.value)
+              }
+            />
+          </Field>
+          <Field
+            label="Account number"
+            htmlFor="collection_account_number"
+            optional
+          >
+            <Input
+              id="collection_account_number"
+              inputMode="numeric"
+              className="tabular-nums"
+              value={form.collection_account_number}
+              onChange={(event) =>
+                set("collection_account_number", event.target.value)
+              }
+            />
+          </Field>
+        </div>
+      </SettingsCard>
+
       <FormError error={save.error} />
       <SaveBar
         dirty={dirty}

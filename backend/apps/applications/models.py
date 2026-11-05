@@ -217,6 +217,11 @@ class MemberCodeSettings(OrganizationOwnedModel):
     entry_fee = models.PositiveIntegerField(default=50)
     share_price = models.PositiveIntegerField(default=100)
     share_count = models.PositiveIntegerField(default=5)
+    # The one account member fees are paid into. Finance only says when it was deposited.
+    collection_bank_name = models.CharField(max_length=200, blank=True)
+    collection_branch_name = models.CharField(max_length=200, blank=True)
+    collection_bank_address = models.CharField(max_length=300, blank=True)
+    collection_account_number = models.CharField(max_length=30, blank=True)
 
     class Meta:
         db_table = "member_code_settings"

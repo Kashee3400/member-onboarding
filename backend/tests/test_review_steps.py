@@ -160,12 +160,13 @@ def test_finance_records_how_it_was_paid(world, application):
         format="multipart",
     )
 
-    response = client.post(
-        f"{URL}{application['id']}/payment/", {**PAYMENT, "mode": "dd", "bank_address": "Varanasi"}
-    )
+    response = client.post(f"{URL}{application['id']}/payment/", PAYMENT)
 
-    assert response.data["payment"]["mode"] == "dd"
-    assert response.data["payment"]["bank_address"] == "Varanasi"
+    # The bank is the organization's; the mode and amount are what was collected.
+    assert response.data["payment"]["bank_name"] == "Indian Bank"
+    assert response.data["payment"]["bank_address"] == "Kashee Vidyapith Road, Varanasi"
+    assert response.data["payment"]["mode"] == "cash"
+    assert response.data["payment"]["amount"] == 50
     assert "is_shg_member" in response.data["fee"]
 
 
@@ -259,15 +260,37 @@ def test_the_fee_can_move_to_another_role(world, application, org_a):
     assert denied.status_code == 403
 
 
-def test_share_quantity_is_per_form(world, application):
+def test_finance_records_only_the_deposit_date(world, application):
     world.approve(application, world.manager)
     world.approve(application, world.legal)
 
+    # Anything else sent is ignored: it comes from the settings and the form.
     response = world.client(world.finance).post(
-        f"{URL}{application['id']}/payment/", {**PAYMENT, "share_quantity": 0}
+        f"{URL}{application['id']}/payment/",
+        {**PAYMENT, "share_quantity": 0, "bank_name": "Elsewhere", "amount": 1},
     )
 
-    assert response.data["fee"]["share_quantity"] == 0
+    payment = response.data["payment"]
+    assert (payment["bank_name"], payment["amount"], payment["deposited_on"]) == (
+        "Indian Bank",
+        50,
+        "2026-01-15",
+    )
+    assert response.data["fee"]["share_quantity"] == 5
+
+
+def test_no_deposit_before_the_collection_bank_is_set(world, application):
+    from apps.applications.models import MemberCodeSettings
+    from apps.core.tenancy import organization_context
+
+    world.approve(application, world.manager)
+    world.approve(application, world.legal)
+    with organization_context(world.org.id):
+        MemberCodeSettings.objects.update(collection_bank_name="")
+
+    response = world.client(world.finance).post(f"{URL}{application['id']}/payment/", PAYMENT)
+
+    assert response.status_code == 409
 
 
 def test_the_fee_step_needs_the_payment(world, application):
