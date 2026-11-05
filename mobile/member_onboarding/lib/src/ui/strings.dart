@@ -154,6 +154,8 @@ class Strings {
   static const passbook = 'Bank passbook';
   static const takePhoto = 'Take photo';
   static const signOut = 'Sign out';
+  static const locationNotTaken =
+      'The location could not be taken. Turn on GPS and allow location, then try again.';
   static const signingDeclares = 'By signing, the member declares:';
   static const useCamera = 'Take a photo with the camera';
   static const fromGallery = 'Choose from the gallery';

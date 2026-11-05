@@ -83,7 +83,8 @@ class _FormWizardState extends State<FormWizard> {
     'documents': 0,
     'applicant': 1,
     'address': 2,
-    'location': 2,
+    // Taken in the background; only the review asks again if it could not be.
+    'location': 7,
     'animals': 3,
     'bank': 4,
     'family': 5,
@@ -146,6 +147,21 @@ class _FormWizardState extends State<FormWizard> {
     if (rejected.isNotEmpty) {
       _index = rejected.map(_stepOf).reduce((a, b) => a < b ? a : b);
     }
+    // Where the form was filled, without the facilitator pressing anything.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _locateQuietly());
+  }
+
+  bool get _located => _form.draft.section('location')['latitude'] != null;
+
+  /// Takes the location if the form has none yet. Silent: a failure only shows on
+  /// the review, which offers to try again.
+  Future<void> _locateQuietly() async {
+    if (!mounted || _located) return;
+    final position = await widget.device.currentPosition().catchError((_) => null);
+    if (!mounted || position == null || _located) return;
+    _form
+      ..setValue('location', 'latitude', position.$1)
+      ..setValue('location', 'longitude', position.$2);
   }
 
   @override
@@ -162,6 +178,8 @@ class _FormWizardState extends State<FormWizard> {
 
   void _go(int step) {
     setState(() => _index = step);
+    // Another try on the way to the review, in case GPS was off when the form opened.
+    if (step == _reviewIndex) _locateQuietly();
     // A new step starts at its top, with its chip in view.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -734,9 +752,6 @@ class _FormWizardState extends State<FormWizard> {
     final fields = _schema.section('address').fields;
     final locked = [for (final spec in fields) if (_fromMpp('address', spec) != null) spec];
     final contact = {'mobile', 'landline', 'email'};
-    final location = _form.draft.section('location');
-    final captured = location['latitude'] != null;
-    final theme = Theme.of(context);
     // The address and village, two to a row: short values, and most come from the MPP.
     final place = [for (final spec in fields) if (!contact.contains(spec.key)) spec];
 
@@ -772,30 +787,6 @@ class _FormWizardState extends State<FormWizard> {
               if (spec.key == 'mobile' || spec.key == 'email')
                 ContactVerify(controller: _form, channel: spec.key),
             ],
-        ],
-      ),
-      SectionCard(
-        title: Strings.locationTitle,
-        icon: Icons.location_on_outlined,
-        children: [
-          if (captured)
-            _note(
-              Icons.check_circle,
-              '${(location['latitude'] as num).toStringAsFixed(5)}, '
-              '${(location['longitude'] as num).toStringAsFixed(5)}',
-              Colors.green.shade700,
-            ),
-          OutlinedButton.icon(
-            style: _outlined,
-            onPressed: _captureLocation,
-            icon: Icon(captured ? Icons.refresh : Icons.my_location),
-            label: Text(captured ? Strings.locationAgain : Strings.useLocation),
-          ),
-          if (_form.serverErrors['location.latitude'] != null)
-            Text(
-              _form.serverErrors['location.latitude']!,
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
         ],
       ),
     ]);
@@ -1628,6 +1619,25 @@ class _FormWizardState extends State<FormWizard> {
     );
   }
 
+  /// Shown on the review only when the background attempt failed: GPS off, or no permission.
+  Widget? _locationCard() {
+    if (_located) return null;
+    return SectionCard(
+      key: const ValueKey('review.location'),
+      title: Strings.locationTitle,
+      icon: Icons.location_off_outlined,
+      children: [
+        Text(Strings.locationNotTaken, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        OutlinedButton.icon(
+          style: _outlined,
+          onPressed: _captureLocation,
+          icon: const Icon(Icons.my_location),
+          label: const Text(Strings.useLocation),
+        ),
+      ],
+    );
+  }
+
   Widget _reviewStep() {
     final missing = _missing();
     final problems = _problems();
@@ -1702,6 +1712,7 @@ class _FormWizardState extends State<FormWizard> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _go(0),
         ),
+      ?_locationCard(),
       ?_feeCard(),
       _signatureCard(),
       if (missing.isEmpty)

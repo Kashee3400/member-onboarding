@@ -889,6 +889,32 @@ void main() {
     expect(felt, ['HapticFeedbackType.heavyImpact']);
   });
 
+  wizardTest('the location is taken in the background when the form opens', (tester) async {
+    final controller = newController();
+    await pump(tester, controller, device: const _FakeDevice(position: (25.41507, 82.51469)));
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.section('location'), {'latitude': 25.41507, 'longitude': 82.51469});
+    await goToStep(tester, 3);
+    // Nothing to press on the address step.
+    expect(find.text(Strings.useLocation), findsNothing);
+    await goToStep(tester, 8);
+    expect(find.byKey(const ValueKey('review.location')), findsNothing);
+  });
+
+  wizardTest('without GPS the review offers to take the location again', (tester) async {
+    final controller = newController();
+    await pump(tester, controller, device: const _FakeDevice());
+    await tester.pumpAndSettle();
+
+    await goToStep(tester, 8);
+    await tester.pumpAndSettle();
+
+    expect(controller.draft.section('location'), isEmpty);
+    expect(find.byKey(const ValueKey('review.location')), findsOneWidget);
+    expect(find.text(Strings.locationNotTaken), findsOneWidget);
+  });
+
   wizardTest('no scan without the member agreeing', (tester) async {
     final controller = newController(draft: placedDraft());
     await pump(
@@ -1158,7 +1184,18 @@ void nomineeTests() {
 }
 
 class _FakeDevice extends DeviceServices {
-  const _FakeDevice({this.problem, this.qr, this.scannerWorks = true, this.qrInPhoto});
+  const _FakeDevice({
+    this.problem,
+    this.qr,
+    this.scannerWorks = true,
+    this.qrInPhoto,
+    this.position,
+  });
+
+  final (double, double)? position;
+
+  @override
+  Future<(double, double)?> currentPosition() async => position;
 
   final PhotoProblem? problem;
   final String? qr;
