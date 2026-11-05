@@ -483,7 +483,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                         statusLabel: draft.needsSync ? Strings.waitingUpload : Strings.draftStatus,
                         statusIcon: draft.needsSync ? Icons.cloud_upload_outlined : Icons.edit_note,
                         photo: _draftPhoto(draft),
-                        onTap: () => _open(draft),
+                        onTap: () async => _open(await _withServerDocuments(draft)),
                       ),
                   for (final item in _onlyOnServer)
                     RecordCard(
