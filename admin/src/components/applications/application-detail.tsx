@@ -342,11 +342,14 @@ function Section({
   title,
   children,
   className,
+  action,
 }: {
   id: string;
   title: string;
   children: React.ReactNode;
   className?: string;
+  /** At the end of the heading, such as a link out. */
+  action?: React.ReactNode;
 }) {
   const Icon = SECTION_ICONS[id] ?? FileText;
   return (
@@ -360,6 +363,7 @@ function Section({
           <Icon className="size-4" />
         </span>
         {title}
+        {action ? <span className="ml-auto font-normal">{action}</span> : null}
       </h2>
       {children}
     </Card>
@@ -395,8 +399,24 @@ function FormSection({
     (field) => !(section.key === "animals" && ANIMAL_KEYS.has(field.key)),
   );
   const verified = application.contact_verified;
+  const latitude = section.key === "location" ? Number(values.latitude) : NaN;
+  const longitude = section.key === "location" ? Number(values.longitude) : NaN;
+  // Where the form was filled, one click away in Google Maps.
+  const map =
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    (latitude || longitude) ? (
+      <a
+        href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+      >
+        <MapPin className="size-3.5" /> Open in Google Maps
+      </a>
+    ) : null;
   return (
-    <Section id={section.key} title={section.title}>
+    <Section id={section.key} title={section.title} action={map}>
       {section.key === "animals" ? (
         <AnimalGrid application={application} />
       ) : null}
