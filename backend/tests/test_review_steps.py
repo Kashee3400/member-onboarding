@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from apps.applications.models import ReviewStepAccess
 from apps.applications.review_steps import STEP_KEYS
 from apps.core.tenancy import organization_context
+from apps.documents.models import StaffSignature
 
 from .test_applications import (
     AADHAAR,
@@ -305,3 +306,23 @@ def test_landline_is_optional(world, application):
     data = detail(world, world.manager, application)
 
     assert "landline" not in data["data"]["address"]
+
+
+def test_a_head_is_chosen_first_and_then_asked_for_a_signature(world):
+    from apps.documents.services import needs_signature
+    from apps.organizations.models import Membership
+
+    newcomer = world.member("head@a.test", "cs_legal")
+    with organization_context(world.org.id):
+        membership = Membership.objects.get(user=newcomer)
+        StaffSignature.objects.filter(membership=membership).delete()
+        assert needs_signature(membership) is False
+
+    response = world.client(world.admin).put(
+        "/api/v1/settings/signatories/", {"pending_cs": str(membership.id)}, format="json"
+    )
+
+    assert response.status_code == 200, response.content
+    with organization_context(world.org.id):
+        # Being head is what asks for one: the upload now shows for them.
+        assert needs_signature(membership) is True

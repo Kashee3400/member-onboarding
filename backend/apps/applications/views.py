@@ -953,8 +953,8 @@ class SignatoriesView(APIView):
             )
             if person is None:
                 raise exceptions.ValidationError({stage: ["Choose someone in this stage's role."]})
-            if not person["has_signature"]:
-                raise exceptions.ValidationError({stage: ["This person has no signature on file."]})
+            # A head may be chosen before they have a signature: being head is what asks
+            # them for one. Approvals at the stage wait until it is on file.
             Signatory.objects.update_or_create(
                 stage=stage, defaults={"membership_id": person["id"]}
             )

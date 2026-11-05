@@ -13,7 +13,14 @@ import { ErrorState, ListSkeleton } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { api, ApiError } from "@/lib/api/client";
 
 type State = {
@@ -23,7 +30,9 @@ type State = {
 
 function Matrix({ state }: { state: State }) {
   const client = useQueryClient();
-  const [chosen, setChosen] = useState(() => Object.fromEntries(state.steps.map((step) => [step.key, step.roles])));
+  const [chosen, setChosen] = useState(() =>
+    Object.fromEntries(state.steps.map((step) => [step.key, step.roles])),
+  );
 
   const toggle = (step: string, role: string) =>
     setChosen((current) => ({
@@ -34,7 +43,8 @@ function Matrix({ state }: { state: State }) {
     }));
 
   const save = useMutation({
-    mutationFn: () => api("settings/review-steps", { method: "PUT", body: { steps: chosen } }),
+    mutationFn: () =>
+      api("settings/review-steps", { method: "PUT", body: { steps: chosen } }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["review-steps"] });
       toast.success("Review steps saved.");
@@ -42,7 +52,10 @@ function Matrix({ state }: { state: State }) {
   });
 
   const unassigned = state.steps.filter((step) => !chosen[step.key].length);
-  const changed = state.steps.some((step) => [...chosen[step.key]].sort().join() !== [...step.roles].sort().join());
+  const changed = state.steps.some(
+    (step) =>
+      [...chosen[step.key]].sort().join() !== [...step.roles].sort().join(),
+  );
 
   return (
     <>
@@ -87,7 +100,10 @@ function Matrix({ state }: { state: State }) {
             ? `Give a role to: ${unassigned.map((step) => step.title).join(", ")}.`
             : "Everyone can read every step. Each step is approved by its role, and a form moves on when its stage is complete."}
         </p>
-        <Button disabled={!changed || unassigned.length > 0 || save.isPending} onClick={() => save.mutate()}>
+        <Button
+          disabled={!changed || unassigned.length > 0 || save.isPending}
+          onClick={() => save.mutate()}
+        >
           {save.isPending ? "Saving…" : "Save"}
         </Button>
       </div>
@@ -107,14 +123,21 @@ type Signers = {
 /** The head whose signature the printed form carries, whoever on the team approved. */
 function Signatories() {
   const client = useQueryClient();
-  const state = useQuery({ queryKey: ["signatories"], queryFn: () => api<Signers>("settings/signatories") });
+  const state = useQuery({
+    queryKey: ["signatories"],
+    queryFn: () => api<Signers>("settings/signatories"),
+  });
   const save = useMutation({
-    mutationFn: (body: Record<string, string>) => api("settings/signatories", { method: "PUT", body }),
+    mutationFn: (body: Record<string, string>) =>
+      api("settings/signatories", { method: "PUT", body }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["signatories"] });
       toast.success("Signatory saved.");
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.summary : "Could not save."),
+    onError: (error) =>
+      toast.error(
+        error instanceof ApiError ? error.summary : "Could not save.",
+      ),
   });
 
   return (
@@ -122,8 +145,8 @@ function Signatories() {
       <div>
         <h2 className="font-medium">Signatures on the printed form</h2>
         <p className="text-sm text-muted-foreground">
-          Anyone on these teams can approve their steps. The form always carries the head&apos;s signature, and
-          the history keeps who approved.
+          Anyone on these teams can approve their steps. The form always carries
+          the head&apos;s signature, and the history keeps who approved.
         </p>
       </div>
       {state.data ? (
@@ -137,10 +160,20 @@ function Signatories() {
                 onChange={(value) => save.mutate({ [stage.stage]: value })}
                 items={stage.candidates.map((person) => ({
                   value: person.id,
-                  disabled: !person.has_signature,
-                  label: person.has_signature ? person.name : `${person.name} (no signature on file)`,
+                  label: person.has_signature
+                    ? person.name
+                    : `${person.name} (signature to add)`,
                 }))}
               />
+              {stage.candidates.some(
+                (person) =>
+                  person.id === stage.membership && !person.has_signature,
+              ) ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Add their signature under Staff, or they add it under My
+                  account. Forms wait at this stage until it is on file.
+                </p>
+              ) : null}
             </Field>
           ))}
         </div>
