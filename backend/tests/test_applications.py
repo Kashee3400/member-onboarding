@@ -643,6 +643,45 @@ def test_an_unassigned_mpp_cannot_be_used(world):
     assert response.status_code == 403
 
 
+def test_a_draft_can_move_to_another_of_your_mpps(world, org_a):
+    client = world.client(world.facilitator)
+    application = world.draft(client)
+    with organization_context(org_a.id):
+        assign_mpp(
+            mpp=world.other_mpp,
+            membership=Membership.objects.get(user=world.facilitator),
+            responsibility="facilitator",
+            actor=world.admin,
+        )
+    response = client.patch(
+        f"{URL}{application['id']}/",
+        {"mpp": str(world.other_mpp.id), "data": {"applicant": {"full_name": "Sita Devi"}}},
+    )
+    assert response.status_code == 200, response.content
+    assert response.data["mpp_code"] == "1152"
+    assert response.data["data"]["address"]["village_code"] == "00211673"
+    assert response.data["data"]["applicant"]["full_name"] == "Sita Devi"
+    with organization_context(org_a.id):
+        event = AuditEvent.objects.get(action="application.mpp_changed")
+    assert event.metadata == {"from": "1305", "to": "1152"}
+
+
+def test_a_draft_cannot_move_to_an_unassigned_mpp(world):
+    client = world.client(world.facilitator)
+    application = world.draft(client)
+    response = client.patch(f"{URL}{application['id']}/", {"mpp": str(world.other_mpp.id)})
+    assert response.status_code == 403
+    assert client.get(f"{URL}{application['id']}/").data["mpp_code"] == "1305"
+
+
+def test_a_submitted_form_cannot_change_mpp(world):
+    application = world.submitted()
+    response = world.client(world.facilitator).patch(
+        f"{URL}{application['id']}/", {"mpp": str(world.other_mpp.id)}
+    )
+    assert response.status_code == 409
+
+
 def test_an_area_manager_only_sees_their_mpps(world):
     application = world.submitted()
     other = world.member("am2@a.test", "area_manager")

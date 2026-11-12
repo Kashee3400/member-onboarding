@@ -19,7 +19,6 @@ FIELD_LABELS = {
     "applicant.date_of_birth": "जन्म तिथि",
     "applicant.education": "शैक्षिक योग्यता",
     "applicant.category": "श्रेणी",
-    "applicant.family_status": "परिवार की स्थिति",
     "applicant.is_shg_member": "यूपीएसआरएलएम एसएचजी की सदस्य",
     "address.house_number": "घर संख्या",
     "address.pooling_point_code": "पूलिंग पॉइंट कोड",

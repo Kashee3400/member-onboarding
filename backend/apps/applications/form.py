@@ -29,7 +29,6 @@ def _choices(*pairs):
 GENDERS = _choices(("male", "Male"), ("female", "Female"), ("other", "Other"))
 RELATIONS = _choices(("father", "Father"), ("husband", "Husband"), ("guardian", "Guardian"))
 CATEGORIES = _choices(("general", "General"), ("obc", "OBC"), ("sc", "SC"), ("st", "ST"))
-FAMILY_STATUS = _choices(("bpl", "BPL"), ("apl", "APL"))
 # How the facilitator collects the member fee. Online opens once a gateway is set up.
 PAYMENT_MODES = _choices(("cash", "Cash"), ("online", "Online"))
 EDUCATION = _choices(
@@ -61,7 +60,6 @@ OPTION_LISTS = {
     "relation_type": RELATIONS,
     "education": EDUCATION,
     "category": CATEGORIES,
-    "family_status": FAMILY_STATUS,
     "family_relation": FAMILY_RELATIONS,
     "nominee_relation": FAMILY_RELATIONS,
     "payment_mode": PAYMENT_MODES,
@@ -109,7 +107,6 @@ FORM_SCHEMA = {
                 ),
                 _choice("education", "Education", "education"),
                 _choice("category", "Category", "category"),
-                _choice("family_status", "Family status", "family_status", required=False),
                 _field("is_shg_member", "Member of a UPSRLM SHG", "boolean", required=False),
             ],
         },

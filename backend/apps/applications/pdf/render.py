@@ -190,7 +190,6 @@ def build_context(application, profile, settings, variant, *, draft=False) -> di
         "gender_label": _label(labels["gender"], applicant.get("gender")),
         "education_label": _label(labels["education"], applicant.get("education")),
         "category_label": _label(labels["category"], applicant.get("category")),
-        "family_status_label": _label(labels["family_status"], applicant.get("family_status")),
         "shg_label": "Yes" if applicant.get("is_shg_member") else "No",
         "account_number": _account_number(application),
         "animals": _animal_table(animals),

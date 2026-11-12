@@ -211,6 +211,15 @@ class OnboardingApi {
     return RecordSummary.fromJson(body as Map<String, dynamic>);
   }
 
+  /// Drops a draft that was never submitted. One already gone counts as done.
+  Future<void> discardApplication(String id) async {
+    try {
+      await _client.post('applications/$id/discard/');
+    } on ApiException catch (error) {
+      if (error.status != 404) rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> fetchApplication(String id) async =>
       await _client.get('applications/$id/') as Map<String, dynamic>;
 
@@ -228,10 +237,12 @@ class OnboardingApi {
     String? aadhaarNumber,
     String? accountNumber,
     String? aadhaarQr,
+    String? mppId,
   }) async =>
       await _client.patch('applications/$id/', {
             'version': version,
             'data': data,
+            'mpp': ?mppId,
             'aadhaar_number': ?aadhaarNumber,
             'account_number': ?accountNumber,
             if (aadhaarQr != null) ...{'aadhaar_qr': aadhaarQr, 'aadhaar_qr_consent': true},

@@ -154,6 +154,29 @@ class DraftController extends ChangeNotifier {
     draft.aadhaarCheck = check is Map ? check['status'] as String? : null;
     // The server knows the MPP's latest place, even for a form started before it was set.
     if (server['mpp_place'] != null) draft.place = placeFromJson(server['mpp_place']);
+    if (server['mpp'] is String && server['mpp_code'] is String) {
+      draft
+        ..mppId = server['mpp'] as String
+        ..mppLabel = '${server['mpp_code']} ${server['mpp_name'] ?? ''}'.trim();
+    }
+  }
+
+  /// The MPPs this person may file under, for moving a form filled under the wrong one.
+  Future<List<MppSummary>> assignedMpps() async =>
+      (await _api.fetchMppsJson()).map(MppSummary.fromJson).toList();
+
+  /// Moves the form to another MPP. Its place fields follow the new MPP.
+  void changeMpp(MppSummary mpp) {
+    if (mpp.id == draft.mppId) return;
+    final locked = draft.place.keys.toSet();
+    final address = Map<String, dynamic>.of(draft.section('address'))
+      ..removeWhere((key, _) => locked.contains(key));
+    draft
+      ..mppId = mpp.id
+      ..mppLabel = '${mpp.code} ${mpp.name}'
+      ..place = Map.of(mpp.place);
+    draft.data['address'] = address;
+    _changed();
   }
 
   /// A mobile number, email or bank account another form or member already has: the
@@ -230,6 +253,7 @@ class DraftController extends ChangeNotifier {
         aadhaarNumber: aadhaar,
         accountNumber: account,
         aadhaarQr: qr,
+        mppId: draft.mppId,
       );
       _apply(saved);
       // The server holds them now, so they must not stay on the phone.

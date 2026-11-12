@@ -82,6 +82,14 @@ class Strings {
   static const editForm = 'Edit form';
   static const correctForm = 'Correct the form';
   static const draftStatus = 'Draft';
+  static const deleteDraft = 'Delete draft';
+  static const deleteDraftTitle = 'Delete this draft?';
+  static const deleteDraftBody =
+      'The form, its photos and everything typed in it will be removed from this phone and '
+      'the server. This cannot be undone.';
+  static const delete = 'Delete';
+  static const draftDeleted = 'Draft deleted';
+  static const deleteNeedsInternet = 'Connect to the internet to delete a draft that was saved.';
   static const memberFee = 'Member fee';
   static const admissionFee = 'Admission fee';
   static const shares = 'Shares';
@@ -239,6 +247,16 @@ class Strings {
   static const fromQr = 'From Aadhaar QR';
   static const memberDetails = 'Member details';
   static const fromMppTitle = 'From the MPP';
+  static const mppLabel = 'MPP';
+  static const changeMpp = 'Change MPP';
+  static const changeMppTitle = 'Move this form to another MPP';
+  static const changeMppBody =
+      'Use this only if the form was filled under the wrong MPP. The village, post office '
+      'and other place details will change to the new MPP.';
+  static const changeMppConfirm = 'Move form';
+  static const changeMppDone = 'Form moved to';
+  static const noOtherMpp = 'No other MPP is assigned to you.';
+  static const mppListFailed = 'Could not load your MPPs. Check the internet and try again.';
   static const addressTitle = 'Address';
   static const contactTitle = 'Contact';
   static const locationTitle = 'Location of the form';

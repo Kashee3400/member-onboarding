@@ -373,6 +373,11 @@ class ApplicationSaveSerializer(serializers.Serializer):
         help_text="The Aadhaar QR as scanned. Checked against UIDAI's signature, then dropped.",
     )
     aadhaar_qr_consent = serializers.BooleanField(required=False, default=False)
+    mpp = serializers.PrimaryKeyRelatedField(
+        queryset=Mpp.objects.filter(is_active=True),
+        required=False,
+        help_text="Moves a draft or sent-back form to another of your MPPs.",
+    )
 
     def validate_data(self, value):
         if not isinstance(value, dict):

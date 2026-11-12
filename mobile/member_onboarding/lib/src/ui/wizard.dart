@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../aadhaar/aadhaar_qr.dart';
+import '../api/onboarding_api.dart' show MppSummary;
 import '../models/form_schema.dart';
 import '../sync/draft_controller.dart';
 import '../validation/form_checks.dart';
@@ -349,6 +350,96 @@ class _FormWizardState extends State<FormWizard> {
         if (age != null) _note(Icons.cake_outlined, '$age ${Strings.years}'),
         if (_fromQr.contains(path)) _note(Icons.verified_outlined, Strings.fromQr, Colors.green.shade700),
       ],
+    );
+  }
+
+  /// The MPP the form is filed under, with a way out when it was the wrong one.
+  Widget _mppCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const ValueKey('wizard.mpp'),
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(Icons.meeting_room_outlined, color: scheme.primary),
+        title: const Text(Strings.mppLabel),
+        subtitle: Text(
+          _form.draft.mppLabel,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        trailing: TextButton.icon(
+          key: const ValueKey('wizard.change_mpp'),
+          onPressed: _changeMpp,
+          icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+          label: const Text(Strings.changeMpp),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeMpp() async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<MppSummary> mpps;
+    try {
+      mpps = [for (final mpp in await _form.assignedMpps()) if (mpp.id != _form.draft.mppId) mpp];
+    } on Object {
+      messenger.showSnackBar(const SnackBar(content: Text(Strings.mppListFailed)));
+      return;
+    }
+    if (!mounted) return;
+    if (mpps.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text(Strings.noOtherMpp)));
+      return;
+    }
+    MppSummary? chosen;
+    final picked = await showDialog<MppSummary>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: const Text(Strings.changeMppTitle),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(Strings.changeMppBody),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, box) => DropdownMenu<MppSummary>(
+                    key: const ValueKey('wizard.mpp_choice'),
+                    width: box.maxWidth,
+                    menuHeight: 280,
+                    enableFilter: true,
+                    requestFocusOnTap: true,
+                    hintText: Strings.searchMpp,
+                    dropdownMenuEntries: [
+                      for (final mpp in mpps)
+                        DropdownMenuEntry(value: mpp, label: '${mpp.code} ${mpp.name}'),
+                    ],
+                    onSelected: (mpp) => setDialog(() => chosen = mpp),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text(Strings.cancel),
+            ),
+            FilledButton(
+              onPressed: chosen == null ? null : () => Navigator.pop(dialog, chosen),
+              child: const Text(Strings.changeMppConfirm),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    _form.changeMpp(picked);
+    HapticFeedback.lightImpact();
+    messenger.showSnackBar(
+      SnackBar(content: Text('${Strings.changeMppDone} ${picked.code} ${picked.name}')),
     );
   }
 
@@ -756,6 +847,7 @@ class _FormWizardState extends State<FormWizard> {
     final place = [for (final spec in fields) if (!contact.contains(spec.key)) spec];
 
     return _spaced([
+      _mppCard(),
       SectionCard(
         title: Strings.addressTitle,
         icon: Icons.home_outlined,

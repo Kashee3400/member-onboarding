@@ -292,6 +292,7 @@ class ApplicationViewSet(viewsets.ReadOnlyModelViewSet):
             version=data.get("version"),
             aadhaar_qr=data.get("aadhaar_qr"),
             aadhaar_qr_consent=data.get("aadhaar_qr_consent", False),
+            mpp=data.get("mpp"),
         )
         return self._detail(application)
 

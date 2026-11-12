@@ -88,8 +88,10 @@ class Draft {
       Draft.fromJson((jsonDecode(source) as Map).cast<String, dynamic>());
 
   final String clientId;
-  final String mppId;
-  final String mppLabel;
+
+  /// Changes only when a form filled under the wrong MPP is moved to the right one.
+  String mppId;
+  String mppLabel;
 
   /// The address fields the MPP fills. They show read-only and the server enforces them.
   Map<String, String> place;

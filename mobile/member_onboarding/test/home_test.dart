@@ -6,6 +6,7 @@ import 'package:member_onboarding/member_onboarding.dart';
 import 'package:member_onboarding/src/api/api_client.dart';
 import 'package:member_onboarding/src/api/onboarding_api.dart';
 import 'package:member_onboarding/src/models/draft.dart';
+import 'package:member_onboarding/src/storage/document_vault.dart';
 import 'package:member_onboarding/src/ui/device_services.dart';
 import 'package:member_onboarding/src/ui/strings.dart';
 
@@ -74,6 +75,13 @@ class FakeApi extends OnboardingApi {
   List<ApplicationSummary> serverDrafts = const [];
   List<Map<String, dynamic>> moreMpps = const [];
   Map<String, String> documentIds = const {};
+  final List<String> discarded = [];
+
+  @override
+  Future<void> discardApplication(String id) async {
+    _check();
+    discarded.add(id);
+  }
 
   @override
   Future<Map<String, dynamic>> fetchApplication(String id) async => {
@@ -158,6 +166,7 @@ class FakeApi extends OnboardingApi {
     String? aadhaarNumber,
     String? accountNumber,
     String? aadhaarQr,
+    String? mppId,
   }) async {
     saves++;
     return {
@@ -183,6 +192,7 @@ Widget app(FakeApi api, DraftStore store) => MaterialApp(
     config: MemberOnboardingConfig(baseUrl: 'https://x.test', assertionProvider: () async => ''),
     api: api,
     store: store,
+    vault: MemoryDocumentVault(),
     device: const FakeDevice(),
   ),
 );
@@ -413,5 +423,56 @@ void main() {
 
     expect(find.text('Sita Devi'), findsOneWidget);
     expect(find.text(Strings.noDrafts), findsNothing);
+  });
+
+  testWidgets('a saved draft is deleted on the server and the phone after a confirm', (tester) async {
+    final api = FakeApi();
+    final store = MemoryDraftStore();
+    await store.save(
+      Draft(
+        clientId: 'c1',
+        mppId: 'm1',
+        mppLabel: '1305 Dudwa',
+        serverId: 's1',
+        data: {
+          'applicant': {'full_name': 'Gita Devi'},
+        },
+      ),
+    );
+
+    await tester.pumpWidget(app(api, store));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('record.delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(Strings.cancel));
+    await tester.pumpAndSettle();
+    expect(api.discarded, isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('record.delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(Strings.delete));
+    await tester.pumpAndSettle();
+
+    expect(api.discarded, ['s1']);
+    expect(await store.all(), isEmpty);
+    expect(find.text('Gita Devi'), findsNothing);
+    expect(find.text(Strings.draftDeleted), findsOneWidget);
+  });
+
+  testWidgets('a saved draft is not deleted while offline', (tester) async {
+    final api = FakeApi();
+    final store = MemoryDraftStore();
+    await store.save(Draft(clientId: 'c1', mppId: 'm1', mppLabel: 'x', serverId: 's1'));
+
+    await tester.pumpWidget(app(api, store));
+    await tester.pumpAndSettle();
+    api.online = false;
+    await tester.tap(find.byKey(const ValueKey('record.delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(Strings.delete));
+    await tester.pumpAndSettle();
+
+    expect(await store.all(), hasLength(1));
+    expect(find.text(Strings.deleteNeedsInternet), findsOneWidget);
   });
 }

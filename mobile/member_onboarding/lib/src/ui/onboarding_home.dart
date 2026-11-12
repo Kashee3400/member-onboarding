@@ -17,6 +17,7 @@ import '../sync/bank_lookup.dart';
 import '../sync/draft_controller.dart';
 import 'device_services.dart';
 import 'my_records.dart';
+import 'onboarding_home_widgets.dart';
 import 'record_card.dart';
 import 'strings.dart';
 import 'wizard.dart';
@@ -184,6 +185,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     final here = {for (final draft in _drafts) ?draft.serverId};
     return [for (final item in _serverDrafts) if (!here.contains(item.id)) item];
   }
+
   bool _pushRegistered = false;
   bool _requestOpened = false;
 
@@ -226,40 +228,9 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
       if (!mounted) return;
       final open = await showDialog<ApplicationSummary>(
         context: context,
-        builder: (dialog) => AlertDialog(
-          key: const ValueKey('sent_back.alert'),
-          icon: Icon(Icons.assignment_return_rounded, color: Colors.red.shade600, size: 36),
-          title: Text('${_rejected.length} ${Strings.sentBackAlertTitle}'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(Strings.sentBackAlertBody),
-                ),
-                for (final item in _rejected)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: MemberPhoto(
-                      name: item.applicantName,
-                      photo: item.photoId == null ? null : _serverPhoto(item.photoId!),
-                      size: 40,
-                    ),
-                    title: Text(item.applicantName.isEmpty ? Strings.untitled : item.applicantName),
-                    subtitle: Text(
-                      [if (item.formNumber.isNotEmpty) item.formNumber, item.mppCode].join(' · '),
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.pop(dialog, item),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialog), child: const Text(Strings.later)),
-          ],
+        builder: (dialog) => SentBackDialog(
+          rejected: _rejected,
+          photoLoader: _serverPhoto,
         ),
       );
       if (open != null && mounted) await _openRejected(open);
@@ -291,6 +262,59 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
     }
     final drafts = _newestFirst(await _store.all());
     if (mounted) setState(() => _drafts = drafts);
+  }
+
+  Future<bool> _confirmDelete(String name) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          key: const ValueKey('draft.delete_confirm'),
+          icon: Icon(Icons.delete_outline_rounded, color: Theme.of(dialog).colorScheme.error),
+          title: const Text(Strings.deleteDraftTitle),
+          content: Text(
+            name.isEmpty ? Strings.deleteDraftBody : '$name\n\n${Strings.deleteDraftBody}',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text(Strings.cancel)),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Theme.of(dialog).colorScheme.error),
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text(Strings.delete),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  /// Throws the draft away on the server first, then on the phone, so it cannot come back.
+  Future<void> _deleteDraft({Draft? draft, ApplicationSummary? item}) async {
+    final name = draft?.applicantName ?? item?.applicantName ?? '';
+    if (!await _confirmDelete(name) || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final serverId = draft?.serverId ?? item?.id;
+    try {
+      if (serverId != null) await _api.discardApplication(serverId);
+    } on OfflineException {
+      messenger.showSnackBar(const SnackBar(content: Text(Strings.deleteNeedsInternet)));
+      return;
+    } on ApiException catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+    final local = [
+      for (final saved in await _store.all())
+        if (saved.clientId == draft?.clientId || (serverId != null && saved.serverId == serverId)) saved,
+    ];
+    for (final saved in local) {
+      await _store.delete(saved.clientId);
+      await _vault.removeAll(saved.clientId);
+    }
+    if (!mounted) return;
+    setState(() {
+      _drafts = [for (final d in _drafts) if (!local.any((s) => s.clientId == d.clientId)) d];
+      _serverDrafts = [for (final s in _serverDrafts) if (s.id != serverId) s];
+    });
+    messenger.showSnackBar(const SnackBar(content: Text(Strings.draftDeleted)));
   }
 
   Future<void> _open(Draft draft) async {
@@ -412,13 +436,13 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   if (_offline) ...[
-                    _Banner(
+                    OfflineBanner(
                       text: _schema == null ? Strings.firstRunNeedsNetwork : Strings.offlineReady,
                       onRetry: _load,
                     ),
                     const SizedBox(height: 12),
                   ],
-                  _StartCard(
+                  StartCard(
                     mpps: _mpps,
                     chosen: _chosenMpp,
                     onChoose: (mpp) => setState(() => _chosenMppId = mpp?.id),
@@ -426,26 +450,26 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                   ),
                   if (month != null) ...[
                     const SizedBox(height: 20),
-                    _SectionTitle(Strings.thisMonth, onTap: _openRecords),
+                    HomeSectionTitle(Strings.thisMonth, onTap: _openRecords),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _CountTile(label: Strings.totalForms, value: month.total, onTap: _openRecords),
+                        CountTile(label: Strings.totalForms, value: month.total, onTap: _openRecords),
                         const SizedBox(width: 8),
-                        _CountTile(label: Strings.waiting, value: month.underReview, onTap: _openRecords),
+                        CountTile(label: Strings.waiting, value: month.underReview, onTap: _openRecords),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _CountTile(
+                        CountTile(
                           label: Strings.approved,
                           value: month.becameMembers,
                           color: Colors.green.shade700,
                           onTap: _openRecords,
                         ),
                         const SizedBox(width: 8),
-                        _CountTile(
+                        CountTile(
                           label: Strings.returned,
                           value: month.sentBack,
                           color: scheme.error,
@@ -456,7 +480,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                   ],
                   if (_rejected.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    _SectionTitle(Strings.sentBack, count: _rejected.length),
+                    HomeSectionTitle(Strings.sentBack, count: _rejected.length),
                     const SizedBox(height: 8),
                     for (final item in _rejected)
                       RecordCard(
@@ -470,10 +494,10 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                       ),
                   ],
                   const SizedBox(height: 20),
-                  _SectionTitle(Strings.myDrafts, count: _drafts.length + _onlyOnServer.length),
+                  HomeSectionTitle(Strings.myDrafts, count: _drafts.length + _onlyOnServer.length),
                   const SizedBox(height: 8),
                   if (_drafts.isEmpty && _onlyOnServer.isEmpty)
-                    const _Empty()
+                    const EmptyDraftsTile()
                   else
                     for (final draft in _drafts)
                       RecordCard(
@@ -484,6 +508,7 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                         statusIcon: draft.needsSync ? Icons.cloud_upload_outlined : Icons.edit_note,
                         photo: _draftPhoto(draft),
                         onTap: () async => _open(await _withServerDocuments(draft)),
+                        onDelete: draft.status == 'draft' ? () => _deleteDraft(draft: draft) : null,
                       ),
                   for (final item in _onlyOnServer)
                     RecordCard(
@@ -494,298 +519,13 @@ class _MemberOnboardingScreenState extends State<MemberOnboardingScreen> {
                       statusIcon: Icons.edit_note,
                       photo: item.photoId == null ? null : _serverPhoto(item.photoId!),
                       onTap: () => _openRejected(item),
+                      onDelete: () => _deleteDraft(item: item),
                     ),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({required this.text, required this.onRetry});
-
-  final String text;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.tertiaryContainer,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
-        child: Row(
-          children: [
-            Icon(Icons.wifi_off_rounded, color: scheme.onTertiaryContainer),
-            const SizedBox(width: 12),
-            Expanded(child: Text(text, style: TextStyle(color: scheme.onTertiaryContainer))),
-            TextButton(onPressed: onRetry, child: const Text(Strings.retry)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StartCard extends StatelessWidget {
-  const _StartCard({
-    required this.mpps,
-    required this.chosen,
-    required this.onChoose,
-    required this.onStart,
-  });
-
-  final List<MppSummary> mpps;
-  final MppSummary? chosen;
-  final ValueChanged<MppSummary?> onChoose;
-  final VoidCallback? onStart;
-
-  int get mppCount => mpps.length;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.55)!],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: scheme.onPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.person_add_alt_1_rounded, color: scheme.onPrimary),
-              ),
-              const Spacer(),
-              if (mppCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: scheme.onPrimary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '$mppCount ${Strings.mppsAssigned}',
-                    style: theme.textTheme.labelSmall?.copyWith(color: scheme.onPrimary),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            Strings.startTitle,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: scheme.onPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            Strings.startHint,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: scheme.onPrimary.withValues(alpha: 0.85),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _MppField(mpps: mpps, chosen: chosen, onChoose: onChoose),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.onPrimary,
-              foregroundColor: scheme.primary,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: onStart,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text(Strings.newForm, style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// "Search for MPP": type part of the code or the name, and the list under the
-/// field narrows as you type. The same kind of field the facilitator app uses.
-class _MppField extends StatelessWidget {
-  const _MppField({required this.mpps, required this.chosen, required this.onChoose});
-
-  final List<MppSummary> mpps;
-  final MppSummary? chosen;
-  final ValueChanged<MppSummary?> onChoose;
-
-  static String label(MppSummary mpp) => '${mpp.code} ${mpp.name}';
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, box) => DropdownMenu<MppSummary>(
-        // A new key per choice, so the field shows what was chosen, also after a reload.
-        key: ValueKey('mpp-field-${chosen?.id}'),
-        width: box.maxWidth,
-        menuHeight: 320,
-        initialSelection: chosen,
-        enabled: mpps.isNotEmpty,
-        enableFilter: true,
-        enableSearch: true,
-        requestFocusOnTap: true,
-        hintText: Strings.searchMpp,
-        leadingIcon: const Icon(Icons.meeting_room_outlined, color: Color(0xFF10B981)),
-        textStyle: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: scheme.surface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        dropdownMenuEntries: [
-          for (final mpp in mpps)
-            DropdownMenuEntry<MppSummary>(value: mpp, label: label(mpp)),
-        ],
-        onSelected: onChoose,
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text, {this.count, this.onTap});
-
-  final String text;
-  final int? count;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Row(
-      children: [
-        Text(text, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-        if (count != null && count! > 0) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-            decoration: BoxDecoration(
-              color: scheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              '$count',
-              style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSecondaryContainer),
-            ),
-          ),
-        ],
-        const Spacer(),
-        if (onTap != null)
-          InkWell(
-            onTap: onTap,
-            child: Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-          ),
-      ],
-    );
-  }
-}
-
-class _CountTile extends StatelessWidget {
-  const _CountTile({required this.label, required this.value, required this.onTap, this.color});
-
-  final String label;
-  final int value;
-  final VoidCallback onTap;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Expanded(
-      child: Material(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '$value',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: color ?? scheme.onSurface,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  const _Empty();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.inbox_outlined, size: 36, color: scheme.onSurfaceVariant),
-          const SizedBox(height: 8),
-          Text(Strings.noDrafts, style: theme.textTheme.titleSmall),
-          const SizedBox(height: 4),
-          Text(
-            Strings.noDraftsHint,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ],
       ),
     );
   }

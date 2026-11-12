@@ -90,6 +90,7 @@ class RecordCard extends StatelessWidget {
     required this.photo,
     required this.onTap,
     this.statusIcon,
+    this.onDelete,
     super.key,
   });
 
@@ -102,6 +103,9 @@ class RecordCard extends StatelessWidget {
   final IconData? statusIcon;
   final Future<Uint8List?>? photo;
   final VoidCallback onTap;
+
+  /// Shown as a bin beside the arrow, for a draft that may be thrown away.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +148,14 @@ class RecordCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onDelete != null)
+                  IconButton(
+                    key: const ValueKey('record.delete'),
+                    tooltip: Strings.deleteDraft,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onDelete,
+                    icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
+                  ),
                 Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
               ],
             ),

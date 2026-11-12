@@ -8133,6 +8133,10 @@ components:
         aadhaar_qr_consent:
           type: boolean
           default: false
+        mpp:
+          type: string
+          format: uuid
+          description: Moves a draft or sent-back form to another of your MPPs.
     PatchedBankBranchRequest:
       type: object
       properties:

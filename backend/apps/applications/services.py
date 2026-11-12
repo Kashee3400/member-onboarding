@@ -336,10 +336,13 @@ def save_draft(
     version=None,
     aadhaar_qr=None,
     aadhaar_qr_consent=False,
+    mpp=None,
 ):
     """Autosave. Accepts partial answers: completeness is only checked on submit."""
     _ensure_editable(application)
     _ensure_current(application, version)
+    if mpp is not None and mpp.pk != application.mpp_id:
+        _move_to_mpp(application, mpp, user)
 
     if data is not None:
         before = application.data.get("address", {})
@@ -392,6 +395,30 @@ def save_draft(
             consent=aadhaar_qr_consent,
         )
     return application
+
+
+def _move_to_mpp(application, mpp, user) -> None:
+    """A form filled under the wrong MPP: it takes the new one's place, not a mix of both."""
+    if (
+        not accessible_mpps(user.active_membership, user.active_permissions)
+        .filter(pk=mpp.pk)
+        .exists()
+    ):
+        raise exceptions.PermissionDenied("This MPP is not assigned to you.")
+    previous = application.mpp
+    address = application.data.get("address")
+    address = address if isinstance(address, dict) else {}
+    application.data = {
+        **application.data,
+        "address": {k: v for k, v in address.items() if k not in place.LOCKED_FIELDS},
+    }
+    application.mpp = mpp
+    record_event(
+        "application.mpp_changed",
+        actor=user,
+        target=application,
+        metadata={"from": previous.code, "to": mpp.code},
+    )
 
 
 def unverified_contacts(application) -> dict[str, str]:

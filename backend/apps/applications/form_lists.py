@@ -22,7 +22,6 @@ LISTS = {
     "relation_type": ("Father or husband", "Whose name the applicant gives after her own"),
     "education": ("Education", "The applicant's schooling"),
     "category": ("Category", "The applicant's social category"),
-    "family_status": ("Family status", "BPL or APL"),
     "family_relation": ("Household relation", "How each household member is related"),
     "nominee_relation": ("Nominee relation", "How the nominee is related to the applicant"),
     "payment_mode": (

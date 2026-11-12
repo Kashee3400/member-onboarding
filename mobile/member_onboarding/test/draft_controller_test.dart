@@ -61,9 +61,16 @@ class FakeApi extends OnboardingApi {
     String? aadhaarNumber,
     String? accountNumber,
     String? aadhaarQr,
+    String? mppId,
   }) async {
     _maybeFail();
-    saves.add({'version': version, 'data': data, 'aadhaar': aadhaarNumber, 'qr': aadhaarQr});
+    saves.add({
+      'version': version,
+      'data': data,
+      'aadhaar': aadhaarNumber,
+      'qr': aadhaarQr,
+      'mpp': mppId,
+    });
     this.version++;
     return _server('draft');
   }
@@ -141,6 +148,24 @@ void main() {
 
     expect(controller.draft.place, {'tehsil': 'Gyanpur'});
     expect((await store.all()).single.place, {'tehsil': 'Gyanpur'});
+  });
+
+  test('a form moved to another MPP saves under it and drops the old place', () async {
+    controller.draft.place = {'tehsil': 'Gyanpur', 'district': 'Bhadohi'};
+    controller.setValue('address', 'tehsil', 'Gyanpur');
+    controller.setValue('address', 'house_number', '12');
+    await controller.sync();
+
+    controller.changeMpp(
+      const MppSummary(id: 'm2', code: '1152', name: 'Tilthi', place: {'district': 'Mirzapur'}),
+    );
+    expect(controller.draft.mppId, 'm2');
+    expect(controller.draft.mppLabel, '1152 Tilthi');
+    expect(controller.draft.place, {'district': 'Mirzapur'});
+    expect(controller.draft.section('address'), {'house_number': '12'});
+
+    await controller.sync();
+    expect(api.saves.last['mpp'], 'm2');
   });
 
   test('offline work stays on the phone and goes when back online', () async {
