@@ -256,3 +256,19 @@ def test_export_gives_back_what_import_takes(world):
 
     template = world.client(world.admin).get(f"{STAFF}export/", {"template": "1"})
     assert len(list(load_workbook(BytesIO(template.content)).active.iter_rows())) == 2
+
+
+def test_mcc_codes_match_without_their_leading_zeros(world, org_a):
+    from apps.hierarchy.models import Mcc, Plant
+
+    with organization_context(org_a.id):
+        Mcc.objects.create(plant=Plant.objects.get(code="P1"), code="005", name="Ballia")
+    response = upload(
+        world, ("org-a", "Five", "five@a.test", "", "area_manager", "5", "", ""), preview=False
+    )
+    assert response.data["problems"] == 0, response.data
+    assert response.data["rows"][0]["mccs"] == ["005"]
+    with organization_context(org_a.id):
+        assert MccAssignment.objects.filter(
+            membership__user__email="five@a.test", mcc__code="005"
+        ).exists()

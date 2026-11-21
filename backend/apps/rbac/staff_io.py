@@ -60,6 +60,28 @@ def _codes(value) -> list[str]:
     return [code for code in _SPLIT.split(_text(value)) if code]
 
 
+def _by_code(objects) -> dict:
+    """
+    Each object under its code, and a numeric code also under its number: Excel
+    drops leading zeros, so 5 in a sheet is MCC 005 in the masters.
+    """
+    found = {}
+    for obj in objects:
+        found[obj.code] = obj
+        if obj.code.isdigit():
+            found.setdefault(str(int(obj.code)), obj)
+    return found
+
+
+def _resolve(codes, found) -> tuple[list[str], list[str]]:
+    """The masters' own codes for these, and the ones not found."""
+    known, unknown = [], []
+    for code in codes:
+        obj = found.get(code) or (found.get(str(int(code))) if code.isdigit() else None)
+        (known if obj else unknown).append(obj.code if obj else code)
+    return known, unknown
+
+
 # Export ------------------------------------------------------------------------------
 
 
@@ -164,8 +186,8 @@ def _plan(records, organization) -> list[dict]:
     """Every row with what would happen to it, and its problems."""
     User = get_user_model()
     roles = {role.code: role for role in Role.objects.all()}
-    mccs = {mcc.code: mcc for mcc in Mcc.objects.filter(is_active=True)}
-    mpps = {mpp.code: mpp for mpp in Mpp.objects.filter(is_active=True)}
+    mccs = _by_code(Mcc.objects.filter(is_active=True))
+    mpps = _by_code(Mpp.objects.filter(is_active=True))
     here = {
         membership.user.email: membership
         for membership in Membership.objects.select_related("user")
@@ -226,9 +248,11 @@ def _plan(records, organization) -> list[dict]:
             problems.append(f"Unknown roles: {', '.join(unknown)}.")
         granted = set().union(*(roles[code].permissions for code in codes if code in roles))
 
-        if unknown := [code for code in plan["mccs"] if code not in mccs]:
+        plan["mccs"], unknown = _resolve(plan["mccs"], mccs)
+        if unknown:
             problems.append(f"Unknown MCC codes: {', '.join(unknown)}.")
-        if unknown := [code for code in plan["mpps"] if code not in mpps]:
+        plan["mpps"], unknown = _resolve(plan["mpps"], mpps)
+        if unknown:
             problems.append(f"Unknown MPP codes: {', '.join(unknown)}.")
         if plan["mccs"] and not granted & APPROVES:
             problems.append("Only someone who approves forms can be given MCCs.")
