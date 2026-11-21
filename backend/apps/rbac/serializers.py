@@ -162,3 +162,33 @@ class StaffUpdateSerializer(serializers.Serializer):
     role_ids = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), many=True, required=False
     )
+
+
+class StaffTransferSerializer(serializers.Serializer):
+    to = serializers.UUIDField(help_text="The staff member who takes over.")
+
+
+class StaffTransferResultSerializer(serializers.Serializer):
+    mccs = serializers.ListField(child=serializers.CharField())
+    mpps = serializers.ListField(child=serializers.CharField())
+    facilitator_mpps = serializers.IntegerField()
+
+
+class StaffReviewStepsSerializer(serializers.Serializer):
+    custom = serializers.BooleanField(read_only=True)
+    steps = serializers.ListField(child=serializers.CharField(), allow_null=True)
+    role_steps = serializers.ListField(child=serializers.CharField(), read_only=True)
+    eligible = serializers.ListField(child=serializers.CharField(), read_only=True)
+    approves_all = serializers.BooleanField(read_only=True)
+    confirm = serializers.BooleanField(
+        write_only=True,
+        default=False,
+        help_text="Save even though some steps would have nobody else to approve them.",
+    )
+
+
+class StaffImportSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    preview = serializers.BooleanField(
+        default=True, help_text="Report what the file would do, and change nothing."
+    )

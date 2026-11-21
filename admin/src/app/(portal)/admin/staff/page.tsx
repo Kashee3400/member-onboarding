@@ -7,6 +7,7 @@ import {
   Power,
   Send,
   ShieldOff,
+  Upload,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -19,6 +20,11 @@ import { messageOf } from "@/components/admin/feedback";
 import { FormDialog } from "@/components/admin/form-dialog";
 import { PhotoField } from "@/components/admin/photo-field";
 import { SignatureSetup } from "@/components/admin/signature-setup";
+import {
+  ImportStaff,
+  StaffDownloads,
+  StaffRowActions,
+} from "@/components/admin/staff-tools";
 import { CopyButton } from "@/components/applications/copy-button";
 import {
   DataTable,
@@ -548,6 +554,7 @@ function ManageStaff({
 export default function StaffPage() {
   const canManage = useCan("staff.manage");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
   const roles = useQuery({
     queryKey: ["roles", "all"],
@@ -646,6 +653,14 @@ export default function StaffPage() {
           </span>
         ),
       },
+      {
+        id: "actions",
+        header: "",
+        required: true,
+        align: "right",
+        csv: () => "",
+        cell: (row) => <StaffRowActions person={row} onEdit={setEditing} />,
+      },
     ],
     [],
   );
@@ -656,11 +671,19 @@ export default function StaffPage() {
         title="Staff"
         description="People with access to this organization, and what they can do."
         actions={
-          canManage ? (
-            <Button onClick={() => setAdding(true)}>
-              <UserPlus /> Add staff
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            <StaffDownloads />
+            {canManage ? (
+              <>
+                <Button variant="outline" onClick={() => setImporting(true)}>
+                  <Upload /> Import
+                </Button>
+                <Button onClick={() => setAdding(true)}>
+                  <UserPlus /> Add staff
+                </Button>
+              </>
+            ) : null}
+          </div>
         }
       />
       <DataTable<Staff>
@@ -695,6 +718,7 @@ export default function StaffPage() {
       {adding ? (
         <AddStaff roles={roleList} onClose={() => setAdding(false)} />
       ) : null}
+      {importing ? <ImportStaff onClose={() => setImporting(false)} /> : null}
       {editing ? (
         <ManageStaff
           person={editing}

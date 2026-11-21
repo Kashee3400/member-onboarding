@@ -22,7 +22,7 @@ def covers_running(day=None):
 
 
 def covered_mccs(membership):
-    """The MCCs someone works today for a colleague on leave."""
+    """The MCCs someone works today while covering for a colleague."""
     absent = covers_running().filter(colleague=membership).values("absent")
     return MccAssignment.objects.filter(membership__in=absent, ended_at__isnull=True).values("mcc")
 
@@ -157,7 +157,7 @@ def give_cover(*, absent, colleague, starts_on, ends_on, reason, actor):
     from apps.notifications.services import notify
 
     if absent.pk == colleague.pk:
-        raise CoverError("Choose someone other than the person who is away.")
+        raise CoverError("Choose someone other than the person being covered.")
     if ends_on < starts_on:
         raise CoverError("The last day must be on or after the first.")
     if ends_on < timezone.localdate():
@@ -171,7 +171,7 @@ def give_cover(*, absent, colleague, starts_on, ends_on, reason, actor):
         raise CoverError("This person holds no MCCs to hand over.")
     needed = APPROVAL_PERMISSIONS & permissions_for(absent)
     if not needed <= permissions_for(colleague):
-        raise CoverError("This colleague cannot approve every stage the person away does.")
+        raise CoverError("This colleague cannot approve every stage the covered person does.")
     clash = MccCover.objects.filter(
         absent=absent,
         colleague=colleague,
@@ -304,3 +304,82 @@ def follow_master(kind: str, place) -> int:
     except IntegrityError as exc:
         raise PlaceClash("Another MPP already has this village and hamlet code.") from exc
     return changed
+
+
+class TransferError(Exception):
+    pass
+
+
+@transaction.atomic
+def transfer_work(*, source, target, actor) -> dict:
+    """
+    Hands everything someone approves to another person, for good: their MCCs and
+    the MPPs they hold as Area Manager. The forms follow, since forms follow the MPP.
+    A facilitator's MPPs are left alone: the ERP decides those, and would undo it.
+    """
+    from apps.notifications.services import notify
+
+    if source.pk == target.pk:
+        raise TransferError("Choose someone other than the person whose work moves.")
+    if not target.is_active:
+        raise TransferError("This person is inactive. Reactivate them first.")
+
+    mccs = list(
+        MccAssignment.objects.filter(membership=source, ended_at__isnull=True).select_related("mcc")
+    )
+    mpps = list(
+        MppAssignment.objects.filter(
+            membership=source, ended_at__isnull=True, responsibility=Responsibility.AREA_MANAGER
+        ).select_related("mpp")
+    )
+    facilitating = MppAssignment.objects.filter(
+        membership=source, ended_at__isnull=True, responsibility=Responsibility.FACILITATOR
+    ).count()
+    if not mccs and not mpps:
+        if facilitating:
+            raise TransferError(
+                "Their MPPs come from the ERP as facilitator. Move them to someone else there."
+            )
+        raise TransferError("This person holds no MCCs or MPPs to transfer.")
+
+    held = permissions_for(target)
+    needed = APPROVAL_PERMISSIONS & permissions_for(source)
+    if mccs and not needed <= held:
+        raise TransferError("This person cannot approve every stage the other one does.")
+    if mpps and REQUIRED_PERMISSION[Responsibility.AREA_MANAGER] not in held:
+        raise TransferError("This person cannot work an MPP as Area Manager.")
+
+    for assignment in mccs:
+        end_mcc_assignment(mcc=assignment.mcc, membership=source, actor=actor)
+        assign_mcc(mcc=assignment.mcc, membership=target, actor=actor)
+    for assignment in mpps:
+        assign_mpp(
+            mpp=assignment.mpp,
+            membership=target,
+            responsibility=Responsibility.AREA_MANAGER,
+            actor=actor,
+        )
+    # Someone covering for them would now cover nothing of theirs.
+    for cover in MccCover.objects.filter(
+        absent=source, ended_at__isnull=True, ends_on__gte=timezone.localdate()
+    ):
+        end_cover(cover=cover, actor=actor)
+
+    mcc_codes = sorted(assignment.mcc.code for assignment in mccs)
+    mpp_codes = sorted(assignment.mpp.code for assignment in mpps)
+    record_event(
+        "staff.work_transferred",
+        actor=actor,
+        target=source,
+        metadata={"to": str(target.id), "mccs": mcc_codes, "mpps": mpp_codes},
+    )
+    parts = [
+        f"MCC {', '.join(mcc_codes)}" if mcc_codes else "",
+        f"{len(mpp_codes)} MPPs" if mpp_codes else "",
+    ]
+    notify(
+        [target],
+        title=f"{_name(source)}'s work is now yours",
+        body=f"You now hold {' and '.join(part for part in parts if part)}, and their forms.",
+    )
+    return {"mccs": mcc_codes, "mpps": mpp_codes, "facilitator_mpps": facilitating}

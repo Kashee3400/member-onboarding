@@ -5088,6 +5088,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
+  /api/v1/staff/{id}/review-steps/:
+    get:
+      operationId: staff_review_steps_retrieve
+      description: One person's own review steps, or the ones their roles give.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReviewSteps'
+          description: ''
+    put:
+      operationId: staff_review_steps_update
+      description: One person's own review steps, or the ones their roles give.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffReviewStepsRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReviewSteps'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/v1/staff/{id}/signature/:
     get:
       operationId: staff_signature_retrieve
@@ -5162,6 +5223,93 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/v1/staff/{id}/transfer/:
+    post:
+      operationId: staff_transfer_create
+      description: Hands someone's MCCs and Area Manager MPPs to another person for
+        good.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffTransferRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffTransferResult'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/v1/staff/export/:
+    get:
+      operationId: staff_export_retrieve
+      description: Everyone active, in the layout Import takes. With template=1, only
+        the headings.
+      parameters:
+      - in: query
+        name: template
+        schema:
+          type: boolean
+      tags:
+      - staff
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/staff/import/:
+    post:
+      operationId: staff_import_create
+      description: |-
+        Adds staff from a spreadsheet. A preview changes nothing; the import is all or
+        nothing, and gives each new person a one-time password, shown only in its reply.
+      tags:
+      - staff
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffImportRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
           description: ''
   /health/live/:
     get:
@@ -9166,6 +9314,91 @@ components:
       required:
       - full_name
       - role_ids
+    StaffImportRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        preview:
+          type: boolean
+          default: true
+          description: Report what the file would do, and change nothing.
+      required:
+      - file
+    StaffReviewSteps:
+      type: object
+      properties:
+        custom:
+          type: boolean
+          readOnly: true
+        steps:
+          type: array
+          items:
+            type: string
+          nullable: true
+        role_steps:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        eligible:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        approves_all:
+          type: boolean
+          readOnly: true
+      required:
+      - approves_all
+      - custom
+      - eligible
+      - role_steps
+      - steps
+    StaffReviewStepsRequest:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          nullable: true
+        confirm:
+          type: boolean
+          writeOnly: true
+          default: false
+          description: Save even though some steps would have nobody else to approve
+            them.
+      required:
+      - steps
+    StaffTransferRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          format: uuid
+          description: The staff member who takes over.
+      required:
+      - to
+    StaffTransferResult:
+      type: object
+      properties:
+        mccs:
+          type: array
+          items:
+            type: string
+        mpps:
+          type: array
+          items:
+            type: string
+        facilitator_mpps:
+          type: integer
+      required:
+      - facilitator_mpps
+      - mccs
+      - mpps
     State:
       type: object
       description: The unique constraint includes the organization, which clients

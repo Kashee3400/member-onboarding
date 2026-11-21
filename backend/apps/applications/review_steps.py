@@ -10,7 +10,13 @@ from apps.rbac.catalog import APPROVE_ALL
 from apps.rbac.models import Role
 from apps.rbac.services import permissions_for, role_codes_for
 
-from .models import ApplicationDecision, ApplicationStepApproval, Decision, ReviewStepAccess
+from .models import (
+    ApplicationDecision,
+    ApplicationStepApproval,
+    Decision,
+    ReviewStepAccess,
+    StaffReviewSteps,
+)
 
 
 @dataclass(frozen=True)
@@ -46,6 +52,11 @@ STAGE_PERMISSIONS = {
     "pending_cs": "applications.approve_cs",
     "pending_finance": "applications.approve_finance",
 }
+STAGE_TITLES = {
+    "pending_am": "Area Manager",
+    "pending_cs": "CS & Legal",
+    "pending_finance": "Finance",
+}
 
 
 def roles_by_step() -> dict[str, set[str]]:
@@ -80,11 +91,38 @@ def acts_on_all(membership) -> bool:
     return APPROVE_ALL in permissions_for(membership)
 
 
+def custom_steps(membership) -> set[str] | None:
+    """This person's own steps, or None when their roles decide."""
+    steps = (
+        StaffReviewSteps.objects.filter(membership=membership)
+        .values_list("steps", flat=True)
+        .first()
+    )
+    return None if steps is None else set(steps)
+
+
+def role_steps(membership, saved=None) -> set[str]:
+    """The steps this person's roles give them."""
+    held = role_codes_for(membership)
+    saved = roles_by_step() if saved is None else saved
+    return {key for key, chosen in saved.items() if chosen & held}
+
+
+def approving_stages(membership) -> list[str]:
+    held = role_codes_for(membership)
+    return [stage for stage in STAGE_PERMISSIONS if held & _stage_roles(stage)]
+
+
+def eligible_steps(membership) -> set[str]:
+    """What this person could be given: the steps of the stages they approve."""
+    return {key for stage in approving_stages(membership) for key in stage_steps(stage)}
+
+
 def my_steps(membership) -> set[str]:
     if acts_on_all(membership):
         return set(STEP_KEYS)
-    held = role_codes_for(membership)
-    return {key for key, chosen in roles_by_step().items() if chosen & held}
+    own = custom_steps(membership)
+    return role_steps(membership) if own is None else own
 
 
 def my_sections(membership) -> set[str]:
@@ -108,7 +146,14 @@ def actionable(application, membership) -> set[str]:
             return set()
         return set(STEP_KEYS) - set(approvals_of(application))
     held = role_codes_for(membership) & _stage_roles(application.status)
-    open_steps = {key for key, chosen in roles_by_step().items() if chosen & held}
+    if not held:
+        return set()
+    own = custom_steps(membership)
+    if own is None:
+        open_steps = {key for key, chosen in roles_by_step().items() if chosen & held}
+    else:
+        # Their own steps, as far as this stage goes: never a later stage's step early.
+        open_steps = own & stage_steps(application.status)
     return open_steps - set(approvals_of(application))
 
 

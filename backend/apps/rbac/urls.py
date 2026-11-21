@@ -6,10 +6,14 @@ from .views import (
     PublicInvitationView,
     RoleViewSet,
     StaffDetailView,
+    StaffExportView,
+    StaffImportView,
     StaffInviteView,
     StaffListView,
     StaffMfaResetView,
     StaffPasswordResetView,
+    StaffReviewStepsView,
+    StaffTransferView,
 )
 
 router = SimpleRouter()
@@ -18,6 +22,14 @@ router.register("roles", RoleViewSet, basename="role")
 urlpatterns = [
     path("permissions/", PermissionCatalogView.as_view(), name="permission-list"),
     path("staff/", StaffListView.as_view(), name="staff-list"),
+    path("staff/export/", StaffExportView.as_view(), name="staff-export"),
+    path("staff/import/", StaffImportView.as_view(), name="staff-import"),
+    path("staff/<uuid:pk>/transfer/", StaffTransferView.as_view(), name="staff-transfer"),
+    path(
+        "staff/<uuid:pk>/review-steps/",
+        StaffReviewStepsView.as_view(),
+        name="staff-review-steps",
+    ),
     path("staff/<uuid:pk>/", StaffDetailView.as_view(), name="staff-detail"),
     path("staff/<uuid:pk>/invite/", StaffInviteView.as_view(), name="staff-invite"),
     path("public/invitations/", PublicInvitationView.as_view(), name="public-invitation"),

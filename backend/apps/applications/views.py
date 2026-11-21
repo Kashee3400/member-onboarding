@@ -835,6 +835,19 @@ class ReviewStepAccessView(APIView):
                 raise exceptions.ValidationError({"steps": ["Every step needs a role."]})
             if not set(codes) <= set(roles):
                 raise exceptions.ValidationError({"steps": ["Choose only approver roles."]})
+        # A stage with no step would let a form pass it unchecked, yet with its signature.
+        for stage, permission in review_steps.STAGE_PERMISSIONS.items():
+            stage_roles = {code for code, role in roles.items() if permission in role.permissions}
+            if not any(set(codes) & stage_roles for codes in chosen.values()):
+                label = review_steps.STAGE_TITLES[stage]
+                raise exceptions.ValidationError(
+                    {
+                        "steps": [
+                            f"Give the {label} stage at least one step. Without one, forms "
+                            "pass it unchecked and still carry its signature."
+                        ]
+                    }
+                )
 
         ReviewStepAccess.objects.all().delete()
         ReviewStepAccess.objects.bulk_create(

@@ -23,7 +23,11 @@ import { api, type Page } from "@/lib/api/client";
 import { isoDay } from "@/lib/format";
 import type { MccCover, Role, Staff } from "@/lib/types";
 
-const APPROVALS = ["applications.approve_am", "applications.approve_cs", "applications.approve_finance"];
+const APPROVALS = [
+  "applications.approve_am",
+  "applications.approve_cs",
+  "applications.approve_finance",
+];
 const URL = "hierarchy/mcc-covers";
 
 function days(cover: MccCover) {
@@ -43,7 +47,8 @@ const BADGE: Record<MccCover["state"], { status: string; label: string }> = {
 function useApprovers(enabled: boolean) {
   const staff = useQuery({
     queryKey: ["staff", "approvers"],
-    queryFn: () => api<Page<Staff>>("staff", { query: { page_size: 500, is_active: true } }),
+    queryFn: () =>
+      api<Page<Staff>>("staff", { query: { page_size: 500, is_active: true } }),
     enabled,
   });
   const roles = useQuery({
@@ -53,13 +58,17 @@ function useApprovers(enabled: boolean) {
   });
   const approving = new Set(
     (roles.data?.results ?? [])
-      .filter((role) => role.permissions.some((code) => APPROVALS.includes(code)))
+      .filter((role) =>
+        role.permissions.some((code) => APPROVALS.includes(code)),
+      )
       .map((role) => role.code),
   );
-  return (staff.data?.results ?? []).filter((person) => person.roles.some((role) => approving.has(role.code)));
+  return (staff.data?.results ?? []).filter((person) =>
+    person.roles.some((role) => approving.has(role.code)),
+  );
 }
 
-function HandOver({ onClose }: { onClose: () => void }) {
+function StartCover({ onClose }: { onClose: () => void }) {
   const client = useQueryClient();
   const approvers = useApprovers(true);
   const [absent, setAbsent] = useState("");
@@ -71,12 +80,20 @@ function HandOver({ onClose }: { onClose: () => void }) {
     mutationFn: () =>
       api<MccCover>(URL, {
         method: "POST",
-        body: { absent, colleague, starts_on: range.from, ends_on: range.to || range.from, reason },
+        body: {
+          absent,
+          colleague,
+          starts_on: range.from,
+          ends_on: range.to || range.from,
+          reason,
+        },
       }),
     onSuccess: (cover) => {
       client.invalidateQueries({ queryKey: ["mcc-covers"] });
       client.invalidateQueries({ queryKey: ["queue"] });
-      toast.success(`${cover.colleague_name} covers ${cover.absent_name} from ${days(cover)}.`);
+      toast.success(
+        `${cover.colleague_name} covers ${cover.absent_name} from ${days(cover)}.`,
+      );
       onClose();
     },
   });
@@ -87,8 +104,8 @@ function HandOver({ onClose }: { onClose: () => void }) {
 
   return (
     <FormDialog
-      title="Hand over for leave"
-      description="The colleague works the MCCs of the person away, in their own role, on these days only. The person away keeps theirs."
+      title="Temporary cover"
+      description="A colleague also works someone's MCCs, in their own role, on these days only: leave, training, a field visit. Both keep working them. For someone who has left, transfer their work from Staff instead."
       onClose={onClose}
       onSubmit={(event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -101,24 +118,33 @@ function HandOver({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button type="submit" disabled={!ready || give.isPending}>
-            {give.isPending ? "Handing over…" : "Hand over"}
+            {give.isPending ? "Saving…" : "Start cover"}
           </Button>
         </>
       }
     >
-      <Field label="Person away" help="Whatever MCCs they hold during these days go to the colleague.">
+      <Field
+        label="Covered person"
+        help="Whatever MCCs they hold during these days, the colleague works too."
+      >
         <Listbox
-          aria-label="Person away"
+          aria-label="Covered person"
           placeholder="Choose a person"
           value={absent}
           onChange={(value) => {
             setAbsent(value);
             if (value === colleague) setColleague("");
           }}
-          items={approvers.map((person) => ({ value: person.id, label: label(person) }))}
+          items={approvers.map((person) => ({
+            value: person.id,
+            label: label(person),
+          }))}
         />
       </Field>
-      <Field label="Colleague who covers" help="Must approve the same stages as the person away.">
+      <Field
+        label="Colleague who covers"
+        help="Must approve the same stages as the covered person."
+      >
         <Listbox
           aria-label="Colleague who covers"
           placeholder="Choose a colleague"
@@ -129,7 +155,10 @@ function HandOver({ onClose }: { onClose: () => void }) {
             .map((person) => ({ value: person.id, label: label(person) }))}
         />
       </Field>
-      <Field label="Days" help="Both days count. The cover stops by itself after the last day.">
+      <Field
+        label="Days"
+        help="Both days count. The cover stops by itself after the last day."
+      >
         <DateRangePicker
           aria-label="Days"
           from={range.from}
@@ -141,12 +170,15 @@ function HandOver({ onClose }: { onClose: () => void }) {
           onChange={setRange}
         />
       </Field>
-      <Field label="Reason" help="Kept in the history and shown to the colleague.">
+      <Field
+        label="Reason"
+        help="Kept in the history and shown to the colleague."
+      >
         <Textarea
           aria-label="Reason"
           value={reason}
           maxLength={300}
-          placeholder="Annual leave"
+          placeholder="Leave, training, field visit…"
           onChange={(event) => setReason(event.target.value)}
         />
       </Field>
@@ -154,14 +186,22 @@ function HandOver({ onClose }: { onClose: () => void }) {
   );
 }
 
-function CoverRow({ cover, canAssign }: { cover: MccCover; canAssign: boolean }) {
+function CoverRow({
+  cover,
+  canAssign,
+}: {
+  cover: MccCover;
+  canAssign: boolean;
+}) {
   const client = useQueryClient();
   const end = useMutation({
     mutationFn: () => api(`${URL}/${cover.id}/end`, { method: "POST" }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["mcc-covers"] });
       client.invalidateQueries({ queryKey: ["queue"] });
-      toast.success(cover.state === "upcoming" ? "Cover called off." : "Cover ended.");
+      toast.success(
+        cover.state === "upcoming" ? "Cover called off." : "Cover ended.",
+      );
     },
     onError: (error) => toast.error(messageOf(error)),
   });
@@ -179,7 +219,11 @@ function CoverRow({ cover, canAssign }: { cover: MccCover; canAssign: boolean })
         </p>
         <p className="text-muted-foreground tabular-nums">
           {days(cover)}
-          {live ? (cover.mccs.length ? ` · MCC ${cover.mccs.join(", ")}` : " · holds no MCCs now") : ""}
+          {live
+            ? cover.mccs.length
+              ? ` · MCC ${cover.mccs.join(", ")}`
+              : " · holds no MCCs now"
+            : ""}
         </p>
         <p className="text-xs text-muted-foreground">
           {cover.reason} · given by {cover.given_by_name}
@@ -188,12 +232,21 @@ function CoverRow({ cover, canAssign }: { cover: MccCover; canAssign: boolean })
       </div>
       {live && canAssign ? (
         <Confirm
-          title={cover.state === "upcoming" ? "Call off this cover?" : "End this cover now?"}
+          title={
+            cover.state === "upcoming"
+              ? "Call off this cover?"
+              : "End this cover now?"
+          }
           description={`${cover.colleague_name} stops working ${cover.absent_name}'s MCCs at once. It stays in the history.`}
           action={cover.state === "upcoming" ? "Call off" : "End now"}
           onConfirm={() => end.mutate()}
           trigger={
-            <Button type="button" variant="outline" size="sm" disabled={end.isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={end.isPending}
+            >
               {cover.state === "upcoming" ? "Call off" : "End now"}
             </Button>
           }
@@ -203,7 +256,7 @@ function CoverRow({ cover, canAssign }: { cover: MccCover; canAssign: boolean })
   );
 }
 
-/** Cover for people on leave, above the MCC list: what runs now, what is coming, and the history. */
+/** Temporary cover, above the MCC list: what runs now, what is coming, and the history. */
 export function MccCovers() {
   const canAssign = useCan("mpp.assign");
   const [giving, setGiving] = useState(false);
@@ -211,11 +264,17 @@ export function MccCovers() {
 
   const current = useQuery({
     queryKey: ["mcc-covers", "current"],
-    queryFn: () => api<Page<MccCover>>(URL, { query: { state: "current", page_size: 200, ordering: "starts_on" } }),
+    queryFn: () =>
+      api<Page<MccCover>>(URL, {
+        query: { state: "current", page_size: 200, ordering: "starts_on" },
+      }),
   });
   const past = useQuery({
     queryKey: ["mcc-covers", "past"],
-    queryFn: () => api<Page<MccCover>>(URL, { query: { state: "past", page_size: 50, ordering: "-ends_on" } }),
+    queryFn: () =>
+      api<Page<MccCover>>(URL, {
+        query: { state: "past", page_size: 50, ordering: "-ends_on" },
+      }),
     enabled: showPast,
   });
   const rows = current.data?.results ?? [];
@@ -224,14 +283,16 @@ export function MccCovers() {
     <Card className="gap-0 p-0">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-medium">Leave cover</h2>
+          <h2 className="font-medium">Temporary cover</h2>
           <p className="text-sm text-muted-foreground">
-            While someone is away, a colleague works their MCCs as well. It stops by itself after the last day.
+            For a few days, a colleague works someone&apos;s MCCs as well. It
+            stops by itself after the last day. Someone who has left: transfer
+            their work from Staff.
           </p>
         </div>
         {canAssign ? (
           <Button type="button" onClick={() => setGiving(true)}>
-            <CalendarClock /> Hand over for leave
+            <CalendarClock /> Temporary cover
           </Button>
         ) : null}
       </div>
@@ -252,7 +313,12 @@ export function MccCovers() {
           </p>
         )}
 
-        <Button type="button" variant="ghost" size="sm" onClick={() => setShowPast((open) => !open)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowPast((open) => !open)}
+        >
           {showPast ? "Hide earlier covers" : "Show earlier covers"}
         </Button>
         {showPast ? (
@@ -271,7 +337,7 @@ export function MccCovers() {
           )
         ) : null}
       </div>
-      {giving ? <HandOver onClose={() => setGiving(false)} /> : null}
+      {giving ? <StartCover onClose={() => setGiving(false)} /> : null}
     </Card>
   );
 }

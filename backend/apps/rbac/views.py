@@ -2,10 +2,13 @@ import uuid
 
 from django.contrib.auth import get_user_model
 from django.db.models import Exists, OuterRef, ProtectedError
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import exceptions, generics, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -20,10 +23,10 @@ from apps.console.permissions import is_operator
 from apps.core.exceptions import Conflict, ErrorResponseSerializer
 from apps.core.tenancy import organization_context
 from apps.documents.models import StaffSignature
-from apps.hierarchy.services import end_assignments_for
+from apps.hierarchy.services import TransferError, end_assignments_for, transfer_work
 from apps.organizations.models import Membership, Organization
 
-from . import invitations
+from . import invitations, staff_io
 from .catalog import PERMISSIONS
 from .models import Role
 from .navigation import locked_paths, navigation_for
@@ -38,7 +41,11 @@ from .serializers import (
     PermissionSerializer,
     RoleSerializer,
     StaffCreateSerializer,
+    StaffImportSerializer,
+    StaffReviewStepsSerializer,
     StaffSerializer,
+    StaffTransferResultSerializer,
+    StaffTransferSerializer,
     StaffUpdateSerializer,
     TemporaryPasswordSerializer,
 )
@@ -446,3 +453,109 @@ class StaffMfaResetView(APIView):
         reset_mfa(membership.user)
         record_event("mfa.reset", actor=request.user, target=membership)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StaffTransferView(APIView):
+    """Hands someone's MCCs and Area Manager MPPs to another person for good."""
+
+    permission_classes = [IsAuthenticated, require_permission("mpp.assign")]
+
+    @extend_schema(
+        request=StaffTransferSerializer,
+        responses={200: StaffTransferResultSerializer, 400: ErrorResponseSerializer},
+    )
+    def post(self, request, pk):
+        source = get_object_or_404(Membership, pk=pk)
+        serializer = StaffTransferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        target = get_object_or_404(Membership, pk=serializer.validated_data["to"])
+        try:
+            result = transfer_work(source=source, target=target, actor=request.user)
+        except TransferError as error:
+            raise exceptions.ValidationError({"to": [str(error)]}) from error
+        return Response(result)
+
+
+class StaffReviewStepsView(APIView):
+    """One person's own review steps, or the ones their roles give."""
+
+    permission_classes = [IsAuthenticated, require_permission("settings.review_steps")]
+
+    @extend_schema(responses={200: StaffReviewStepsSerializer})
+    def get(self, request, pk):
+        from apps.applications import staff_steps
+
+        return Response(staff_steps.state(get_object_or_404(Membership, pk=pk)))
+
+    @extend_schema(
+        request=StaffReviewStepsSerializer,
+        responses={
+            200: StaffReviewStepsSerializer,
+            400: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
+    def put(self, request, pk):
+        from apps.applications import staff_steps
+
+        membership = get_object_or_404(Membership, pk=pk)
+        serializer = StaffReviewStepsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        return Response(
+            staff_steps.save(membership, data["steps"], actor=request.user, confirm=data["confirm"])
+        )
+
+
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+class StaffExportView(APIView):
+    """Everyone active, in the layout Import takes. With template=1, only the headings."""
+
+    permission_classes = [IsAuthenticated, require_permission("staff.view")]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("template", bool)],
+        responses={(200, XLSX): bytes},
+    )
+    def get(self, request):
+        template = request.query_params.get("template") in ("1", "true")
+        organization = request.user.active_membership.organization
+        content = staff_io.export_staff(organization, template=template)
+        name = "staff_template.xlsx" if template else f"staff_{organization.slug}.xlsx"
+        response = HttpResponse(content, content_type=XLSX)
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class StaffImportView(APIView):
+    """
+    Adds staff from a spreadsheet. A preview changes nothing; the import is all or
+    nothing, and gives each new person a one-time password, shown only in its reply.
+    """
+
+    parser_classes = [MultiPartParser]
+    permission_classes = [IsAuthenticated, require_permission("staff.manage")]
+
+    @extend_schema(
+        request={"multipart/form-data": StaffImportSerializer},
+        responses={200: OpenApiTypes.OBJECT, 400: ErrorResponseSerializer},
+    )
+    def post(self, request):
+        serializer = StaffImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        records = staff_io.read_rows(serializer.validated_data["file"].read())
+        organization = request.user.active_membership.organization
+        if serializer.validated_data["preview"]:
+            return Response(staff_io.preview(records, organization))
+        roles = {
+            role.code: role
+            for role in Role.objects.filter(
+                code__in={code for record in records for code in staff_io._codes(record["role"])}
+            )
+        }
+        ensure_can_assign(request.user, list(roles.values()))
+        result = staff_io.import_staff(records, organization, actor=request.user)
+        return Response(result, headers={"Cache-Control": "no-store"})

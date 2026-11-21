@@ -251,6 +251,24 @@ class ReviewStepAccess(OrganizationOwnedModel):
         return f"{self.step}: {self.role_id}"
 
 
+class StaffReviewSteps(OrganizationOwnedModel):
+    """
+    One person's own review steps, in place of what their roles give: say an Area
+    Manager who checks five of the eight. Only steps of the stages they approve.
+    """
+
+    membership = models.OneToOneField(
+        "organizations.Membership", on_delete=models.CASCADE, related_name="+"
+    )
+    steps = models.JSONField(default=list)
+
+    class Meta:
+        db_table = "application_staff_review_steps"
+
+    def __str__(self):
+        return f"{self.membership_id}: {', '.join(self.steps)}"
+
+
 class ReviewSettings(OrganizationOwnedModel):
     """How review behaves, as each organization chooses."""
 
